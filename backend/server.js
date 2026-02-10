@@ -108,9 +108,6 @@ app.get('/api/devices', validateToken, async (req, res) => {
         // Intune might return 403 if no license/permissions
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch devices' });
     }
-    // Intune might return 403 if no license/permissions
-    res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch devices' });
-}
 });
 
 // Import Unifi Service (Optional Integration)

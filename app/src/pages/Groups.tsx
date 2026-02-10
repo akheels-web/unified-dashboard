@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Search, RefreshCw, Users, Mail, Calendar, Shield, LayoutGrid
+    Search, RefreshCw, Users, Mail, Calendar, Shield
 } from 'lucide-react';
 import { groupsApi } from '@/services/api';
 import type { UserGroup } from '@/types';
