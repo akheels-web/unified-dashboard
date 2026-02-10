@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserPlus, MapPin, CheckCircle2, ChevronRight, Briefcase, Laptop,
@@ -7,7 +7,7 @@ import {
   ChevronLeft, Loader2
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
-import { useAssetStore } from '@/stores/assetStore';
+
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { onboardingApi, usersApi } from '@/services/api';

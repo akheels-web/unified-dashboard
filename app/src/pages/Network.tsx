@@ -12,7 +12,7 @@ import { unifiApi } from '@/services/api';
 import type { UnifiDevice } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 
 const deviceTypeIcons: Record<string, React.ElementType> = {
   gateway: Router, // Router is still used here, so it should not be removed from lucide-react imports.
