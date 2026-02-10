@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Users, Laptop, TrendingUp, Download,
   FileText, Shield, Key, History,
-  CheckCircle2, XCircle, AlertTriangle
+  CheckCircle2, XCircle
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,

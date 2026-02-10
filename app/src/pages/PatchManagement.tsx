@@ -4,7 +4,6 @@ import {
     Shield, CheckCircle,
     Search, RefreshCw, ExternalLink,
     Settings as SettingsIcon,
-    AlertTriangle,
     CheckCircle2
 } from 'lucide-react';
 import { usePatchStore } from '@/stores/patchStore';

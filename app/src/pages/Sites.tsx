@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    MapPin, Signal, Wifi, Users,
-    Globe, Search, Plus, Filter,
+    MapPin, Users,
+    Globe, Search, Plus,
     MoreVertical, Edit, Trash2, X, Shield
 } from 'lucide-react';
 import { useNetworkStore } from '@/stores/networkStore';
-import { StatusBadge } from '@/components/common/StatusBadge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { UnifiSite } from '@/types';

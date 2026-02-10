@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  UserPlus, Mail, MapPin, Calendar as CalendarIcon, CheckCircle2, ChevronRight, Briefcase, Laptop,
-  Phone, Key, Check, Zap, User, Users, X, Eye, EyeOff, Copy, Plus, Search, Building2, MoreVertical,
+  UserPlus, MapPin, CheckCircle2, ChevronRight, Briefcase, Laptop,
+  Phone, Key, Check, Zap, User, Users, X, Eye, EyeOff, Copy, Plus, Search, Building2,
   ChevronLeft, Loader2
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { onboardingApi, usersApi } from '@/services/api';
 import { mockM365Apps, mockM365Licenses, mockIntuneDevices } from '@/services/mockData';
 import { generateSecurePassword, copyToClipboard } from '@/lib/utils';
-import type { OnboardingFormData, M365App, M365User, M365License, IntuneDevice, OnboardingWorkflow } from '@/types';
+import type { M365App, M365User, M365License, IntuneDevice, OnboardingWorkflow } from '@/types';
 
 // Simple Status Badge Component since we can't be sure if it's exported correctly elsewhere
 const StatusBadge = ({ status }: { status: string }) => {
@@ -43,9 +43,7 @@ const steps = [
 ];
 
 export default function Onboarding() {
-  const navigate = useNavigate();
   const { groups } = useUserStore();
-  const { assets } = useAssetStore();
 
   // State
   const [currentStep, setCurrentStep] = useState(0);

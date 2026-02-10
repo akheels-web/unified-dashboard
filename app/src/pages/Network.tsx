@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Wifi, Server, Activity, AlertCircle,
+  Wifi, Server,
   Plus, Shield, Globe,
-  Search, RefreshCw, MoreVertical,
-  Signal, Smartphone, Laptop,
+  RefreshCw,
   Router, XCircle, Users, Download, Upload, Loader2, Power, X
 } from 'lucide-react';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -13,11 +12,7 @@ import { unifiApi } from '@/services/api';
 import type { UnifiDevice } from '@/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { formatDistanceToNow } from 'date-fns';
 
 const deviceTypeIcons: Record<string, React.ElementType> = {
   gateway: Router, // Router is still used here, so it should not be removed from lucide-react imports.
@@ -26,7 +21,7 @@ const deviceTypeIcons: Record<string, React.ElementType> = {
 };
 
 export function Network() {
-  const { sites, setSites } = useNetworkStore();
+  const { sites } = useNetworkStore();
   const [devices, setDevices] = useState<UnifiDevice[]>([]);
   const [selectedSite, setSelectedSite] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
