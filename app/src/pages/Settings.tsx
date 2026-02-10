@@ -1,15 +1,15 @@
-```
+
 import { useState, useEffect } from 'react';
 import {
-    Settings as SettingsIcon,
-    Shield, Bell, Database,
-    Save, Plus, Trash2,
-    Palette, Sun, Moon, Key, AlertTriangle, Loader2
+  Shield, Bell,
+  Save,
+  Palette, Sun, Moon, Key, AlertTriangle, Loader2,
+  Settings2, Cloud
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { usePatchStore } from '@/stores/patchStore';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 const settingTabs = [

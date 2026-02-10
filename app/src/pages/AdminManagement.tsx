@@ -496,7 +496,6 @@ function AdminModal({ isOpen, onClose, onSave, admin, mode }: AdminModalProps) {
                     reports: false,
                     auditLogs: false,
                     settings: false,
-                    settings: false,
                 },
             });
         }
