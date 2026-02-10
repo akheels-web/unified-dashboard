@@ -1,5 +1,4 @@
 const axios = require('axios');
-const cheerio = require('cheerio'); // You might need to install this: npm install cheerio
 
 // Status Page URLs
 const MICROSOFT_STATUS_URL = 'https://status.cloud.microsoft'; // This usually redirects to a portal, might be hard to scrape
