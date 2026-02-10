@@ -545,11 +545,35 @@ export const offboardingApi = {
 export const unifiApi = {
   getSites: async (): Promise<ApiResponse<UnifiSite[]>> => {
     await delay(400);
+    // Unifi Controller often has a "default" site, or we might need to fetch them.
+    // For now, keep using store defaults or mock until we have a real sites endpoint if needed.
     const sites = useNetworkStore.getState().sites;
     return { success: true, data: sites };
   },
 
   getDevices: async (siteId?: string): Promise<ApiResponse<UnifiDevice[]>> => {
+    try {
+      const realData = await fetchClient('/unifi/devices');
+      if (realData && realData.data) {
+        const devices: UnifiDevice[] = realData.data.map((d: any) => ({
+          id: d._id || d.mac,
+          name: d.name || d.model,
+          model: d.model,
+          macAddress: d.mac,
+          ipAddress: d.ip,
+          status: d.state === 1 ? 'online' : 'offline',
+          siteId: d.site_id || 'default',
+          firmwareVersion: d.version,
+          uptime: d.uptime,
+          numClients: d.num_sta,
+          deviceType: d.type === 'uap' ? 'ap' : d.type === 'usw' ? 'switch' : 'gateway'
+        }));
+        return { success: true, data: devices };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock/store data for unifi devices", e);
+    }
+
     await delay(500);
     let devices = useNetworkStore.getState().devices;
     if (siteId) {
@@ -574,6 +598,15 @@ export const unifiApi = {
   },
 
   getClients: async (_siteId: string): Promise<ApiResponse<any[]>> => {
+    try {
+      const realData = await fetchClient('/unifi/clients');
+      if (realData && realData.data) {
+        return { success: true, data: realData.data };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for unifi clients", e);
+    }
+
     await delay(500);
     return {
       success: true,
@@ -586,6 +619,16 @@ export const unifiApi = {
   },
 
   getStats: async (_siteId: string): Promise<ApiResponse<any>> => {
+    try {
+      const realData = await fetchClient('/unifi/health');
+      if (realData && realData.data) {
+        // Transform health data if necessary
+        return { success: true, data: realData.data };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for unifi stats", e);
+    }
+
     await delay(400);
     return {
       success: true,

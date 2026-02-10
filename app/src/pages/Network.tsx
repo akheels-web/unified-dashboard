@@ -47,13 +47,19 @@ export function Network() {
         setDevices(devicesRes.data || []);
       }
 
-      // Load stats for first site (mocked for now)
-      setSiteStats({
-        wanDownload: 245.5,
-        wanUpload: 120.2,
-        totalClients: sites.reduce((acc: number, site: any) => acc + site.clientCount, 0),
-        avgUptime: 99.9
-      });
+      // Load stats
+      const statsRes = await unifiApi.getStats(selectedSite === 'all' ? 'default' : selectedSite);
+      if (statsRes.success && statsRes.data) {
+        setSiteStats(statsRes.data);
+      } else {
+        // Fallback if no stats
+        setSiteStats({
+          wanDownload: 0,
+          wanUpload: 0,
+          totalClients: 0,
+          avgUptime: 0
+        });
+      }
 
     } catch (error) {
       toast.error('Failed to load network data');
