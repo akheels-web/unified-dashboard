@@ -76,9 +76,16 @@ const makeRequest = async (method, url, data = null) => {
         const config = { method, url };
         if (data) config.data = data;
 
+        console.log(`[Unifi] Requesting ${method.toUpperCase()} ${url}`);
         const response = await unifiClient(config);
+        console.log(`[Unifi] Success: ${response.status} - Data length: ${JSON.stringify(response.data).length}`);
         return response.data;
     } catch (error) {
+        console.error(`[Unifi] Request failed for ${url}:`, error.message);
+        if (error.response) {
+            console.error('[Unifi] Response Data:', JSON.stringify(error.response.data).substring(0, 200)); // Log first 200 chars
+        }
+
         // If 401 Unauthorized, try logging in again once (only if NOT using API Key)
         if (error.response && error.response.status === 401 && !process.env.UNIFI_API_KEY) {
             console.log('[Unifi] Session expired, re-authenticating...');
