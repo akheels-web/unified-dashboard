@@ -2,10 +2,8 @@ const axios = require('axios');
 const https = require('https');
 
 // Create an Axios instance for Unifi
-// Note: Many Unifi controllers use self-signed certificates, so we disable SSL verification.
-// In a production environment with public certs, you should enable verification.
 const unifiClient = axios.create({
-    baseURL: process.env.UNIFI_URL, // e.g., https://192.168.1.1:8443 or https://unifi.ui.com
+    baseURL: process.env.UNIFI_URL,
     httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     headers: {
         'Content-Type': 'application/json',
@@ -14,10 +12,19 @@ const unifiClient = axios.create({
     withCredentials: true // Important for maintaining session cookies
 });
 
+// Add API Key if present
+if (process.env.UNIFI_API_KEY) {
+    console.log('[Unifi] Using API Key authentication');
+    unifiClient.defaults.headers.common['X-API-KEY'] = process.env.UNIFI_API_KEY;
+}
+
 let cookieJar = null;
 
 // Login to Unifi Controller
 const login = async () => {
+    // Skip login if using API Key
+    if (process.env.UNIFI_API_KEY) return true;
+
     if (!process.env.UNIFI_URL || !process.env.UNIFI_USERNAME || !process.env.UNIFI_PASSWORD) {
         console.warn('Unifi credentials not configured in .env');
         return false;
@@ -59,7 +66,8 @@ const login = async () => {
 
 // Generic wrapper to ensure we are logged in before making requests
 const makeRequest = async (method, url, data = null) => {
-    if (!cookieJar) {
+    // If no API Key and no cookie, try login
+    if (!process.env.UNIFI_API_KEY && !cookieJar) {
         const loggedIn = await login();
         if (!loggedIn) throw new Error('Unifi login failed or not configured');
     }
@@ -71,8 +79,8 @@ const makeRequest = async (method, url, data = null) => {
         const response = await unifiClient(config);
         return response.data;
     } catch (error) {
-        // If 401 Unauthorized, try logging in again once
-        if (error.response && error.response.status === 401) {
+        // If 401 Unauthorized, try logging in again once (only if NOT using API Key)
+        if (error.response && error.response.status === 401 && !process.env.UNIFI_API_KEY) {
             console.log('[Unifi] Session expired, re-authenticating...');
             const loggedIn = await login();
             if (loggedIn) {
