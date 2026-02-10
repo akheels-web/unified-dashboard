@@ -84,7 +84,7 @@ export default function AdminManagement() {
                             source: 'synced',
                             m365GroupId: groupMappings.find(m => m.role === 'it_user')?.groupId,
                             permissions: {
-                                dashboard: true, users: true, assets: true, software: false,
+                                dashboard: true, users: true, groups: true, assets: true, software: false,
                                 onboarding: false, offboarding: false, network: true, sites: false,
                                 proxmox: false, patchManagement: false, reports: true, auditLogs: false, settings: false
                             }
@@ -452,6 +452,7 @@ function AdminModal({ isOpen, onClose, onSave, admin, mode }: AdminModalProps) {
         permissions: {
             dashboard: true,
             users: false,
+            groups: false,
             assets: false,
             software: false,
             onboarding: false,
@@ -485,6 +486,7 @@ function AdminModal({ isOpen, onClose, onSave, admin, mode }: AdminModalProps) {
                 permissions: {
                     dashboard: true,
                     users: false,
+                    groups: false,
                     assets: false,
                     software: false,
                     onboarding: false,
@@ -511,6 +513,7 @@ function AdminModal({ isOpen, onClose, onSave, admin, mode }: AdminModalProps) {
                 permissions: {
                     dashboard: true,
                     users: true, // Both can usually access users
+                    groups: isFullAdmin,
                     assets: true, // Both can usually access assets
                     software: isFullAdmin,
                     onboarding: isFullAdmin, // Specific request: View/Edit for limited admin (we'll set false by default, user checks it)
@@ -544,7 +547,9 @@ function AdminModal({ isOpen, onClose, onSave, admin, mode }: AdminModalProps) {
 
     const permissionGroups = [
         { key: 'dashboard' as keyof PagePermissions, label: 'Dashboard' },
+        { key: 'dashboard' as keyof PagePermissions, label: 'Dashboard' },
         { key: 'users' as keyof PagePermissions, label: 'Users' },
+        { key: 'groups' as keyof PagePermissions, label: 'Groups' },
         { key: 'assets' as keyof PagePermissions, label: 'Assets' },
         { key: 'software' as keyof PagePermissions, label: 'Software' },
         { key: 'onboarding' as keyof PagePermissions, label: 'Onboarding' },
