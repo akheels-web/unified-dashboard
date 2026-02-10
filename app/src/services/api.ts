@@ -13,6 +13,40 @@ import {
   mockDepartmentData, mockAssetStatusData, mockLifecycleData
 } from './mockData';
 import { useNetworkStore } from '@/stores/networkStore';
+import { getAccessToken } from './auth';
+
+// API Base URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+// Authenticated Fetch Client
+const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
+  try {
+    const token = await getAccessToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      // @ts-ignore
+      ...options.headers,
+    };
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      // Handle 401/403 specifically if needed
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('API Call Failed:', error);
+    // Fallback to mock data if API fails (for hybrid transition)
+    // throw error; 
+    return null;
+  }
+};
 
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -50,6 +84,61 @@ export const dashboardApi = {
 // Users API
 export const usersApi = {
   getUsers: async (filters?: UserFilters, page: number = 1, pageSize: number = 25): Promise<ApiResponse<PaginatedResponse<M365User>>> => {
+    // Try sending to real backend first
+    try {
+      const realData = await fetchClient('/users');
+      if (realData && realData.value) {
+        // Transform Graph API data to our M365User shape
+        const users: M365User[] = realData.value.map((u: any) => ({
+          id: u.id,
+          displayName: u.displayName,
+          email: u.mail || u.userPrincipalName,
+          userPrincipalName: u.userPrincipalName,
+          department: u.department || 'Unassigned',
+          jobTitle: u.jobTitle || 'Unknown',
+          officeLocation: u.officeLocation || 'Remote',
+          accountEnabled: u.accountEnabled !== false, // Graph uses accountEnabled boolean
+          assignedLicenses: [], // Requires separate call or expansion
+          manager: undefined
+        }));
+
+        // Apply client-side filtering/pagination for now (since backend is simple proxy)
+        // In production, move this logic to the backend!
+        let filteredUsers = users;
+
+        if (filters?.search) {
+          const search = filters.search.toLowerCase();
+          filteredUsers = filteredUsers.filter(u =>
+            u.displayName.toLowerCase().includes(search) ||
+            u.email?.toLowerCase().includes(search) ||
+            u.userPrincipalName.toLowerCase().includes(search)
+          );
+        }
+
+        if (filters?.department) {
+          filteredUsers = filteredUsers.filter(u => u.department === filters.department);
+        }
+
+        const total = filteredUsers.length;
+        const totalPages = Math.ceil(total / pageSize);
+        const start = (page - 1) * pageSize;
+        const paginatedUsers = filteredUsers.slice(start, start + pageSize);
+
+        return {
+          success: true,
+          data: {
+            data: paginatedUsers,
+            total,
+            page,
+            pageSize,
+            totalPages,
+          }
+        };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for users", e);
+    }
+
     await delay(600);
 
     let filteredUsers = [...mockM365Users];
