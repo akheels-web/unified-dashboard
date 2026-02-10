@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Globe, Plus, MapPin, Users,
-    Search, ExternalLink,
-    Shield
+    MapPin, Signal, Wifi, Users,
+    Globe, Search, Plus, Filter,
+    MoreVertical, Edit, Trash2, X, Shield
 } from 'lucide-react';
 import { useNetworkStore } from '@/stores/networkStore';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -42,7 +42,7 @@ export function Sites() {
         } else {
             const newSite: UnifiSite = {
                 ...formData as UnifiSite,
-                id: `site_${Math.random().toString(36).substr(2, 9)}`,
+                id: `site_${Math.random().toString(36).substr(2, 9)} `,
                 deviceCount: 0,
                 clientCount: 0,
                 isActive: true,

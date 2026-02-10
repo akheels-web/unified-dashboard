@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Server, HardDrive, Cpu, Activity,
-    PlayCircle, StopCircle, RefreshCw,
-    ChevronDown, ChevronRight
+    RefreshCw, ChevronDown, ChevronRight,
+    Plus, Trash2, Monitor, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProxmoxStore, type ProxmoxNode, type ProxmoxVm } from '@/stores/proxmoxStore';

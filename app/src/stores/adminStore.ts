@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { DashboardAdmin, PagePermissions, M365GroupMapping } from '@/types';
+import type { DashboardAdmin, M365GroupMapping } from '@/types';
 
 interface AdminState {
     admins: DashboardAdmin[];

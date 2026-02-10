@@ -9,7 +9,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Users } from '@/pages/Users';
 import { Assets } from '@/pages/Assets';
 import { SoftwarePage } from '@/pages/Software';
-import { Onboarding } from '@/pages/Onboarding';
+import Onboarding from '@/pages/Onboarding';
 import { Offboarding } from '@/pages/Offboarding';
 import { Network } from '@/pages/Network';
 import { Sites } from '@/pages/Sites';

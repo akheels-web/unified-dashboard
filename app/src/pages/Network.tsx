@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wifi, Server, Activity, AlertCircle,
   Plus, Shield, Globe,
   Search, RefreshCw, MoreVertical,
-  Signal, Smartphone, Laptop
+  Signal, Smartphone, Laptop,
+  Router, XCircle, Users, Download, Upload, Loader2, Power, X
 } from 'lucide-react';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { useNetworkStore } from '@/stores/networkStore';
 import { unifiApi } from '@/services/api';
 import type { UnifiDevice } from '@/types';
