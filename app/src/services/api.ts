@@ -250,6 +250,24 @@ export const usersApi = {
 // Groups API
 export const groupsApi = {
   getGroups: async (): Promise<ApiResponse<UserGroup[]>> => {
+    try {
+      const realData = await fetchClient('/groups');
+      if (realData && realData.value) {
+        const groups: UserGroup[] = realData.value.map((g: any) => ({
+          id: g.id,
+          displayName: g.displayName,
+          description: g.description || 'No description',
+          groupType: g.groupTypes?.includes('Unified') ? 'M365' : 'Security',
+          email: g.mail,
+          memberCount: 0, // Requires expansion or separate call
+          createdDate: g.createdDateTime,
+        }));
+        return { success: true, data: groups };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for groups", e);
+    }
+
     await delay(400);
     return { success: true, data: mockUserGroups };
   },
@@ -273,6 +291,60 @@ export const groupsApi = {
 // Assets API
 export const assetsApi = {
   getAssets: async (filters?: AssetFilters, page: number = 1, pageSize: number = 20): Promise<ApiResponse<PaginatedResponse<Asset>>> => {
+    // Try sending to real backend first (Intune Devices)
+    try {
+      const realData = await fetchClient('/devices');
+      if (realData && realData.value) {
+        const assets: Asset[] = realData.value.map((d: any) => ({
+          id: d.id,
+          name: d.deviceName || 'Unknown Device',
+          assetTag: d.managedDeviceName || 'N/A', // Intune doesn't always have asset tags
+          serialNumber: d.serialNumber || 'N/A',
+          model: d.model || 'Unknown Model',
+          category: d.operatingSystem === 'Windows' ? 'Laptop' : d.operatingSystem === 'iOS' ? 'Mobile' : 'Workstation',
+          status: 'active', // Defaulting to active for now
+          assignedTo: d.userPrincipalName, // Email
+          assignedToName: d.userDisplayName,
+          purchaseDate: d.enrolledDateTime,
+          warrantyExpiration: undefined, // Not typically in standard Intune view
+          location: 'Remote', // Todo: Map from extension attributes
+          manufacturer: d.manufacturer
+        }));
+
+        // Apply client-side filtering/pagination for now
+        let filteredAssets = assets;
+
+        if (filters?.search) {
+          const search = filters.search.toLowerCase();
+          filteredAssets = filteredAssets.filter(a =>
+            a.name.toLowerCase().includes(search) ||
+            a.assetTag.toLowerCase().includes(search) ||
+            a.serialNumber?.toLowerCase().includes(search) ||
+            a.assignedTo?.toLowerCase().includes(search) ||
+            a.assignedToName?.toLowerCase().includes(search)
+          );
+        }
+
+        const total = filteredAssets.length;
+        const totalPages = Math.ceil(total / pageSize);
+        const start = (page - 1) * pageSize;
+        const paginatedAssets = filteredAssets.slice(start, start + pageSize);
+
+        return {
+          success: true,
+          data: {
+            data: paginatedAssets,
+            total,
+            page,
+            pageSize,
+            totalPages,
+          }
+        };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for assets", e);
+    }
+
     await delay(500);
 
     let filteredAssets = [...mockAssets];

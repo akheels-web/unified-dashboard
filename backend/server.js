@@ -56,17 +56,84 @@ app.get('/api/health', (req, res) => {
 
 // Proxy to Microsoft Graph (Example: Get Users)
 app.get('/api/users', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Request received for /api/users`);
     try {
-        const response = await axios.get('https://graph.microsoft.com/v1.0/users', {
+        // Fetch top 999 users to solve sync issue for small/medium tenants
+        const response = await axios.get('https://graph.microsoft.com/v1.0/users?$top=999&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled', {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
                 'Content-Type': 'application/json'
             }
         });
+        console.log(`[${new Date().toISOString()}] Graph API Success: ${response.status} - Fetched ${response.data.value.length} users`);
         res.json(response.data);
     } catch (error) {
-        console.error('Error fetching users:', error.response?.data || error.message);
-        res.status(error.response?.status || 500).json({ error: 'Failed to fetch users from Graph API' });
+        console.error(`[${new Date().toISOString()}] Graph API Error (Users):`, error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch users' });
+    }
+});
+
+// Get Groups
+app.get('/api/groups', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Request received for /api/groups`);
+    try {
+        const response = await axios.get('https://graph.microsoft.com/v1.0/groups?$top=999', {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log(`[${new Date().toISOString()}] Graph API Success: ${response.status} - Fetched ${response.data.value.length} groups`);
+        res.json(response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (Groups):`, error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch groups' });
+    }
+});
+
+// Get Intune Managed Devices
+app.get('/api/devices', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Request received for /api/devices`);
+    try {
+        const response = await axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top=999', {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log(`[${new Date().toISOString()}] Graph API Success: ${response.status} - Fetched ${response.data.value.length} devices`);
+        res.json(response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (Devices):`, error.response?.data || error.message);
+        // Intune might return 403 if no license/permissions
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch devices' });
+    }
+    // Intune might return 403 if no license/permissions
+    res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch devices' });
+}
+});
+
+// Import Unifi Service (Optional Integration)
+const unifiService = require('./services/unifi');
+
+// Unifi Routes - Only work if configured
+app.get('/api/unifi/health', validateToken, async (req, res) => {
+    try {
+        const data = await unifiService.getHealth();
+        res.json(data);
+    } catch (error) {
+        console.error('Unifi Error:', error.message);
+        res.status(502).json({ error: 'Failed to communicate with Unifi Controller', details: error.message });
+    }
+});
+
+app.get('/api/unifi/clients', validateToken, async (req, res) => {
+    try {
+        const data = await unifiService.getClients();
+        res.json(data);
+    } catch (error) {
+        console.error('Unifi Error:', error.message);
+        res.status(502).json({ error: 'Failed to communicate with Unifi Controller' });
     }
 });
 

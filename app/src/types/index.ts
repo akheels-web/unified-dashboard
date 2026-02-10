@@ -39,6 +39,8 @@ export interface UserGroup {
   description?: string;
   groupType?: string;
   memberCount?: number;
+  email?: string;
+  createdDate?: string;
 }
 
 // Software Types

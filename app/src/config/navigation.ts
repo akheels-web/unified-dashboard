@@ -26,6 +26,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/users', label: 'Users', icon: Users, roles: ['it_admin', 'it_user'] },
+    { path: '/groups', label: 'Groups', icon: Users, roles: ['it_admin', 'it_user'] },
     { path: '/assets', label: 'Assets', icon: Laptop, roles: ['it_admin', 'it_user'] },
     { path: '/software', label: 'Software', icon: AppWindow, roles: ['it_admin', 'it_user'] },
     { path: '/onboarding', label: 'Onboarding', icon: UserPlus, badge: 8 },
