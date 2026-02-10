@@ -29,12 +29,18 @@ const cca = new ConfidentialClientApplication(msalConfig);
 const validateToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
+        console.warn('Missing Authorization header');
         return res.status(401).json({ error: 'No Authorization header provided' });
     }
     const token = authHeader.split(' ')[1];
     if (!token) {
+        console.warn('Missing token in Authorization header');
         return res.status(401).json({ error: 'No token provided' });
     }
+
+    // For debugging: log the first few chars of the token
+    console.log('Token received:', token.substring(0, 15) + '...');
+
     // For now, we trust the client to send a valid token we can use OBO flow with later
     // or just pass it through to Graph.
     req.accessToken = token;
