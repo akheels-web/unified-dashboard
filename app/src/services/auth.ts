@@ -12,7 +12,7 @@ export const getAccessToken = async () => {
     }
 
     const request = {
-        scopes: ["User.Read", "Directory.Read.All", "Group.Read.All"],
+        scopes: ["User.Read", "Directory.Read.All", "Group.Read.All", "DeviceManagementManagedDevices.Read.All"],
         account: activeAccount || accounts[0]
     };
 
