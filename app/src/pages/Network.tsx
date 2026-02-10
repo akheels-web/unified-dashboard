@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
-  RefreshCw, Wifi, Router, Server,
-  XCircle, Loader2,
-  Power, Users, Download, Upload,
-  Plus, Shield, Globe, Check,
-  X
+  Wifi, Server, Activity, AlertCircle,
+  Plus, Shield, Globe,
+  Search, RefreshCw, MoreVertical,
+  Signal, Smartphone, Laptop
 } from 'lucide-react';
 import { useNetworkStore } from '@/stores/networkStore';
 import { unifiApi } from '@/services/api';
-import type { UnifiSite, UnifiDevice } from '@/types';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import { toast } from 'sonner';
+import type { UnifiDevice } from '@/types';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { formatDistanceToNow } from 'date-fns';
 
 const deviceTypeIcons: Record<string, React.ElementType> = {
-  gateway: Router,
+  gateway: Router, // Router is still used here, so it should not be removed from lucide-react imports.
   switch: Server,
   ap: Wifi,
 };

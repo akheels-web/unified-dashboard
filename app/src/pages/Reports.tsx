@@ -89,7 +89,7 @@ export function Reports() {
   const [dateRange, setDateRange] = useState('30d');
   const { theme } = useUIStore();
 
-  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const isDark = theme === 'dark';
   const axisColor = isDark ? '#a0a0a0' : '#64748b';
   const gridColor = isDark ? '#3d3d3d' : '#e2e8f0';
   const tooltipBg = isDark ? '#2d2d2d' : '#ffffff';

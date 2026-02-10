@@ -4,17 +4,13 @@ import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
 import {
   LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Lock,
-  Server,
   Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { navItems } from '@/config/navigation';
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { sidebarCollapsed } = useUIStore();
   const { user, logout, hasRole, canAccessPage } = useAuthStore();
   const location = useLocation();
 
@@ -155,6 +151,6 @@ export function Sidebar() {
           )}
         </div>
       </div>
-    </motion.aside >
+    </motion.aside>
   );
 }

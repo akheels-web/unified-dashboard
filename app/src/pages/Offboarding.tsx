@@ -39,7 +39,7 @@ export function Offboarding() {
 
   const filteredWorkflows = workflows.filter(workflow => {
     const matchesSearch = workflow.employeeName.toLowerCase().includes(workflowSearchQuery.toLowerCase()) ||
-      workflow.employeeEmail.toLowerCase().includes(workflowSearchQuery.toLowerCase());
+      workflow.employeeEmail?.toLowerCase().includes(workflowSearchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || workflow.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

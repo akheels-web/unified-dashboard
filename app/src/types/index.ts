@@ -285,7 +285,7 @@ export interface ChartDataPoint {
 export interface UserFilters {
   search?: string;
   department?: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'all';
   lastActive?: string;
   allowedPages?: string[]; // List of paths the user can access
   location?: string;

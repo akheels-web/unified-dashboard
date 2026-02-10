@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Globe, Plus, MapPin, Server, Users,
-    MoreVertical, Edit, Trash2, X, Search,
-    Power, Wifi, Shield
+    Globe, Plus, MapPin, Users,
+    Search, ExternalLink,
+    Shield
 } from 'lucide-react';
 import { useNetworkStore } from '@/stores/networkStore';
 import { StatusBadge } from '@/components/common/StatusBadge';

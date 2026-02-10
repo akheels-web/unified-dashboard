@@ -1,45 +1,58 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
-  Plus, MoreVertical, ChevronRight, ChevronLeft, Check, User,
-  Laptop, Users, Shield, X, Loader2, CheckCircle2,
-  Search, Filter, Copy, Eye, EyeOff, Smartphone,
-  MapPin, Building2, Phone, Mail, Key, Zap
+  UserPlus,
+  Mail,
+  MapPin,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  ChevronRight,
+  Briefcase,
+  Laptop,
 } from 'lucide-react';
-import { onboardingApi, usersApi } from '@/services/api';
-import type { OnboardingWorkflow, M365User, M365License, M365App, IntuneDevice, UserGroup } from '@/types';
-import { mockM365Licenses, mockM365Apps, mockIntuneDevices, mockUserGroups } from '@/services/mockData';
-import { StatusBadge } from '@/components/common/StatusBadge';
+import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useUserStore } from '@/stores/userStore';
+import { useAssetStore } from '@/stores/assetStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { cn, generateSecurePassword, copyToClipboard } from '@/lib/utils';
+import { mockM365Apps, mockM365Licenses } from '@/services/mockData';
+import type { OnboardingFormData, M365App } from '@/types';
 
 const steps = [
-  { id: 'employee', label: 'Employee Info', icon: User },
-  { id: 'account', label: 'Account & License', icon: Shield },
-  { id: 'groups', label: 'Groups & Manager', icon: Users },
+  { id: 'employee', label: 'Employee Info', icon: UserPlus },
+  { id: 'account', label: 'Account & License', icon: Briefcase },
+  { id: 'groups', label: 'Groups & Manager', icon: UserPlus },
   { id: 'device', label: 'Device Assignment', icon: Laptop },
   { id: 'review', label: 'Review', icon: CheckCircle2 },
 ];
 
-export function Onboarding() {
-  const [workflows, setWorkflows] = useState<OnboardingWorkflow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+export default function Onboarding() {
+  const navigate = useNavigate();
+  const { startWorkflow } = useOnboardingStore();
+  const { groups } = useUserStore();
+  const { assets } = useAssetStore();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [apps] = useState<M365App[]>(mockM365Apps); // Remove setApps
 
   // Available data
   const [managers, setManagers] = useState<M365User[]>([]);
   const [licenses] = useState<M365License[]>(mockM365Licenses);
-  const [apps, setApps] = useState<M365App[]>(mockM365Apps);
   const [devices] = useState<IntuneDevice[]>(mockIntuneDevices);
-  const [groups] = useState<UserGroup[]>(mockUserGroups);
-
   const filteredWorkflows = workflows.filter(workflow => {
     const matchesSearch = workflow.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       workflow.employeeEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||

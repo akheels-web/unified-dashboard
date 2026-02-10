@@ -1,7 +1,6 @@
 import type {
   M365User, UserGroup, Asset, AssetCategory,
   OnboardingWorkflow, OffboardingWorkflow,
-  UnifiSite, UnifiDevice,
   ActivityItem, DashboardStats, SystemStatus,
   M365License, M365App, IntuneDevice, DashboardAdmin
 } from '@/types';

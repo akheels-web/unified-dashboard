@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
-  Settings2, Shield, Bell, Database, Cloud,
-  Key, Save, AlertTriangle, Loader2, Palette, Moon, Sun
+  Settings2, Shield, Bell, Cloud,
+  Globe, Mail, Save, User
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useUIStore } from '@/stores/uiStore';
 import { usePatchStore } from '@/stores/patchStore';
 import { toast } from 'sonner';

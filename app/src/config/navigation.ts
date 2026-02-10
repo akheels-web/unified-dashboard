@@ -5,7 +5,6 @@ import {
     AppWindow,
     UserPlus,
     UserMinus,
-    Briefcase,
     Wifi,
     BarChart3,
     ClipboardList,

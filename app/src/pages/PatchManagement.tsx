@@ -1,9 +1,10 @@
+```javascript
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Shield, AlertTriangle, CheckCircle,
-    Search, RefreshCw, Server, ExternalLink,
-    Settings as SettingsIcon, Lock
+    Shield, CheckCircle,
+    Search, RefreshCw, ExternalLink,
+    Settings as SettingsIcon
 } from 'lucide-react';
 import { usePatchStore } from '@/stores/patchStore';
 import { toast } from 'sonner';
@@ -200,29 +201,31 @@ export function PatchManagement() {
                                 <div className="flex items-center gap-2">
                                     <a
                                         href={`https://nvd.nist.gov/vuln/detail/${vuln.cve}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-2 text-muted-foreground hover:text-primary transition-colors"
-                                        title="View CVE Details"
-                                    >
-                                        <ExternalLink className="w-5 h-5" />
-                                    </a>
-                                    {vuln.status === 'open' ? (
-                                        <button className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-                                            Patch Now
-                                        </button>
-                                    ) : (
-                                        <span className="flex items-center gap-1.5 text-green-500 text-sm font-medium px-3 py-1.5 bg-green-500/10 rounded-lg">
-                                            <CheckCircle className="w-4 h-4" />
-                                            Patched
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </motion.div>
+target = "_blank"
+rel = "noopener noreferrer"
+className = "p-2 text-muted-foreground hover:text-primary transition-colors"
+title = "View CVE Details"
+    >
+    <ExternalLink className="w-5 h-5" />
+                                    </a >
+{
+    vuln.status === 'open' ? (
+        <button className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+            Patch Now
+        </button>
+    ) : (
+        <span className="flex items-center gap-1.5 text-green-500 text-sm font-medium px-3 py-1.5 bg-green-500/10 rounded-lg">
+            <CheckCircle className="w-4 h-4" />
+            Patched
+        </span>
+    )
+}
+                                </div >
+                            </div >
+                        </motion.div >
                     ))
                 )}
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

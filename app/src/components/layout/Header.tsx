@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 
 export function Header() {
-  const { toggleSidebar, notifications, unreadCount, theme, setTheme, sidebarCollapsed } = useUIStore();
+  const { toggleSidebar, theme, setTheme, sidebarCollapsed, unreadCount } = useUIStore();
   const { user } = useAuthStore();
 
   return (
