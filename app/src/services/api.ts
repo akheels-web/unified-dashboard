@@ -41,7 +41,7 @@ const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
 
     return await response.json();
   } catch (error) {
-    console.error('API Call Failed:', error);
+    console.error(`API Call Failed for ${endpoint}:`, error);
     // Fallback to mock data if API fails (for hybrid transition)
     // throw error; 
     return null;
@@ -576,6 +576,16 @@ export const unifiApi = {
 
     await delay(500);
     let devices = useNetworkStore.getState().devices;
+
+    // Fallback to static mock data if store is empty (to ensure user sees SOMETHING)
+    if (devices.length === 0) {
+      devices = [
+        { id: 'mock-1', name: 'USG-Pro-4', model: 'USG-Pro-4', macAddress: '00:00:00:00:00:01', ipAddress: '192.168.1.1', status: 'online', siteId: 'default', firmwareVersion: '4.4.52', uptime: 123456, numClients: 50, deviceType: 'gateway' },
+        { id: 'mock-2', name: 'USW-24-PoE', model: 'USW-24-PoE', macAddress: '00:00:00:00:00:02', ipAddress: '192.168.1.2', status: 'online', siteId: 'default', firmwareVersion: '5.43.23', uptime: 100000, numClients: 20, deviceType: 'switch' },
+        { id: 'mock-3', name: 'UAP-AC-Pro', model: 'UAP-AC-Pro', macAddress: '00:00:00:00:00:03', ipAddress: '192.168.1.3', status: 'online', siteId: 'default', firmwareVersion: '4.3.28', uptime: 50000, numClients: 15, deviceType: 'ap' }
+      ];
+    }
+
     if (siteId) {
       devices = devices.filter((d: UnifiDevice) => d.siteId === siteId);
     }

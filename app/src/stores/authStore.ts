@@ -89,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
           // Map paths to permission keys
           if (path === '/' || path === '/dashboard') return user.permissions.dashboard;
           if (path.startsWith('/users')) return user.permissions.users;
+          if (path.startsWith('/groups')) return user.permissions.groups;
           if (path.startsWith('/assets')) return user.permissions.assets;
           if (path.startsWith('/software')) return user.permissions.software;
           if (path.startsWith('/onboarding')) return user.permissions.onboarding;

@@ -214,7 +214,7 @@ export interface UnifiDevice {
   macAddress?: string;
   ipAddress?: string;
   status: 'online' | 'offline' | 'adopting' | 'pending';
-  version?: string;
+  firmwareVersion?: string;
   uptime?: number;
   numClients: number;
   lastSeen?: string;
@@ -261,6 +261,7 @@ export interface ServiceStatus {
   name: string;
   status: 'operational' | 'degraded' | 'outage';
   lastUpdated: string;
+
 }
 
 export interface SystemStatus {
@@ -297,6 +298,7 @@ export interface UserFilters {
 export interface PagePermissions {
   dashboard: boolean;
   users: boolean;
+  groups: boolean;
   assets: boolean;
   software: boolean;
   onboarding: boolean;

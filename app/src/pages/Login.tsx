@@ -41,6 +41,7 @@ export function Login() {
         permissions: { // Default permissions
           dashboard: true,
           users: true,
+          groups: true,
           assets: true,
           software: true,
           onboarding: true,
