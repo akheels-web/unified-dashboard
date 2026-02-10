@@ -4,10 +4,11 @@ import {
   Shield, Bell,
   Save,
   Palette, Sun, Moon, Key, AlertTriangle, Loader2,
-  Settings2, Cloud
+  Settings2, Cloud, UserCog
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { usePatchStore } from '@/stores/patchStore';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,7 @@ const settingTabs = [
   { id: 'integrations', name: 'Integrations', icon: Cloud },
   { id: 'notifications', name: 'Notifications', icon: Bell },
   { id: 'security', name: 'Security', icon: Shield },
+  { id: 'profile', name: 'My Profile & Debug', icon: UserCog },
 ];
 
 export function Settings() {
@@ -454,6 +456,58 @@ export function Settings() {
                 onChange={(e) => setSecuritySettings({ ...securitySettings, auditLogRetention: parseInt(e.target.value) })}
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
               />
+            </div>
+          </div>
+        );
+
+      case 'profile':
+        return (
+          <div className="space-y-6">
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-foreground mb-4">Current User Session</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Display Name</p>
+                  <p className="text-foreground font-medium">{useAuthStore.getState().user?.displayName || 'Unknown'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="text-foreground font-medium">{useAuthStore.getState().user?.email || 'Unknown'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Role</p>
+                  <p className="text-primary font-bold">{useAuthStore.getState().user?.role || 'Unknown'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">User ID</p>
+                  <p className="text-foreground font-mono text-xs">{useAuthStore.getState().user?.id || 'Unknown'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-red-500 mb-2">Troubleshooting</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                If you are experiencing issues with missing pages (e.g. Groups) or permissions,
+                try resetting the application cache. This will force a re-login and refresh your permissions.
+              </p>
+              <button
+                onClick={() => {
+                  useAuthStore.persist.clearStorage();
+                  localStorage.clear();
+                  window.location.href = '/';
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+              >
+                Reset Application & Logout
+              </button>
+            </div>
+
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-foreground mb-2">Permissions Debug</h3>
+              <pre className="text-xs bg-black/80 text-green-400 p-4 rounded overflow-auto h-64">
+                {JSON.stringify(useAuthStore.getState().user?.permissions, null, 2)}
+              </pre>
             </div>
           </div>
         );

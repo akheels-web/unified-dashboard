@@ -1,122 +1,124 @@
 const axios = require('axios');
-const https = require('https');
 
-// Create an Axios instance for Unifi
+// Cloud Configuration
+// User provided docs: https://developer.ui.com/site-manager/v1.0.0/gettingstarted
+// API Key provided by user
+const API_KEY = 'HIwvnIn0k_IDWqJW0b-wj7hdS819CtH8';
+
 const unifiClient = axios.create({
-    baseURL: process.env.UNIFI_URL,
-    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    baseURL: 'https://api.ui.com',
     headers: {
-        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
         'Accept': 'application/json'
-    },
-    withCredentials: true // Important for maintaining session cookies
+    }
 });
 
-// Add API Key if present
-if (process.env.UNIFI_API_KEY) {
-    console.log('[Unifi] Using API Key authentication');
-    unifiClient.defaults.headers.common['X-API-KEY'] = process.env.UNIFI_API_KEY;
-}
-
-let cookieJar = null;
-
-// Login to Unifi Controller
-const login = async () => {
-    // Skip login if using API Key
-    if (process.env.UNIFI_API_KEY) return true;
-
-    if (!process.env.UNIFI_URL || !process.env.UNIFI_USERNAME || !process.env.UNIFI_PASSWORD) {
-        console.warn('Unifi credentials not configured in .env');
-        return false;
-    }
-
-    try {
-        console.log(`[Unifi] Attempting login to ${process.env.UNIFI_URL}...`);
-
-        // This path /api/auth/login is typical for UDM Pro / UniFi OS
-        // For older controllers, it might be /api/login
-        const response = await unifiClient.post('/api/auth/login', {
-            username: process.env.UNIFI_USERNAME,
-            password: process.env.UNIFI_PASSWORD
-        });
-
-        // Capture session cookie
-        if (response.headers['set-cookie']) {
-            cookieJar = response.headers['set-cookie'];
-            // Attach cookies to the client for subsequent requests
-            unifiClient.defaults.headers.Cookie = cookieJar;
-            console.log('[Unifi] Login successful. Session established.');
-            return true;
-        } else {
-            // Sometimes successful login returns 200 but no cookie if already logged in? 
-            // Or maybe it returns a token in body (depending on version).
-            // For UDM, it uses cookies.
-            console.warn('[Unifi] Login returned 200 but no Set-Cookie header found.');
-            return true;
-        }
-    } catch (error) {
-        console.error('[Unifi] Login failed:', error.message);
-        if (error.response) {
-            console.error('[Unifi] Status:', error.response.status);
-            console.error('[Unifi] Data:', error.response.data);
-        }
-        return false;
-    }
+// Cache in-memory
+let deviceCache = {
+    data: [],
+    lastFetch: 0
 };
+const CACHE_TTL = 30 * 1000; // 30 seconds
 
-// Generic wrapper to ensure we are logged in before making requests
-const makeRequest = async (method, url, data = null) => {
-    // If no API Key and no cookie, try login
-    if (!process.env.UNIFI_API_KEY && !cookieJar) {
-        const loggedIn = await login();
-        if (!loggedIn) throw new Error('Unifi login failed or not configured');
-    }
-
+/*
+ * Fetch Sites
+ */
+const getSites = async () => {
     try {
-        const config = { method, url };
-        if (data) config.data = data;
-
-        console.log(`[Unifi] Requesting ${method.toUpperCase()} ${url}`);
-        const response = await unifiClient(config);
-        console.log(`[Unifi] Success: ${response.status} - Data length: ${JSON.stringify(response.data).length}`);
+        console.log('Fetching Unifi Sites from Cloud...');
+        // Standard endpoint based on docs
+        const response = await unifiClient.get('/site-manager/v1/sites');
         return response.data;
     } catch (error) {
-        console.error(`[Unifi] Request failed for ${url}:`, error.message);
-        if (error.response) {
-            console.error('[Unifi] Response Data:', JSON.stringify(error.response.data).substring(0, 200)); // Log first 200 chars
-        }
-
-        // If 401 Unauthorized, try logging in again once (only if NOT using API Key)
-        if (error.response && error.response.status === 401 && !process.env.UNIFI_API_KEY) {
-            console.log('[Unifi] Session expired, re-authenticating...');
-            const loggedIn = await login();
-            if (loggedIn) {
-                const config = { method, url };
-                if (data) config.data = data;
-                const retryResponse = await unifiClient(config);
-                return retryResponse.data;
-            }
-        }
+        console.error('Error fetching Unifi sites:', error.response?.data || error.message);
         throw error;
     }
 };
 
-// Exported methods
-module.exports = {
-    // Get System Health (UDM Pro / Network App)
-    getHealth: async () => {
-        // Adjust path based on your controller version. 
-        // /proxy/network/api/s/default/stat/health is common for UDM Pro Network App
-        return makeRequest('get', '/proxy/network/api/s/default/stat/health');
-    },
-
-    // Get Connected Devices (Clients)
-    getClients: async () => {
-        return makeRequest('get', '/proxy/network/api/s/default/stat/sta');
-    },
-
-    // Get Unifi Devices (APs, Switches)
-    getDevices: async () => {
-        return makeRequest('get', '/proxy/network/api/s/default/stat/device');
+/*
+ * Fetch Devices (Iterates through sites)
+ */
+const getDevices = async () => {
+    // Check cache
+    if (Date.now() - deviceCache.lastFetch < CACHE_TTL && deviceCache.data.length > 0) {
+        return deviceCache.data;
     }
+
+    try {
+        // 1. Get Sites
+        const sitesResponse = await getSites();
+        // Handle response wrapping if any (e.g. { data: [...] })
+        const siteList = Array.isArray(sitesResponse) ? sitesResponse : (sitesResponse.data || []);
+
+        let allDevices = [];
+
+        // 2. Loop sites to get devices
+        for (const site of siteList) {
+            try {
+                const siteId = site.id;
+                // Endpoint for devices per site
+                const response = await unifiClient.get(`/site-manager/v1/sites/${siteId}/devices`);
+                const siteDevices = Array.isArray(response.data) ? response.data : (response.data.data || []);
+
+                // Add site context
+                const mappedDevices = siteDevices.map(d => ({
+                    ...d,
+                    siteName: site.name,
+                    siteId: siteId
+                }));
+                allDevices = allDevices.concat(mappedDevices);
+            } catch (err) {
+                console.warn(`Failed to fetch devices for site ${site.name} (${site.id}):`, err.message);
+                // Continue to next site
+            }
+        }
+
+        deviceCache.data = allDevices;
+        deviceCache.lastFetch = Date.now();
+        return allDevices;
+
+    } catch (error) {
+        console.error('Error fetching Unifi devices:', error.message);
+        // Fallback to empty array to avoid crashing frontend
+        return [];
+    }
+};
+
+/*
+ * Get Health Check / Stats
+ */
+const getHealth = async () => {
+    try {
+        const sitesResponse = await getSites();
+        const siteList = Array.isArray(sitesResponse) ? sitesResponse : (sitesResponse.data || []);
+
+        const totalSites = siteList.length;
+        // Check for 'status' or 'connectionState' depending on API response shape
+        const onlineSites = siteList.filter(s => s.status === 'online' || s.isConnected === true).length;
+
+        return {
+            status: 'ok',
+            sites: totalSites,
+            onlineSites: onlineSites,
+            offlineSites: totalSites - onlineSites
+        };
+    } catch (error) {
+        return { status: 'error', message: error.message };
+    }
+};
+
+/*
+ * Get Clients (Placeholder)
+ */
+const getClients = async () => {
+    // Placeholder - Site Manager API might have a different endpoint for clients
+    // /site-manager/v1/sites/{siteId}/clients
+    return [];
+};
+
+module.exports = {
+    getDevices,
+    getHealth,
+    getSites,
+    getClients
 };

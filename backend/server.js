@@ -112,6 +112,17 @@ app.get('/api/devices', validateToken, async (req, res) => {
 
 // Import Unifi Service (Optional Integration)
 const unifiService = require('./services/unifi');
+const statusService = require('./services/status');
+
+// Status Route
+app.get('/api/status', async (req, res) => {
+    try {
+        const status = await statusService.getSystemStatus();
+        res.json(status);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch system status' });
+    }
+});
 
 // Unifi Routes - Only work if configured
 app.get('/api/unifi/health', validateToken, async (req, res) => {
@@ -127,6 +138,16 @@ app.get('/api/unifi/health', validateToken, async (req, res) => {
 app.get('/api/unifi/clients', validateToken, async (req, res) => {
     try {
         const data = await unifiService.getClients();
+        res.json(data);
+    } catch (error) {
+        console.error('Unifi Error:', error.message);
+        res.status(502).json({ error: 'Failed to communicate with Unifi Controller' });
+    }
+});
+
+app.get('/api/unifi/sites', validateToken, async (req, res) => {
+    try {
+        const data = await unifiService.getSites();
         res.json(data);
     } catch (error) {
         console.error('Unifi Error:', error.message);

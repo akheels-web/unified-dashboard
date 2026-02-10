@@ -64,6 +64,14 @@ export const dashboardApi = {
   },
 
   getSystemStatus: async (): Promise<ApiResponse<SystemStatus>> => {
+    try {
+      const realData = await fetchClient('/status');
+      if (realData) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for system status", e);
+    }
     await delay(300);
     return { success: true, data: mockSystemStatus };
   },
