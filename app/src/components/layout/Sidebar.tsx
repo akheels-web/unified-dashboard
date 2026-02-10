@@ -141,13 +141,28 @@ export function Sidebar() {
           )}
 
           {!sidebarCollapsed && (
-            <button
-              onClick={logout}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  if (confirm('Reset application cache and logout?')) {
+                    useAuthStore.persist.clearStorage();
+                    localStorage.clear();
+                    window.location.href = '/';
+                  }
+                }}
+                className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors"
+                title="Reset App & Logout"
+              >
+                <LogOut className="w-4 h-4 rotate-180" />
+              </button>
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
           )}
         </div>
       </div>

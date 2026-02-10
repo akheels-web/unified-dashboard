@@ -34,11 +34,12 @@ export function Login() {
         entraId: account.localAccountId,
         email: account.username,
         displayName: account.name || account.username,
-        role: 'it_admin' as const, // Defaulting to admin for now, ideally derived from claims/groups
+        role: 'it_admin' as const,
         department: 'IT',
         isActive: true,
         createdAt: new Date().toISOString(),
-        permissions: { // Default permissions
+        // FORCE REFRESH PERMISSIONS
+        permissions: {
           dashboard: true,
           users: true,
           groups: true,
@@ -55,6 +56,9 @@ export function Login() {
           settings: true,
         }
       };
+
+      // Force clear any old state before logging in
+      useAuthStore.persist.clearStorage();
 
       login(user); // Sync to usage store
       toast.success(`Welcome back, ${user.displayName}!`);
