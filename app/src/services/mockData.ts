@@ -655,6 +655,7 @@ export const mockDashboardAdmins: DashboardAdmin[] = [
     permissions: {
       dashboard: true,
       users: true,
+      groups: true,
       assets: true,
       software: true,
       onboarding: true,
@@ -680,6 +681,7 @@ export const mockDashboardAdmins: DashboardAdmin[] = [
     permissions: {
       dashboard: true,
       users: true,
+      groups: true,
       assets: true,
       software: true,
       onboarding: true,
@@ -705,6 +707,7 @@ export const mockDashboardAdmins: DashboardAdmin[] = [
     permissions: {
       dashboard: true,
       users: false,
+      groups: true,
       assets: true,
       software: true,
       onboarding: false,
@@ -730,6 +733,7 @@ export const mockDashboardAdmins: DashboardAdmin[] = [
     permissions: {
       dashboard: true,
       users: false,
+      groups: false,
       assets: false,
       software: false,
       onboarding: false,
@@ -755,6 +759,7 @@ export const mockDashboardAdmins: DashboardAdmin[] = [
     permissions: {
       dashboard: true,
       users: true,
+      groups: true,
       assets: true,
       software: false,
       onboarding: true,

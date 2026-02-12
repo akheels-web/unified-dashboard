@@ -11,7 +11,7 @@ import { navItems } from '@/config/navigation';
 
 export function Sidebar() {
   const { sidebarCollapsed } = useUIStore();
-  const { user, logout, hasRole, canAccessPage } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
 
   const filteredNavItems = navItems; // FORCE SHOW ALL
