@@ -18,7 +18,7 @@ import { getAccessToken } from './auth';
 // API Base URL
 // API Base URL
 // backend runs on port 3000, explicitly use https and the VM IP
-const API_URL = import.meta.env.VITE_API_URL || 'https://192.168.16.29:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Authenticated Fetch Client
 const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
