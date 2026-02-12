@@ -26,23 +26,24 @@ let deviceCache = {
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
 /*
- * Fetch Sites
+ * Fetch Sites (Really fetching Hosts/Controllers from Site Manager)
  */
 const getSites = async () => {
     try {
-        console.log('Fetching Unifi Sites from Cloud...');
-        // Standard endpoint based on docs
-        const response = await unifiClient.get('/site-manager/v1/sites');
+        console.log('Fetching Unifi Hosts from Cloud...');
+        // Documentation says: GET https://api.ui.com/v1/hosts
+        const response = await unifiClient.get('/v1/hosts');
+        console.log(`[Unifi] Fetched ${response.data.data ? response.data.data.length : 0} hosts.`);
         return response.data;
     } catch (error) {
-        console.error('Error fetching Unifi sites:', error.response?.status, error.response?.data || error.message);
-        console.error('Full Error:', error);
+        console.error('Error fetching Unifi hosts:', error.response?.status, error.response?.data || error.message);
+        // console.error('Full Error:', error);
         throw error;
     }
 };
 
 /*
- * Fetch Devices (Iterates through sites)
+ * Fetch Devices (Iterates through hosts)
  */
 const getDevices = async () => {
     // Check cache
@@ -51,36 +52,42 @@ const getDevices = async () => {
     }
 
     try {
-        // 1. Get Sites
-        const sitesResponse = await getSites();
+        // 1. Get Hosts
+        const hostsResponse = await getSites();
         // Handle response wrapping if any (e.g. { data: [...] })
-        const siteList = Array.isArray(sitesResponse) ? sitesResponse : (sitesResponse.data || []);
+        const hostList = Array.isArray(hostsResponse) ? hostsResponse : (hostsResponse.data || []);
+
+        console.log('[Unifi] Host list:', JSON.stringify(hostList.map(h => ({ id: h.id, name: h.name })), null, 2));
 
         let allDevices = [];
 
-        // 2. Loop sites to get devices
-        for (const site of siteList) {
+        // 2. Loop hosts to get devices
+        for (const host of hostList) {
             try {
-                const siteId = site.id;
-                // Endpoint for devices per site
-                const response = await unifiClient.get(`/site-manager/v1/sites/${siteId}/devices`);
-                const siteDevices = Array.isArray(response.data) ? response.data : (response.data.data || []);
+                const hostId = host.id;
+                console.log(`[Unifi] Fetching devices for host: ${host.name} (${hostId})`);
 
-                // Add site context
-                const mappedDevices = siteDevices.map(d => ({
+                // Try to get devices for this host
+                // Endpoint guess based on standard REST patterns for this API: /v1/hosts/{id}/devices
+                const response = await unifiClient.get(`/v1/hosts/${hostId}/devices`);
+                const hostDevices = Array.isArray(response.data) ? response.data : (response.data.data || []);
+
+                // Add host context
+                const mappedDevices = hostDevices.map(d => ({
                     ...d,
-                    siteName: site.name,
-                    siteId: siteId
+                    siteName: host.name,
+                    siteId: hostId
                 }));
                 allDevices = allDevices.concat(mappedDevices);
             } catch (err) {
-                console.warn(`Failed to fetch devices for site ${site.name} (${site.id}):`, err.message);
-                // Continue to next site
+                console.warn(`[Unifi] Failed to fetch devices for host ${host.name} (${host.id}): ${err.message}`);
+                // Continue to next host
             }
         }
 
         deviceCache.data = allDevices;
         deviceCache.lastFetch = Date.now();
+        console.log(`[Unifi] Total devices fetched: ${allDevices.length}`);
         return allDevices;
 
     } catch (error) {
