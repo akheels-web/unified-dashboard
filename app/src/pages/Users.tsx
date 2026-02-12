@@ -4,13 +4,12 @@ import {
   Search, MoreVertical, RefreshCw, UserX, UserPlus,
   Key, Users as UsersIcon, LogOut, Mail, Building2, MapPin,
   ChevronLeft, ChevronRight, X, CheckCircle2, AlertTriangle,
-  Loader2, Shield, ShieldOff, Group
+  Loader2, Shield, ShieldOff, Group, Laptop
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useUIStore } from '@/stores/uiStore';
 import { usersApi, assetsApi } from '@/services/api';
 import type { M365User, UserGroup, Asset } from '@/types';
-import { navItems } from '@/config/navigation';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -69,24 +68,7 @@ export function Users() {
     }
   };
 
-  const handleSaveAccess = async () => {
-    if (!userDetail) return;
-    setActionInProgress('save-access');
-    try {
-      const response = await usersApi.updateUserAccess(userDetail.id, userAllowedPages);
-      if (response.success) {
-        toast.success('User access updated successfully');
-        // Update local state
-        setUserDetail(prev => prev ? { ...prev, allowedPages: userAllowedPages } : null);
-        // Update list state
-        setUsers(users.map(u => u.id === userDetail.id ? { ...u, allowedPages: userAllowedPages } : u));
-      }
-    } catch (error) {
-      toast.error('Failed to update user access');
-    } finally {
-      setActionInProgress(null);
-    }
-  };
+
 
   const handleUserClick = async (user: M365User) => {
     setUserDetail(user);

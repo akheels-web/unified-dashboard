@@ -1,17 +1,14 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUIStore } from '@/stores/uiStore';
-import { useAuthStore } from '@/stores/authStore';
 import {
-  LogOut,
   Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { navItems } from '@/config/navigation';
 
 export function Sidebar() {
-  const { sidebarCollapsed, mobileMenuOpen } = useUIStore();
-  const { user, logout } = useAuthStore();
+  const { sidebarCollapsed } = useUIStore();
   const location = useLocation();
 
   const filteredNavItems = navItems; // FORCE SHOW ALL
