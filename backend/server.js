@@ -165,7 +165,33 @@ app.get('/api/unifi/devices', validateToken, async (req, res) => {
     }
 });
 
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
+
+// ... (previous code)
+
 // Start Server
-app.listen(PORT, () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
-});
+const startServer = () => {
+    const certPath = path.join(__dirname, 'certs', 'cert.pem');
+    const keyPath = path.join(__dirname, 'certs', 'key.pem');
+
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+        const httpsOptions = {
+            key: fs.readFileSync(keyPath),
+            cert: fs.readFileSync(certPath)
+        };
+
+        https.createServer(httpsOptions, app).listen(PORT, () => {
+            console.log(`Backend server running on https://0.0.0.0:${PORT}`);
+            console.log('NOTE: You might need to visit the backend URL in your browser once to accept the self-signed certificate.');
+        });
+    } else {
+        console.warn('SSL certificates not found. Falling back to HTTP. This may cause "Mixed Content" errors.');
+        app.listen(PORT, () => {
+            console.log(`Backend server running on http://0.0.0.0:${PORT}`);
+        });
+    }
+};
+
+startServer();
