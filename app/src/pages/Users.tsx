@@ -30,7 +30,7 @@ export function Users() {
   const [locations, setLocations] = useState<string[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [userAllowedPages, setUserAllowedPages] = useState<string[]>([]);
+
 
   useEffect(() => {
     loadUsers();
@@ -72,7 +72,7 @@ export function Users() {
 
   const handleUserClick = async (user: M365User) => {
     setUserDetail(user);
-    setUserAllowedPages(user.allowedPages || []);
+
     setShowUserDetail(true);
     try {
       const [groupsRes, assetsRes] = await Promise.all([
