@@ -14,16 +14,17 @@ export function Sidebar() {
   const { user, logout, hasRole, canAccessPage } = useAuthStore();
   const location = useLocation();
 
-  const filteredNavItems = navItems.filter(item => {
-    // If user has specific allowed pages defined, use those
-    if (user?.allowedPages && user.allowedPages.length > 0) {
-      return canAccessPage(item.path);
-    }
-
-    // Otherwise fall back to role-based filtering
-    if (!item.roles) return true;
-    return hasRole(item.roles);
-  });
+  const filteredNavItems = navItems; // TEMPORARY: SHOW ALL ITEMS FOR DEBUGGING
+  // const filteredNavItems = navItems.filter(item => {
+  //   // If user has specific allowed pages defined, use those
+  //   if (user?.allowedPages && user.allowedPages.length > 0) {
+  //     return canAccessPage(item.path);
+  //   }
+  //
+  //   // Otherwise fall back to role-based filtering
+  //   if (!item.roles) return true;
+  //   return hasRole(item.roles);
+  // });
 
   return (
     <motion.aside
