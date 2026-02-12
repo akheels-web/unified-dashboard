@@ -25,7 +25,7 @@ const settingTabs = [
 export function Settings() {
   const { theme, setTheme, brandColor, setBrandColor } = useUIStore();
   const { apiKey: sanerNowKey, setApiKey: setSanerNowKey } = usePatchStore();
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('profile');
   const [isSaving, setIsSaving] = useState(false);
 
   // General settings
