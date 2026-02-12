@@ -14,7 +14,7 @@ export function Sidebar() {
   const { user, logout, hasRole, canAccessPage } = useAuthStore();
   const location = useLocation();
 
-  const filteredNavItems = navItems; // TEMPORARY: SHOW ALL ITEMS FOR DEBUGGING
+  const filteredNavItems = navItems; // FORCE SHOW ALL
   // const filteredNavItems = navItems.filter(item => {
   //   // If user has specific allowed pages defined, use those
   //   if (user?.allowedPages && user.allowedPages.length > 0) {
