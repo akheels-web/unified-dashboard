@@ -158,7 +158,7 @@ app.get('/api/unifi/sites', validateToken, async (req, res) => {
 app.get('/api/unifi/devices', validateToken, async (req, res) => {
     try {
         const data = await unifiService.getDevices();
-        res.json(data);
+        res.json({ data });
     } catch (error) {
         console.error('Unifi Error:', error.message);
         res.status(502).json({ error: 'Failed to communicate with Unifi Controller' });
