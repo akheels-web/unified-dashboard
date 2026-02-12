@@ -6,12 +6,20 @@ import { Header } from './Header';
 import { cn } from '@/lib/utils';
 
 export function MainLayout() {
-  const { sidebarCollapsed, globalLoading, loadingMessage } = useUIStore();
+  const { sidebarCollapsed, globalLoading, loadingMessage, mobileMenuOpen, setMobileMenuOpen } = useUIStore();
 
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <Sidebar />
+
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Header */}
       <Header />
@@ -20,14 +28,15 @@ export function MainLayout() {
       <main
         className={cn(
           'pt-16 min-h-screen transition-all duration-300',
-          sidebarCollapsed ? 'pl-20' : 'pl-64'
+          'pl-0', // Mobile: No padding
+          sidebarCollapsed ? 'md:pl-20' : 'md:pl-64' // Desktop: Padding based on sidebar
         )}
       >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="p-6"
+          className="p-4 md:p-6" // Smaller padding on mobile
         >
           <Outlet />
         </motion.div>

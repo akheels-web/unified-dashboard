@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { navItems } from '@/config/navigation';
 
 export function Sidebar() {
-  const { sidebarCollapsed } = useUIStore();
+  const { sidebarCollapsed, mobileMenuOpen } = useUIStore();
   const { user, logout } = useAuthStore();
   const location = useLocation();
 
@@ -118,55 +118,7 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* User Profile */}
-      <div className="p-3 border-t border-border">
-        <div className={cn(
-          'flex items-center gap-3 p-2 rounded-lg bg-muted/50',
-          sidebarCollapsed && 'justify-center'
-        )}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-muted-foreground flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-semibold text-primary-foreground">
-              {user?.displayName?.charAt(0) || 'U'}
-            </span>
-          </div>
 
-          {!sidebarCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {user?.displayName || 'User'}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {user?.role === 'it_admin' ? 'IT Administrator' : 'IT User'}
-              </p>
-            </div>
-          )}
-
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  if (confirm('Reset application cache and logout?')) {
-                    useAuthStore.persist.clearStorage();
-                    localStorage.clear();
-                    window.location.href = '/';
-                  }
-                }}
-                className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors"
-                title="Reset App & Logout"
-              >
-                <LogOut className="w-4 h-4 rotate-180" />
-              </button>
-              <button
-                onClick={logout}
-                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
     </motion.aside>
   );
 }

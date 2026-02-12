@@ -112,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
         // 4. Fallback for basic IT User if no permissions defined (shouldn't happen with new admins)
         // Default to safe pages for IT User
         if (user.role === 'it_user') {
-          const basicPaths = ['/', '/dashboard', '/users', '/assets', '/software', '/network', '/proxmox'];
+          const basicPaths = ['/', '/dashboard', '/users', '/groups', '/assets', '/software', '/network', '/proxmox'];
           return basicPaths.some(p => path.startsWith(p));
         }
 

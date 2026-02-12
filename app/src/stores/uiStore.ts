@@ -5,6 +5,7 @@ import type { Notification } from '@/types';
 interface UIState {
   // Sidebar
   sidebarCollapsed: boolean;
+  mobileMenuOpen: boolean;
 
   // Theme
   theme: 'dark' | 'light';
@@ -25,6 +26,8 @@ interface UIState {
   // Actions
   toggleSidebar: () => void;
   setSidebarCollapsed: (value: boolean) => void;
+  toggleMobileMenu: () => void;
+  setMobileMenuOpen: (value: boolean) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   setBrandColor: (color: string) => void;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
@@ -40,6 +43,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
+      mobileMenuOpen: false,
       theme: 'dark' as 'dark' | 'light',
       brandColor: '196 67% 45%', // Default blue
       notifications: [],
@@ -54,6 +58,12 @@ export const useUIStore = create<UIState>()(
       })),
 
       setSidebarCollapsed: (value) => set({ sidebarCollapsed: value }),
+
+      toggleMobileMenu: () => set((state) => ({
+        mobileMenuOpen: !state.mobileMenuOpen
+      })),
+
+      setMobileMenuOpen: (value) => set({ mobileMenuOpen: value }),
 
       setTheme: (theme) => set({ theme }),
 

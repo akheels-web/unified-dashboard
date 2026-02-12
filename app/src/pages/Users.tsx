@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useUIStore } from '@/stores/uiStore';
-import { usersApi } from '@/services/api';
-import type { M365User, UserGroup } from '@/types';
+import { usersApi, assetsApi } from '@/services/api';
+import type { M365User, UserGroup, Asset } from '@/types';
 import { navItems } from '@/config/navigation';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { toast } from 'sonner';
@@ -26,6 +26,7 @@ export function Users() {
   const [showUserDetail, setShowUserDetail] = useState(false);
   const [userDetail, setUserDetail] = useState<M365User | null>(null);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const [userAssets, setUserAssets] = useState<Asset[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -92,12 +93,19 @@ export function Users() {
     setUserAllowedPages(user.allowedPages || []);
     setShowUserDetail(true);
     try {
-      const groupsRes = await usersApi.getUserGroups(user.id);
+      const [groupsRes, assetsRes] = await Promise.all([
+        usersApi.getUserGroups(user.id),
+        assetsApi.getAssets({ assignedTo: user.id })
+      ]);
+
       if (groupsRes.success) {
         setUserGroups(groupsRes.data || []);
       }
+      if (assetsRes.success && assetsRes.data) {
+        setUserAssets(assetsRes.data.data);
+      }
     } catch (error) {
-      toast.error('Failed to load user groups');
+      toast.error('Failed to load user details');
     }
   };
 
@@ -608,57 +616,31 @@ export function Users() {
                   </div>
                 </section>
 
-                {/* Access Control */}
+                {/* Assigned Assets */}
                 <section>
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
-                    Page Access Control
+                    Assigned Assets ({userAssets.length})
                   </h3>
-                  <div className="bg-muted/20 rounded-lg p-4 space-y-4">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Select the pages this user is allowed to access. If no pages are selected, default role-based access applies.
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {navItems.map((item) => (
-                        <label key={item.path} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="rounded border-border bg-card text-primary focus:ring-primary"
-                            checked={
-                              // If allowedPages is empty/undefined, it means "Default Access" (all role-allowed pages)
-                              // But for UI editing, we want to show what is explicitly allowed.
-                              // If we want to ENABLE granular access, we should probably start with CURRENT access or empty?
-                              // If empty, functionality defaults to roles.
-                              // If we want to restrict, we select specific pages.
-                              // Let's assume if array is empty, we show all unchecked (Default Mode).
-                              // If we check one, we enter Granular Mode.
-                              (userAllowedPages?.includes(item.path)) || false
-                            }
-                            onChange={(e) => {
-                              const path = item.path;
-                              let newPages = [...(userAllowedPages || [])];
-                              if (e.target.checked) {
-                                newPages.push(path);
-                              } else {
-                                newPages = newPages.filter(p => p !== path);
-                              }
-                              setUserAllowedPages(newPages);
-                            }}
-                          />
-                          <span className="text-sm text-foreground">{item.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <div className="flex justify-end pt-2">
-                      <button
-                        onClick={handleSaveAccess}
-                        disabled={actionInProgress === 'save-access'}
-                        className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                      >
-                        {actionInProgress === 'save-access' ? 'Saving...' : 'Save Access'}
-                      </button>
-                    </div>
+                  <div className="space-y-2">
+                    {userAssets.map((asset) => (
+                      <div key={asset.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <Laptop className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-foreground font-medium">{asset.name}</p>
+                          <p className="text-xs text-muted-foreground">{asset.assetTag}</p>
+                        </div>
+                        <StatusBadge status={asset.status as any} size="sm" />
+                      </div>
+                    ))}
+                    {userAssets.length === 0 && (
+                      <p className="text-muted-foreground text-center py-4">No assets assigned</p>
+                    )}
                   </div>
                 </section>
+
+
 
 
                 {/* Actions */}

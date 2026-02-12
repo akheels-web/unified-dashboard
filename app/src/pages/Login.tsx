@@ -21,25 +21,63 @@ export function Login() {
     setMousePosition({ x: x * 5, y: y * 5 });
   };
 
+  const getUserGroups = async (accessToken: string) => {
+    try {
+      const response = await fetch('https://graph.microsoft.com/v1.0/me/memberOf?$select=id,displayName', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.value || [];
+    } catch (e) {
+      console.error("Failed to fetch user groups", e);
+      return [];
+    }
+  };
+
   const handleLogin = async () => {
     setIsLoading(true);
     try {
       const result = await instance.loginPopup(loginRequest);
-      const { account } = result;
+      const { account, accessToken } = result;
+
+      console.log('Login successful. Converting token to verified user role...');
+
+      // Fetch user groups to determine role
+      const groups = await getUserGroups(accessToken);
+      const groupIds = groups.map((g: any) => g.id);
+
+      // Define Group IDs (Should be in .env in production)
+      const ADMIN_GROUP_ID = import.meta.env.VITE_ADMIN_GROUP_ID || 'admin-group-id';
+      const USER_GROUP_ID = import.meta.env.VITE_USER_GROUP_ID || 'user-group-id';
+
+      let role: 'it_admin' | 'it_user' = 'it_user'; // Default to User
+
+      if (groupIds.includes(ADMIN_GROUP_ID)) {
+        role = 'it_admin';
+      } else if (groupIds.includes(USER_GROUP_ID)) {
+        role = 'it_user';
+      } else {
+        // Optional: If user is in neither group, maybe deny access or default to limited user
+        // For now, defaulting to 'it_user' but you might want 'guest' or 'unauthorized'
+        console.warn('User not in configured Admin or User groups. Defaulting to IT User.');
+      }
+
+      console.log(`User assigned role: ${role} based on groups:`, groupIds);
 
       // Map MSAL account to App User
-      // In a real scenario, you might fetch additional roles/permissions from your backend here
       const user = {
         id: account.homeAccountId,
         entraId: account.localAccountId,
         email: account.username,
         displayName: account.name || account.username,
-        role: 'it_admin' as const,
-        department: 'IT',
+        role: role,
+        department: 'IT', // Placeholder
         isActive: true,
         createdAt: new Date().toISOString(),
-        // FORCE REFRESH PERMISSIONS
-        permissions: {
+        permissions: role === 'it_admin' ? {
           dashboard: true,
           users: true,
           groups: true,
@@ -54,6 +92,21 @@ export function Login() {
           reports: true,
           auditLogs: true,
           settings: true,
+        } : {
+          dashboard: true,
+          users: true,
+          groups: true,
+          assets: true,
+          software: true, // Specific permissions for limited user
+          onboarding: false,
+          offboarding: false,
+          network: true,
+          sites: true,
+          proxmox: true,
+          patchManagement: false,
+          reports: false,
+          auditLogs: false,
+          settings: false,
         }
       };
 
@@ -61,7 +114,7 @@ export function Login() {
       useAuthStore.persist.clearStorage();
 
       login(user); // Sync to usage store
-      toast.success(`Welcome back, ${user.displayName}!`);
+      toast.success(`Welcome back, ${user.displayName}! Role: ${role === 'it_admin' ? 'Admin' : 'User'}`);
       navigate('/');
     } catch (e: any) {
       toast.error(`Login failed: ${e.message}`);
