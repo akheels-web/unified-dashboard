@@ -564,21 +564,25 @@ export const unifiApi = {
   getDevices: async (siteId?: string): Promise<ApiResponse<UnifiDevice[]>> => {
     try {
       const realData = await fetchClient('/unifi/devices');
-      if (realData && realData.data) {
+      console.log('[API] Unifi Devices Response:', realData);
+
+      if (realData && realData.data && Array.isArray(realData.data)) {
         const devices: UnifiDevice[] = realData.data.map((d: any) => ({
-          id: d._id || d.mac,
-          name: d.name || d.model,
-          model: d.model,
-          macAddress: d.mac,
-          ipAddress: d.ip,
-          status: d.state === 1 ? 'online' : 'offline',
+          id: d._id || d.mac || Math.random().toString(36),
+          name: d.name || d.model || 'Unknown Device',
+          model: d.model || 'Unknown Model',
+          macAddress: d.mac || '00:00:00:00:00:00',
+          ipAddress: d.ip || '0.0.0.0',
+          status: (d.status === 1 || d.state === 1 || d.status === 'online') ? 'online' : 'offline',
           siteId: d.site_id || 'default',
-          firmwareVersion: d.version,
-          uptime: d.uptime,
-          numClients: d.num_sta,
-          deviceType: d.type === 'uap' ? 'ap' : d.type === 'usw' ? 'switch' : 'gateway'
+          firmwareVersion: d.version || d.firmwareVersion,
+          uptime: d.uptime || 0,
+          numClients: d.num_sta || d.numClients || 0,
+          deviceType: (d.type === 'uap' || d.deviceType === 'ap') ? 'ap' : (d.type === 'usw' || d.deviceType === 'switch') ? 'switch' : 'gateway'
         }));
         return { success: true, data: devices };
+      } else {
+        console.warn('[API] Unifi devices response INVALID. Expected array in realData.data:', realData);
       }
     } catch (e) {
       console.warn("Falling back to mock/store data for unifi devices", e);
