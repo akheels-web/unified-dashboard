@@ -3,10 +3,15 @@ const axios = require('axios');
 // Cloud Configuration
 // User provided docs: https://developer.ui.com/site-manager/v1.0.0/gettingstarted
 // API Key provided by user
-const API_KEY = 'HIwvnIn0k_IDWqJW0b-wj7hdS819CtH8';
+const API_KEY = process.env.UNIFI_API_KEY;
+const BASE_URL = process.env.UNIFI_URL || 'https://api.ui.com';
+
+if (!API_KEY) {
+    console.warn('WARNING: UNIFI_API_KEY is not set in environment variables.');
+}
 
 const unifiClient = axios.create({
-    baseURL: 'https://api.ui.com',
+    baseURL: BASE_URL,
     headers: {
         'X-API-Key': API_KEY,
         'Accept': 'application/json'
@@ -30,7 +35,8 @@ const getSites = async () => {
         const response = await unifiClient.get('/site-manager/v1/sites');
         return response.data;
     } catch (error) {
-        console.error('Error fetching Unifi sites:', error.response?.data || error.message);
+        console.error('Error fetching Unifi sites:', error.response?.status, error.response?.data || error.message);
+        console.error('Full Error:', error);
         throw error;
     }
 };
