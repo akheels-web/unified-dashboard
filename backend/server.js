@@ -95,13 +95,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // Advanced User Search & Filter (Real Graph Proxy)
+// Note: Graph API /users endpoint doesn't support $skip, so we fetch a larger set and do client-side pagination
 app.get('/api/users', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Request received for /api/users`);
     try {
         const { page = 1, pageSize = 25, search, department, location, enabled } = req.query;
-        const skip = (page - 1) * pageSize;
 
-        let url = `https://graph.microsoft.com/v1.0/users?$top=${pageSize}&$skip=${skip}&$count=true`;
+        // Fetch more records since we can't use $skip (Graph limitation)
+        let url = `https://graph.microsoft.com/v1.0/users?$top=999&$count=true`;
         // Select fields we need
         url += '&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,signInActivity';
 
@@ -138,9 +139,16 @@ app.get('/api/users', validateToken, async (req, res) => {
 
         const response = await axios.get(url, { headers });
 
+        // Server-side pagination on the filtered results
+        const allUsers = response.data.value || [];
+        const total = allUsers.length;
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = startIndex + parseInt(pageSize);
+        const paginatedUsers = allUsers.slice(startIndex, endIndex);
+
         res.json({
-            value: response.data.value,
-            '@odata.count': response.data['@odata.count'] // Pass total count for pagination
+            value: paginatedUsers,
+            '@odata.count': total
         });
 
     } catch (error) {
