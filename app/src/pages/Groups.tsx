@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Search, RefreshCw, Users, Mail, Calendar, Shield
+    Search, RefreshCw, Users, Mail, Calendar, Shield, X, Loader2
 } from 'lucide-react';
 import { groupsApi } from '@/services/api';
 import type { UserGroup } from '@/types';
@@ -12,15 +12,19 @@ export function Groups() {
     const [groups, setGroups] = useState<UserGroup[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const [activeTab, setActiveTab] = useState<'all' | 'security' | 'distribution' | 'm365'>('all');
+    const [selectedGroup, setSelectedGroup] = useState<UserGroup | null>(null);
+    const [groupMembers, setGroupMembers] = useState<{ members: any[], owners: any[] }>({ members: [], owners: [] });
+    const [loadingMembers, setLoadingMembers] = useState(false);
 
     useEffect(() => {
-        loadGroups();
-    }, []);
+        loadGroups(activeTab);
+    }, [activeTab]);
 
-    const loadGroups = async () => {
+    const loadGroups = async (type: 'all' | 'security' | 'distribution' | 'm365' = 'all') => {
         setLoading(true);
         try {
-            const response = await groupsApi.getGroups();
+            const response = await groupsApi.getGroups(type);
             if (response.success && response.data) {
                 setGroups(response.data);
             }
@@ -28,6 +32,25 @@ export function Groups() {
             toast.error('Failed to load groups');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleTabChange = (tab: 'all' | 'security' | 'distribution' | 'm365') => {
+        setActiveTab(tab);
+    };
+
+    const handleGroupClick = async (group: UserGroup) => {
+        setSelectedGroup(group);
+        setLoadingMembers(true);
+        try {
+            const response = await groupsApi.getGroupMembers(group.id);
+            if (response.success && response.data) {
+                setGroupMembers(response.data);
+            }
+        } catch (error) {
+            toast.error('Failed to load group members');
+        } finally {
+            setLoadingMembers(false);
         }
     };
 
@@ -45,12 +68,33 @@ export function Groups() {
                     <p className="text-muted-foreground">Manage M365 and Security Groups</p>
                 </div>
                 <button
-                    onClick={loadGroups}
+                    onClick={() => loadGroups(activeTab)}
                     className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border"
                 >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     Sync
                 </button>
+            </div>
+
+            {/* Group Type Tabs */}
+            <div className="flex gap-2 mb-4 overflow-x-auto">
+                {[
+                    { key: 'all', label: 'All Groups' },
+                    { key: 'security', label: 'Security' },
+                    { key: 'distribution', label: 'Distribution' },
+                    { key: 'm365', label: 'M365' }
+                ].map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => handleTabChange(tab.key as any)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.key
+                            ? 'bg-[#ed7422] text-white'
+                            : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             {/* Filters */}
@@ -74,7 +118,8 @@ export function Groups() {
                         key={group.id}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-card border border-border rounded-xl p-5 hover:shadow-md transition-all"
+                        onClick={() => handleGroupClick(group)}
+                        className="bg-card border border-border rounded-xl p-5 hover:shadow-md transition-all cursor-pointer hover:border-primary/50"
                     >
                         <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -115,6 +160,101 @@ export function Groups() {
                     </div>
                 )}
             </div>
+
+            {/* Group Members Modal */}
+            <AnimatePresence>
+                {selectedGroup && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                            onClick={() => setSelectedGroup(null)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[80vh] bg-card rounded-xl border border-border shadow-2xl z-50 overflow-hidden"
+                        >
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between p-6 border-b border-border">
+                                <div>
+                                    <h2 className="text-xl font-bold text-foreground">{selectedGroup.displayName}</h2>
+                                    <p className="text-sm text-muted-foreground">{selectedGroup.description}</p>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedGroup(null)}
+                                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
+                                {loadingMembers ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {/* Owners Section */}
+                                        <section>
+                                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                                                Owners ({groupMembers.owners.length})
+                                            </h3>
+                                            <div className="space-y-2">
+                                                {groupMembers.owners.map((owner: any) => (
+                                                    <div key={owner.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg">
+                                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                                                            {owner.displayName?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="text-foreground font-medium">{owner.displayName}</p>
+                                                            <p className="text-xs text-muted-foreground">{owner.mail || owner.userPrincipalName}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {groupMembers.owners.length === 0 && (
+                                                    <p className="text-muted-foreground text-center py-4">No owners</p>
+                                                )}
+                                            </div>
+                                        </section>
+
+                                        {/* Members Section */}
+                                        <section>
+                                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                                                Members ({groupMembers.members.length})
+                                            </h3>
+                                            <div className="space-y-2">
+                                                {groupMembers.members.map((member: any) => (
+                                                    <div key={member.id} className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg">
+                                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                                                            {member.displayName?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="text-foreground font-medium">{member.displayName}</p>
+                                                            <p className="text-xs text-muted-foreground">{member.mail || member.userPrincipalName}</p>
+                                                            {member.jobTitle && (
+                                                                <p className="text-xs text-muted-foreground">{member.jobTitle}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {groupMembers.members.length === 0 && (
+                                                    <p className="text-muted-foreground text-center py-4">No members</p>
+                                                )}
+                                            </div>
+                                        </section>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

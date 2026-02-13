@@ -266,8 +266,48 @@ app.get('/api/users/:id/groups', validateToken, async (req, res) => {
     }
 });
 
-// Get User Content (Files/Drives) - Placeholder/Future
-// app.get('/api/users/:id/content', ...);
+// ===========================
+// Groups Endpoints
+// ===========================
+
+// Get All Groups (with optional type filtering)
+app.get('/api/groups', validateToken, async (req, res) => {
+    const groupType = req.query.type || 'all'; // all, security, distribution, m365
+    console.log(`[${new Date().toISOString()}] Request received for /api/groups?type=${groupType}`);
+    try {
+        // Fetch all groups from the organization
+        const response = await axios.get(
+            `https://graph.microsoft.com/v1.0/groups?$select=id,displayName,description,mail,mailEnabled,securityEnabled,groupTypes,createdDateTime&$top=999`,
+            { headers: { Authorization: `Bearer ${req.accessToken}` } }
+        );
+
+        let groups = response.data.value;
+
+        // Filter by type if not 'all'
+        if (groupType !== 'all') {
+            groups = groups.filter(g => {
+                // Security groups: securityEnabled=true, mailEnabled=false
+                if (groupType === 'security') {
+                    return g.securityEnabled && !g.mailEnabled;
+                }
+                // Distribution lists: mailEnabled=true, securityEnabled=true
+                if (groupType === 'distribution') {
+                    return g.mailEnabled && g.securityEnabled;
+                }
+                // M365 groups: groupTypes includes 'Unified'
+                if (groupType === 'm365') {
+                    return g.groupTypes && g.groupTypes.includes('Unified');
+                }
+                return true;
+            });
+        }
+
+        res.json({ value: groups });
+    } catch (error) {
+        console.error('Failed to fetch groups:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Failed to fetch groups' });
+    }
+});
 
 // Get Group Members and Owners
 app.get('/api/groups/:id/members', validateToken, async (req, res) => {

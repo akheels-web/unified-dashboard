@@ -308,19 +308,29 @@ export const usersApi = {
 
 // Groups API
 export const groupsApi = {
-  getGroups: async (): Promise<ApiResponse<UserGroup[]>> => {
+  getGroups: async (type: 'all' | 'security' | 'distribution' | 'm365' = 'all'): Promise<ApiResponse<UserGroup[]>> => {
     try {
-      const realData = await fetchClient('/groups');
+      const realData = await fetchClient(`/groups?type=${type}`);
       if (realData && realData.value) {
-        const groups: UserGroup[] = realData.value.map((g: any) => ({
-          id: g.id,
-          displayName: g.displayName,
-          description: g.description || 'No description',
-          groupType: g.groupTypes?.includes('Unified') ? 'M365' : 'Security',
-          email: g.mail,
-          memberCount: 0, // Requires expansion or separate call
-          createdDate: g.createdDateTime,
-        }));
+        const groups: UserGroup[] = realData.value.map((g: any) => {
+          // Determine group type based on properties
+          let groupType = 'Security';
+          if (g.groupTypes?.includes('Unified')) {
+            groupType = 'M365';
+          } else if (g.mailEnabled && g.securityEnabled) {
+            groupType = 'Distribution';
+          }
+
+          return {
+            id: g.id,
+            displayName: g.displayName,
+            description: g.description || 'No description',
+            groupType,
+            email: g.mail,
+            memberCount: 0,
+            createdDate: g.createdDateTime,
+          };
+        });
         return { success: true, data: groups };
       }
     } catch (e) {
