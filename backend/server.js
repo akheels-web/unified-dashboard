@@ -311,8 +311,6 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
     }
 });
 
-});
-
 // Bulk Actions: Revoke Sessions
 app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
     const userId = req.params.id;
