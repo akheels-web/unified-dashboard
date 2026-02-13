@@ -71,15 +71,20 @@ export function Users() {
 
 
   const handleUserClick = async (user: M365User) => {
-    setUserDetail(user);
-
+    setUserDetail(user); // Optimistic update
     setShowUserDetail(true);
+
     try {
-      const [groupsRes, assetsRes] = await Promise.all([
+      // Fetch fresh user details (for MFA, etc.), groups, and assets
+      const [userRes, groupsRes, assetsRes] = await Promise.all([
+        usersApi.getUser(user.id),
         usersApi.getUserGroups(user.id),
         assetsApi.getAssets({ assignedTo: user.id })
       ]);
 
+      if (userRes.success && userRes.data) {
+        setUserDetail(userRes.data);
+      }
       if (groupsRes.success) {
         setUserGroups(groupsRes.data || []);
       }

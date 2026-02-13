@@ -157,49 +157,17 @@ export const usersApi = {
         };
       }
     } catch (e) {
-      console.warn("Falling back to mock data for users", e);
+      console.warn("Failed to fetch users", e);
     }
-
-    await delay(600);
-
-    let filteredUsers = [...mockM365Users];
-
-    if (filters?.search) {
-      const search = filters.search.toLowerCase();
-      filteredUsers = filteredUsers.filter(u =>
-        u.displayName.toLowerCase().includes(search) ||
-        u.email?.toLowerCase().includes(search) ||
-        u.userPrincipalName.toLowerCase().includes(search)
-      );
-    }
-
-    if (filters?.department) {
-      filteredUsers = filteredUsers.filter(u => u.department === filters.department);
-    }
-
-    if (filters?.status === 'active') {
-      filteredUsers = filteredUsers.filter(u => u.accountEnabled);
-    } else if (filters?.status === 'inactive') {
-      filteredUsers = filteredUsers.filter(u => !u.accountEnabled);
-    }
-
-    if (filters?.location) {
-      filteredUsers = filteredUsers.filter(u => u.officeLocation === filters.location);
-    }
-
-    const total = filteredUsers.length;
-    const totalPages = Math.ceil(total / pageSize);
-    const start = (page - 1) * pageSize;
-    const paginatedUsers = filteredUsers.slice(start, start + pageSize);
 
     return {
       success: true,
       data: {
-        data: paginatedUsers,
-        total,
+        data: [],
+        total: 0,
         page,
         pageSize,
-        totalPages,
+        totalPages: 0,
       }
     };
   },
@@ -267,11 +235,10 @@ export const usersApi = {
         return { success: true, data: groups };
       }
     } catch (e) {
-      console.warn("Falling back to mock data for user groups", e);
+      console.warn("Failed to fetch user groups", e);
     }
 
-    await delay(300);
-    return { success: true, data: mockUserGroups.slice(0, Math.floor(Math.random() * 5) + 1) };
+    return { success: true, data: [] };
   },
 
   disableUser: async (_id: string): Promise<ApiResponse<void>> => {
@@ -314,11 +281,9 @@ export const usersApi = {
         return { success: true, data: departments };
       }
     } catch (e) {
-      console.warn("Using mock data for departments");
+      console.warn("Failed to fetch departments", e);
     }
-    await delay(300);
-    const departments = [...new Set(mockM365Users.map(u => u.department).filter(Boolean))];
-    return { success: true, data: departments as string[] };
+    return { success: true, data: [] };
   },
 
   updateUserAccess: async (userId: string, allowedPages: string[]): Promise<ApiResponse<void>> => {
@@ -341,11 +306,9 @@ export const usersApi = {
         return { success: true, data: locations };
       }
     } catch (e) {
-      console.warn("Using mock data for locations");
+      console.warn("Failed to fetch locations", e);
     }
-    await delay(300);
-    const locations = [...new Set(mockM365Users.map(u => u.officeLocation).filter(Boolean))];
-    return { success: true, data: locations as string[] };
+    return { success: true, data: [] };
   },
 };
 
@@ -428,8 +391,11 @@ export const assetsApi = {
         }
 
         if (filters?.assignedTo) {
-          // Filter by user ID if provided
-          filteredAssets = filteredAssets.filter(a => a.assignedTo === filters.assignedTo);
+          // Filter by user ID if provided - Strict matching
+          const assignedId = filters.assignedTo.toLowerCase();
+          filteredAssets = filteredAssets.filter(a =>
+            a.assignedTo?.toLowerCase() === assignedId
+          );
         }
 
         const total = filteredAssets.length;
@@ -451,53 +417,17 @@ export const assetsApi = {
         };
       }
     } catch (e) {
-      console.warn("Falling back to mock data for assets", e);
+      console.warn("Failed to fetch assets", e);
     }
-
-    await delay(500);
-
-    let filteredAssets = [...mockAssets];
-
-    if (filters?.search) {
-      const search = filters.search.toLowerCase();
-      filteredAssets = filteredAssets.filter(a =>
-        a.name.toLowerCase().includes(search) ||
-        a.assetTag.toLowerCase().includes(search) ||
-        a.serialNumber?.toLowerCase().includes(search) ||
-        a.assignedTo?.toLowerCase().includes(search) ||
-        a.assignedToName?.toLowerCase().includes(search)
-      );
-    }
-
-    if (filters?.category) {
-      filteredAssets = filteredAssets.filter(a => a.category === filters.category);
-    }
-
-    if (filters?.status) {
-      filteredAssets = filteredAssets.filter(a => a.status === filters.status);
-    }
-
-    if (filters?.location) {
-      filteredAssets = filteredAssets.filter(a => a.location === filters.location);
-    }
-
-    if (filters?.assignedTo) {
-      filteredAssets = filteredAssets.filter(a => a.assignedTo === filters.assignedTo);
-    }
-
-    const total = filteredAssets.length;
-    const totalPages = Math.ceil(total / pageSize);
-    const start = (page - 1) * pageSize;
-    const paginatedAssets = filteredAssets.slice(start, start + pageSize);
 
     return {
       success: true,
       data: {
-        data: paginatedAssets,
-        total,
+        data: [],
+        total: 0,
         page,
         pageSize,
-        totalPages,
+        totalPages: 0,
       }
     };
   },
