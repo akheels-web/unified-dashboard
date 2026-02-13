@@ -31,8 +31,7 @@ export function Users() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Group filtering and member display
-  const [activeGroupTab, setActiveGroupTab] = useState<'all' | 'security' | 'distribution' | 'm365'>('all');
+  // Group member display
   const [selectedGroup, setSelectedGroup] = useState<UserGroup | null>(null);
   const [groupMembers, setGroupMembers] = useState<{ members: any[], owners: any[] }>({ members: [], owners: [] });
   const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
@@ -85,7 +84,7 @@ export function Users() {
       // Fetch fresh user details (for MFA, etc.), groups, and managed devices (Intune)
       const [userRes, groupsRes, deviceRes] = await Promise.all([
         usersApi.getUser(user.id),
-        usersApi.getUserGroups(user.id, activeGroupTab),
+        usersApi.getUserGroups(user.id),
         usersApi.getUserDevices(user.id)
       ]);
 
@@ -101,16 +100,6 @@ export function Users() {
       }
     } catch (error) {
       toast.error('Failed to load user details');
-    }
-  };
-
-  const handleGroupTabChange = async (tab: 'all' | 'security' | 'distribution' | 'm365') => {
-    setActiveGroupTab(tab);
-    if (userDetail) {
-      const groupsRes = await usersApi.getUserGroups(userDetail.id, tab);
-      if (groupsRes.success) {
-        setUserGroups(groupsRes.data || []);
-      }
     }
   };
 
@@ -609,31 +598,9 @@ export function Users() {
 
                 {/* Group Memberships */}
                 <section>
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
                     Group Memberships ({userGroups.length})
                   </h3>
-
-                  {/* Group Type Tabs */}
-                  <div className="flex gap-2 mb-4 overflow-x-auto">
-                    {[
-                      { key: 'all', label: 'All Groups' },
-                      { key: 'security', label: 'Security' },
-                      { key: 'distribution', label: 'Distribution' },
-                      { key: 'm365', label: 'M365' }
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        onClick={() => handleGroupTabChange(tab.key as any)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeGroupTab === tab.key
-                          ? 'bg-[#ed7422] text-white'
-                          : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
-                          }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
                   <div className="space-y-2">
                     {userGroups.map((group) => (
                       <div
