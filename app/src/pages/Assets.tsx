@@ -33,28 +33,41 @@ export function Assets() {
   const { addNotification } = useUIStore();
 
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedOS, setSelectedOS] = useState<string>('all');
+  const [ownershipType, setOwnershipType] = useState<'all' | 'corporate' | 'personal'>('all');
   const [showAssetDetail, setShowAssetDetail] = useState(false);
   const [assetDetail, setAssetDetail] = useState<Asset | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     loadAssets();
     loadCategories();
-  }, [filters, pagination.page, selectedCategory]);
+  }, [filters, pagination.page, selectedOS, ownershipType]);
 
   const loadAssets = async () => {
     setLoading(true);
     try {
-      const categoryFilter = selectedCategory !== 'all' ? selectedCategory : filters.category;
+      // Filter by OS if not 'all'
+      const osFilter = selectedOS !== 'all' ? selectedOS : filters.category;
+
       const assetResponse = await assetsApi.getAssets(
-        { ...filters, category: categoryFilter },
+        { ...filters, category: osFilter },
         pagination.page,
         pagination.pageSize
       );
+
       if (assetResponse.success && assetResponse.data) {
-        setAssets(assetResponse.data.data);
+        let filteredAssets = assetResponse.data.data;
+
+        // Apply ownership type filter
+        if (ownershipType !== 'all') {
+          filteredAssets = filteredAssets.filter((asset: Asset) => {
+            const ownership = asset.assignedTo ? 'corporate' : 'personal';
+            return ownership === ownershipType;
+          });
+        }
+
+        setAssets(filteredAssets);
         setPagination({
           total: assetResponse.data.total,
           totalPages: assetResponse.data.totalPages,
@@ -116,56 +129,38 @@ export function Assets() {
           <h1 className="text-2xl font-bold text-foreground">Assets</h1>
           <p className="text-muted-foreground">Manage company equipment and inventory</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={loadAssets}
-            className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#ed7422] hover:bg-[#ed7422]/90 text-white font-medium rounded-lg transition-colors shadow-lg shadow-orange-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Add Asset
-          </button>
-        </div>
+        <button
+          onClick={loadAssets}
+          className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
 
-      {/* Category Tabs */}
+      {/* OS Type Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <button
-          onClick={() => setSelectedCategory('all')}
-          className={cn(
-            'px-4 py-2 rounded-lg whitespace-nowrap transition-colors',
-            selectedCategory === 'all'
-              ? 'bg-primary text-primary-foreground font-medium'
-              : 'bg-card text-muted-foreground hover:bg-muted border border-border'
-          )}
-        >
-          All Assets
-        </button>
-        {categories.map((category) => {
-          const Icon = getCategoryIcon(category.name);
-          return (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.name)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors',
-                selectedCategory === category.name
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'bg-card text-muted-foreground hover:bg-muted border border-border'
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {category.name}
-              <span className="text-xs opacity-70">({category.count})</span>
-            </button>
-          );
-        })}
+        {[
+          { key: 'all', label: 'All Assets', icon: Laptop },
+          { key: 'windows', label: 'Windows', icon: Monitor },
+          { key: 'macos', label: 'MacOS', icon: Laptop },
+          { key: 'ios', label: 'iOS', icon: Smartphone },
+          { key: 'android', label: 'Android', icon: Smartphone }
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setSelectedOS(tab.key)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors',
+              selectedOS === tab.key
+                ? 'bg-[#ed7422] text-white font-medium'
+                : 'bg-card text-muted-foreground hover:bg-muted border border-border'
+            )}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -196,14 +191,13 @@ export function Assets() {
           </select>
 
           <select
-            value={filters.location}
-            onChange={(e) => setFilters({ location: e.target.value })}
+            value={ownershipType}
+            onChange={(e) => setOwnershipType(e.target.value as 'all' | 'corporate' | 'personal')}
             className="px-4 py-2 bg-muted/20 border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
           >
-            <option value="">All Locations</option>
-            <option value="New York">New York</option>
-            <option value="London">London</option>
-            <option value="Singapore">Singapore</option>
+            <option value="all">All Types</option>
+            <option value="corporate">Corporate</option>
+            <option value="personal">Personal</option>
           </select>
 
           <div className="flex items-center gap-2 bg-muted/20 rounded-lg p-1 border border-border">
@@ -227,7 +221,7 @@ export function Assets() {
             </button>
           </div>
 
-          {(filters.search || filters.status || filters.location) && (
+          {(filters.search || filters.status) && (
             <button
               onClick={() => setFilters({ search: '', status: '', location: '' })}
               className="flex items-center gap-1 text-sm text-primary hover:underline"
