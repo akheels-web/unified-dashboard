@@ -30,7 +30,9 @@ export interface M365User {
   mfaEnabled?: boolean;
   groups?: UserGroup[];
   syncedAt?: string;
+  assignedLicenses?: any[];
   allowedPages?: string[];
+  manager?: any;
 }
 
 export interface UserGroup {
@@ -288,7 +290,7 @@ export interface ChartDataPoint {
 export interface UserFilters {
   search?: string;
   department?: string;
-  status: 'active' | 'inactive' | 'all';
+  status?: 'active' | 'inactive' | 'all'; // Made optional
   lastActive?: string;
   allowedPages?: string[]; // List of paths the user can access
   location?: string;

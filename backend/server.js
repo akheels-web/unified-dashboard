@@ -60,7 +60,7 @@ app.get('/api/users', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Request received for /api/users`);
     try {
         // Fetch top 999 users to solve sync issue for small/medium tenants
-        const response = await axios.get('https://graph.microsoft.com/v1.0/users?$top=999&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled', {
+        const response = await axios.get('https://graph.microsoft.com/v1.0/users?$top=999&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,lastSignInDateTime', {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
                 'Content-Type': 'application/json'
@@ -71,6 +71,66 @@ app.get('/api/users', validateToken, async (req, res) => {
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Graph API Error (Users):`, error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch users' });
+    }
+});
+
+// Get Single User Details
+app.get('/api/users/:id', validateToken, async (req, res) => {
+    const userId = req.params.id;
+    console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}`);
+    try {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,lastSignInDateTime`, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (User ${userId}):`, error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch user details' });
+    }
+});
+
+// Get User Groups (Transitive)
+app.get('/api/users/:id/groups', validateToken, async (req, res) => {
+    const userId = req.params.id;
+    console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/groups`);
+    try {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/transitiveMemberOf?$top=999`, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (User Groups ${userId}):`, error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch user groups' });
+    }
+});
+
+// Get User MFA Status (Authentication Methods)
+// Note: Requires UserAuthenticationMethod.Read.All permission
+app.get('/api/users/:id/mfa', validateToken, async (req, res) => {
+    const userId = req.params.id;
+    console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/mfa`);
+    try {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/authentication/methods`, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (User MFA ${userId}):`, error.response?.data || error.message);
+        // MFA endpoint might return 403 if permissions are missing
+        if (error.response?.status === 403) {
+            console.warn('MFA fetch failed due to permissions. Returning empty list.');
+            return res.json({ value: [] }); // Graceful fallback
+        }
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch MFA status' });
     }
 });
 

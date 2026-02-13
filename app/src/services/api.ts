@@ -129,6 +129,15 @@ export const usersApi = {
           filteredUsers = filteredUsers.filter(u => u.department === filters.department);
         }
 
+        if (filters?.status && filters.status !== 'all') {
+          const isActive = filters.status === 'active';
+          filteredUsers = filteredUsers.filter(u => u.accountEnabled === isActive);
+        }
+
+        if (filters?.location) {
+          filteredUsers = filteredUsers.filter(u => u.officeLocation === filters.location);
+        }
+
         const total = filteredUsers.length;
         const totalPages = Math.ceil(total / pageSize);
         const start = (page - 1) * pageSize;
@@ -194,6 +203,44 @@ export const usersApi = {
   },
 
   getUser: async (id: string): Promise<ApiResponse<M365User>> => {
+    try {
+      const realData = await fetchClient(`/users/${id}`);
+      if (realData) {
+        // Fetch MFA status in parallel if possible, or just user details first
+        // For now, let's keep it simple and just return user details
+        // MFA status could be fetched separately or here if we have permission
+        // Let's try to fetch MFA status as well to complete the picture
+        let mfaEnabled = false;
+        try {
+          const mfaData = await fetchClient(`/users/${id}/mfa`);
+          if (mfaData && mfaData.value && mfaData.value.length > 0) {
+            mfaEnabled = true;
+          }
+        } catch (e) {
+          console.warn('Failed to fetch MFA status for user', id);
+        }
+
+        const user: M365User = {
+          id: realData.id,
+          displayName: realData.displayName,
+          email: realData.mail || realData.userPrincipalName,
+          userPrincipalName: realData.userPrincipalName,
+          department: realData.department || 'Unassigned',
+          jobTitle: realData.jobTitle || 'Unknown',
+          officeLocation: realData.officeLocation || 'Remote',
+          accountEnabled: realData.accountEnabled !== false,
+          createdDateTime: realData.createdDateTime,
+          lastSignInDateTime: realData.lastSignInDateTime,
+          mfaEnabled: mfaEnabled,
+          assignedLicenses: [],
+          manager: undefined
+        };
+        return { success: true, data: user };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for user details", e);
+    }
+
     await delay(400);
     const user = mockM365Users.find(u => u.id === id);
     if (user) {
@@ -202,37 +249,71 @@ export const usersApi = {
     return { success: false, error: 'User not found' };
   },
 
-  getUserGroups: async (_id: string): Promise<ApiResponse<UserGroup[]>> => {
+  getUserGroups: async (id: string): Promise<ApiResponse<UserGroup[]>> => {
+    try {
+      const realData = await fetchClient(`/users/${id}/groups`);
+      if (realData && realData.value) {
+        const groups: UserGroup[] = realData.value.map((g: any) => ({
+          id: g.id,
+          displayName: g.displayName,
+          description: g.description || 'No description',
+          groupType: g.groupTypes?.includes('Unified') ? 'M365' : 'Security',
+          email: g.mail,
+          memberCount: 0,
+          createdDate: g.createdDateTime,
+        }));
+        return { success: true, data: groups };
+      }
+    } catch (e) {
+      console.warn("Falling back to mock data for user groups", e);
+    }
+
     await delay(300);
     return { success: true, data: mockUserGroups.slice(0, Math.floor(Math.random() * 5) + 1) };
   },
 
-  disableUser: async (_id: string): Promise<ApiResponse<void>> => {
+  disableUser: async (id: string): Promise<ApiResponse<void>> => {
+    // This requires a POST/PATCH to Graph API which we haven't implemented in backend yet
+    // For now, mock success to show UI flow
     await delay(800);
     return { success: true, message: 'User account disabled successfully' };
   },
 
-  revokeSessions: async (_id: string): Promise<ApiResponse<void>> => {
+  revokeSessions: async (id: string): Promise<ApiResponse<void>> => {
+    // Requires POST /users/{id}/revokeSignInSessions
     await delay(600);
     return { success: true, message: 'All sessions revoked successfully' };
   },
 
-  removeMfa: async (_id: string): Promise<ApiResponse<void>> => {
+  removeMfa: async (id: string): Promise<ApiResponse<void>> => {
+    // complex operation, mocking for now
     await delay(500);
     return { success: true, message: 'MFA methods removed successfully' };
   },
 
-  removeFromGroups: async (_id: string): Promise<ApiResponse<void>> => {
+  removeFromGroups: async (id: string): Promise<ApiResponse<void>> => {
+    // complex operation, mocking for now
     await delay(700);
     return { success: true, message: 'User removed from all groups' };
   },
 
   syncUsers: async (): Promise<ApiResponse<void>> => {
+    // Trigger backend sync if implemented, else just re-fetch
     await delay(2000);
     return { success: true, message: 'Users synchronized successfully' };
   },
 
   getDepartments: async (): Promise<ApiResponse<string[]>> => {
+    try {
+      // optimize: reuse cached users if available, or fetch light list
+      const response = await usersApi.getUsers({}, 1, 999);
+      if (response.success && response.data) {
+        const departments = [...new Set(response.data.data.map(u => u.department).filter(Boolean))];
+        return { success: true, data: departments };
+      }
+    } catch (e) {
+      console.warn("Using mock data for departments");
+    }
     await delay(300);
     const departments = [...new Set(mockM365Users.map(u => u.department).filter(Boolean))];
     return { success: true, data: departments as string[] };
@@ -251,6 +332,15 @@ export const usersApi = {
   },
 
   getLocations: async (): Promise<ApiResponse<string[]>> => {
+    try {
+      const response = await usersApi.getUsers({}, 1, 999);
+      if (response.success && response.data) {
+        const locations = [...new Set(response.data.data.map(u => u.officeLocation).filter(Boolean))];
+        return { success: true, data: locations };
+      }
+    } catch (e) {
+      console.warn("Using mock data for locations");
+    }
     await delay(300);
     const locations = [...new Set(mockM365Users.map(u => u.officeLocation).filter(Boolean))];
     return { success: true, data: locations as string[] };
@@ -313,8 +403,8 @@ export const assetsApi = {
           model: d.model || 'Unknown Model',
           category: d.operatingSystem === 'Windows' ? 'Laptop' : d.operatingSystem === 'iOS' ? 'Mobile' : 'Workstation',
           status: 'active', // Defaulting to active for now
-          assignedTo: d.userPrincipalName, // Email
-          assignedToName: d.userDisplayName,
+          assignedTo: d.userId, // Intune creates user association via userId
+          assignedToName: d.userDisplayName, // Ensure this field exists if Graph returns it (it does for managedDevices)
           purchaseDate: d.enrolledDateTime,
           warrantyExpiration: undefined, // Not typically in standard Intune view
           location: 'Remote', // Todo: Map from extension attributes
@@ -335,6 +425,11 @@ export const assetsApi = {
           );
         }
 
+        if (filters?.assignedTo) {
+          // Filter by user ID if provided
+          filteredAssets = filteredAssets.filter(a => a.assignedTo === filters.assignedTo);
+        }
+
         const total = filteredAssets.length;
         const totalPages = Math.ceil(total / pageSize);
         const start = (page - 1) * pageSize;
@@ -348,6 +443,8 @@ export const assetsApi = {
             page,
             pageSize,
             totalPages,
+            // @ts-ignore
+            allAssets: filteredAssets // Helper for verifying counts
           }
         };
       }
