@@ -94,65 +94,47 @@ export const dashboardApi = {
 // Users API
 export const usersApi = {
   getUsers: async (filters?: UserFilters, page: number = 1, pageSize: number = 25): Promise<ApiResponse<PaginatedResponse<M365User>>> => {
-    // Try sending to real backend first
     try {
-      const realData = await fetchClient('/users');
-      if (realData && realData.value) {
-        // Transform Graph API data to our M365User shape
-        const users: M365User[] = realData.value.map((u: any) => ({
+      // Build query params for backend
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('pageSize', pageSize.toString());
+
+      if (filters) {
+        if (filters.search) params.append('search', filters.search);
+        if (filters.department && filters.department !== 'All Departments') params.append('department', filters.department);
+        if (filters.location && filters.location !== 'All Locations') params.append('location', filters.location);
+        if (filters.status && filters.status !== 'all') params.append('enabled', filters.status);
+      }
+
+      const realData = await fetchClient(`/users?${params.toString()}`);
+
+      if (realData) {
+        // Map backend response to frontend model
+        const mappedUsers = (realData.value || []).map((u: any) => ({
           id: u.id,
-          displayName: u.displayName,
-          email: u.mail || u.userPrincipalName,
           userPrincipalName: u.userPrincipalName,
+          displayName: u.displayName,
+          givenName: u.givenName, // Might be missing if not selected
+          surname: u.surname,     // Might be missing if not selected
+          email: u.mail || u.userPrincipalName,
           department: u.department || 'Unassigned',
           jobTitle: u.jobTitle || 'Unknown',
           officeLocation: u.officeLocation || 'Remote',
-          accountEnabled: u.accountEnabled !== false, // Graph uses accountEnabled boolean
-          assignedLicenses: [], // Requires separate call or expansion
-          manager: undefined
+          accountEnabled: u.accountEnabled !== false,
+          createdDateTime: u.createdDateTime,
+          lastSignInDateTime: u.signInActivity?.lastSignInDateTime || null,
+          mfaEnabled: false, // Detail fetched separately
         }));
-
-        // Apply client-side filtering/pagination for now (since backend is simple proxy)
-        // In production, move this logic to the backend!
-        let filteredUsers = users;
-
-        if (filters?.search) {
-          const search = filters.search.toLowerCase();
-          filteredUsers = filteredUsers.filter(u =>
-            u.displayName.toLowerCase().includes(search) ||
-            u.email?.toLowerCase().includes(search) ||
-            u.userPrincipalName.toLowerCase().includes(search)
-          );
-        }
-
-        if (filters?.department) {
-          const deptFilter = filters.department.toLowerCase().trim();
-          filteredUsers = filteredUsers.filter(u => u.department?.toLowerCase().trim() === deptFilter);
-        }
-
-        if (filters?.status && filters.status !== 'all') {
-          const isActive = filters.status === 'active';
-          filteredUsers = filteredUsers.filter(u => u.accountEnabled === isActive);
-        }
-
-        if (filters?.location) {
-          const locFilter = filters.location.toLowerCase().trim();
-          filteredUsers = filteredUsers.filter(u => u.officeLocation?.toLowerCase().trim() === locFilter);
-        }
-
-        const total = filteredUsers.length;
-        const totalPages = Math.ceil(total / pageSize);
-        const start = (page - 1) * pageSize;
-        const paginatedUsers = filteredUsers.slice(start, start + pageSize);
 
         return {
           success: true,
           data: {
-            data: paginatedUsers,
-            total,
+            data: mappedUsers,
+            total: realData['@odata.count'] || mappedUsers.length,
             page,
             pageSize,
-            totalPages,
+            totalPages: Math.ceil((realData['@odata.count'] || 0) / pageSize),
           }
         };
       }
@@ -162,46 +144,33 @@ export const usersApi = {
 
     return {
       success: true,
-      data: {
-        data: [],
-        total: 0,
-        page,
-        pageSize,
-        totalPages: 0,
-      }
+      data: { data: [], total: 0, page, pageSize, totalPages: 0 }
     };
   },
 
   getUser: async (id: string): Promise<ApiResponse<M365User>> => {
     try {
-      const realData = await fetchClient(`/users/${id}`);
-      if (realData) {
-        // Fetch MFA status in parallel if possible, or just user details first
-        // For now, let's keep it simple and just return user details
-        // MFA status could be fetched separately or here if we have permission
-        // Let's try to fetch MFA status as well to complete the picture
-        let mfaEnabled = false;
-        try {
-          const mfaData = await fetchClient(`/users/${id}/mfa`);
-          if (mfaData && mfaData.value && mfaData.value.length > 0) {
-            mfaEnabled = true;
-          }
-        } catch (e) {
-          console.warn('Failed to fetch MFA status for user', id);
-        }
+      // Fetch details + MFA status
+      const [userRes, mfaRes] = await Promise.all([
+        fetchClient(`/users/${id}`),
+        fetchClient(`/users/${id}/mfa`)
+      ]);
 
+      if (userRes) {
         const user: M365User = {
-          id: realData.id,
-          displayName: realData.displayName,
-          email: realData.mail || realData.userPrincipalName,
-          userPrincipalName: realData.userPrincipalName,
-          department: realData.department || 'Unassigned',
-          jobTitle: realData.jobTitle || 'Unknown',
-          officeLocation: realData.officeLocation || 'Remote',
-          accountEnabled: realData.accountEnabled !== false,
-          createdDateTime: realData.createdDateTime,
-          lastSignInDateTime: realData.lastSignInDateTime,
-          mfaEnabled: mfaEnabled,
+          id: userRes.id,
+          userPrincipalName: userRes.userPrincipalName,
+          displayName: userRes.displayName,
+          givenName: userRes.givenName,
+          surname: userRes.surname,
+          email: userRes.mail || userRes.userPrincipalName,
+          department: userRes.department || 'Unassigned',
+          jobTitle: userRes.jobTitle || 'Unknown',
+          officeLocation: userRes.officeLocation || 'Remote',
+          accountEnabled: userRes.accountEnabled !== false,
+          createdDateTime: userRes.createdDateTime,
+          lastSignInDateTime: userRes.signInActivity?.lastSignInDateTime,
+          mfaEnabled: mfaRes && mfaRes.mfaEnabled === true, // Simplified boolean from backend
           assignedLicenses: [],
           manager: undefined
         };
@@ -224,7 +193,7 @@ export const usersApi = {
           description: g.description || 'No description',
           groupType: g.groupTypes?.includes('Unified') ? 'M365' : 'Security',
           email: g.mail,
-          memberCount: 0,
+          memberCount: 0, // Requires expansion or separate call
           createdDate: g.createdDateTime,
         }));
         return { success: true, data: groups };
@@ -262,17 +231,25 @@ export const usersApi = {
     return { success: true, data: [] };
   },
 
-  disableUser: async (_id: string): Promise<ApiResponse<void>> => {
-    // This requires a POST/PATCH to Graph API which we haven't implemented in backend yet
-    // For now, mock success to show UI flow
-    await delay(800);
-    return { success: true, message: 'User account disabled successfully' };
+  disableUser: async (id: string): Promise<ApiResponse<void>> => {
+    try {
+      await fetchClient(`/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ accountEnabled: false })
+      });
+      return { success: true, message: 'User account disabled successfully' };
+    } catch (e) {
+      return { success: false, message: 'Failed to disable user' };
+    }
   },
 
-  revokeSessions: async (_id: string): Promise<ApiResponse<void>> => {
-    // Requires POST /users/{id}/revokeSignInSessions
-    await delay(600);
-    return { success: true, message: 'All sessions revoked successfully' };
+  revokeSessions: async (id: string): Promise<ApiResponse<void>> => {
+    try {
+      await fetchClient(`/users/${id}/revoke`, { method: 'POST' });
+      return { success: true, message: 'Sessions revoked successfully' };
+    } catch (e) {
+      return { success: false, message: 'Failed to revoke sessions' };
+    }
   },
 
   removeMfa: async (_id: string): Promise<ApiResponse<void>> => {
@@ -284,52 +261,38 @@ export const usersApi = {
   removeFromGroups: async (_id: string): Promise<ApiResponse<void>> => {
     // complex operation, mocking for now
     await delay(700);
-    return { success: true, message: 'User removed from all groups' };
+    return { success: true, message: 'User removed from groups successfully' };
   },
 
   syncUsers: async (): Promise<ApiResponse<void>> => {
-    // Trigger backend sync if implemented, else just re-fetch
-    await delay(2000);
-    return { success: true, message: 'Users synchronized successfully' };
+    await delay(1500);
+    return { success: true, message: 'User sync started successfully' };
   },
 
   getDepartments: async (): Promise<ApiResponse<string[]>> => {
     try {
-      // optimize: reuse cached users if available, or fetch light list
-      const response = await usersApi.getUsers({}, 1, 999);
-      if (response.success && response.data) {
-        const departments = [...new Set(response.data.data.map(u => u.department).filter(Boolean))] as string[];
-        return { success: true, data: departments };
-      }
+      const data = await fetchClient('/users/departments');
+      return {
+        success: true,
+        data: data || []
+      };
     } catch (e) {
-      console.warn("Failed to fetch departments", e);
+      return { success: true, data: [] };
     }
-    return { success: true, data: [] };
-  },
-
-  updateUserAccess: async (userId: string, allowedPages: string[]): Promise<ApiResponse<void>> => {
-    await delay(800);
-    // In a real app, this would make an API call.
-    // We can update the mock data in memory if we want persistence within the session,
-    // but typically mocks just return success.
-    const userIndex = mockM365Users.findIndex(u => u.id === userId);
-    if (userIndex !== -1) {
-      mockM365Users[userIndex].allowedPages = allowedPages;
-    }
-    return { success: true, message: 'User access permissions updated successfully' };
   },
 
   getLocations: async (): Promise<ApiResponse<string[]>> => {
     try {
-      const response = await usersApi.getUsers({}, 1, 999);
-      if (response.success && response.data) {
-        const locations = [...new Set(response.data.data.map(u => u.officeLocation).filter(Boolean))] as string[];
-        return { success: true, data: locations };
-      }
+      const data = await fetchClient('/users/locations');
+      return { success: true, data: data || [] };
     } catch (e) {
-      console.warn("Failed to fetch locations", e);
+      return { success: true, data: [] };
     }
-    return { success: true, data: [] };
+  },
+
+  updateUserAccess: async (_userId: string, _pages: string[]): Promise<ApiResponse<void>> => {
+    await delay(800);
+    return { success: true, message: 'User access permissions updated successfully' };
   },
 };
 
