@@ -272,26 +272,26 @@ export const usersApi = {
     return { success: true, data: mockUserGroups.slice(0, Math.floor(Math.random() * 5) + 1) };
   },
 
-  disableUser: async (id: string): Promise<ApiResponse<void>> => {
+  disableUser: async (_id: string): Promise<ApiResponse<void>> => {
     // This requires a POST/PATCH to Graph API which we haven't implemented in backend yet
     // For now, mock success to show UI flow
     await delay(800);
     return { success: true, message: 'User account disabled successfully' };
   },
 
-  revokeSessions: async (id: string): Promise<ApiResponse<void>> => {
+  revokeSessions: async (_id: string): Promise<ApiResponse<void>> => {
     // Requires POST /users/{id}/revokeSignInSessions
     await delay(600);
     return { success: true, message: 'All sessions revoked successfully' };
   },
 
-  removeMfa: async (id: string): Promise<ApiResponse<void>> => {
+  removeMfa: async (_id: string): Promise<ApiResponse<void>> => {
     // complex operation, mocking for now
     await delay(500);
     return { success: true, message: 'MFA methods removed successfully' };
   },
 
-  removeFromGroups: async (id: string): Promise<ApiResponse<void>> => {
+  removeFromGroups: async (_id: string): Promise<ApiResponse<void>> => {
     // complex operation, mocking for now
     await delay(700);
     return { success: true, message: 'User removed from all groups' };
@@ -308,7 +308,7 @@ export const usersApi = {
       // optimize: reuse cached users if available, or fetch light list
       const response = await usersApi.getUsers({}, 1, 999);
       if (response.success && response.data) {
-        const departments = [...new Set(response.data.data.map(u => u.department).filter(Boolean))];
+        const departments = [...new Set(response.data.data.map(u => u.department).filter(Boolean))] as string[];
         return { success: true, data: departments };
       }
     } catch (e) {
@@ -335,7 +335,7 @@ export const usersApi = {
     try {
       const response = await usersApi.getUsers({}, 1, 999);
       if (response.success && response.data) {
-        const locations = [...new Set(response.data.data.map(u => u.officeLocation).filter(Boolean))];
+        const locations = [...new Set(response.data.data.map(u => u.officeLocation).filter(Boolean))] as string[];
         return { success: true, data: locations };
       }
     } catch (e) {
