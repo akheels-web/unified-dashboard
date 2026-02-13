@@ -59,16 +59,26 @@ export function Assets() {
         // Apply OS filter based on device name patterns
         if (selectedOS !== 'all') {
           filteredAssets = filteredAssets.filter((asset: Asset) => {
-            const nameLower = asset.name.toLowerCase();
+            const name = asset.name; // Keep original case for accurate matching
+            const nameLower = name.toLowerCase();
+
             switch (selectedOS) {
               case 'windows':
-                return nameLower.includes('_windows') || nameLower.includes('windows');
+                // Match: _Windows, Windows, _windows
+                return name.includes('_Windows') || name.includes('Windows') ||
+                  nameLower.includes('_windows') || nameLower.includes('windows');
               case 'macos':
-                return nameLower.includes('_macos') || nameLower.includes('macos');
+                // Match: _MacOS, MacOS, _macos
+                return name.includes('_MacOS') || name.includes('MacOS') ||
+                  nameLower.includes('_macos') || nameLower.includes('macos');
               case 'ios':
-                return nameLower.includes('_ios') || nameLower.includes('ios');
+                // Match: _iOS, iOS, _ios
+                return name.includes('_iOS') || name.includes('iOS') ||
+                  nameLower.includes('_ios') || nameLower.includes('ios');
               case 'android':
-                return nameLower.includes('_android') || nameLower.includes('android');
+                // Match: _Android, Android, _android, AndroidForWork
+                return name.includes('_Android') || name.includes('Android') ||
+                  nameLower.includes('_android') || nameLower.includes('android');
               default:
                 return true;
             }
