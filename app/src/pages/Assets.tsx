@@ -56,36 +56,52 @@ export function Assets() {
       if (assetResponse.success && assetResponse.data) {
         let filteredAssets = assetResponse.data.data;
 
+        console.log(`=== FILTERING DEBUG ===`);
+        console.log(`Total devices: ${filteredAssets.length}, Selected OS: "${selectedOS}"`);
+
         // Apply OS filter based on device name patterns
         if (selectedOS !== 'all') {
           filteredAssets = filteredAssets.filter((asset: Asset) => {
             const name = asset.name;
             const nameLower = name.toLowerCase();
 
+            let matches = false;
             switch (selectedOS) {
               case 'windows':
                 // Match: _Windows, Windows (space or underscore), windows
-                return name.includes('_Windows') || name.includes(' Windows') ||
+                matches = name.includes('_Windows') || name.includes(' Windows') ||
                   nameLower.includes('_windows') || nameLower.includes(' windows');
+                break;
               case 'macos':
                 // Match: _MacOS, MacOS (space or underscore), macos
-                return name.includes('_MacOS') || name.includes(' MacOS') ||
+                matches = name.includes('_MacOS') || name.includes(' MacOS') ||
                   nameLower.includes('_macos') || nameLower.includes(' macos');
+                break;
               case 'ios':
                 // Match: _iPhone, iPhone, _iOS, iOS
-                return name.includes('_iPhone') || name.includes(' iPhone') ||
+                matches = name.includes('_iPhone') || name.includes(' iPhone') ||
                   name.includes('_iOS') || name.includes(' iOS') ||
                   nameLower.includes('_iphone') || nameLower.includes(' iphone') ||
                   nameLower.includes('_ios') || nameLower.includes(' ios');
+                break;
               case 'android':
                 // Match: _Android, Android, _android, AndroidForWork
-                return name.includes('_Android') || name.includes(' Android') ||
+                matches = name.includes('_Android') || name.includes(' Android') ||
                   nameLower.includes('_android') || nameLower.includes(' android');
+                break;
               default:
-                return true;
+                matches = true;
             }
+
+            if (selectedOS === 'windows' || selectedOS === 'macos') {
+              console.log(`Device: "${name}" | Matches ${selectedOS}: ${matches}`);
+            }
+
+            return matches;
           });
+          console.log(`Filtered count: ${filteredAssets.length}`);
         }
+        console.log(`======================`);
 
         // Apply ownership type filter
         if (ownershipType !== 'all') {
