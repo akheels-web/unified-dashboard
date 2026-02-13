@@ -27,8 +27,8 @@ const categoryIcons: Record<string, React.ElementType> = {
 
 export function Assets() {
   const {
-    assets, categories, filters, pagination, isLoading,
-    setAssets, setCategories, setFilters, setPagination, setLoading
+    assets, filters, pagination, isLoading,
+    setAssets, setFilters, setPagination, setLoading
   } = useAssetStore();
   const { addNotification } = useUIStore();
 
@@ -41,7 +41,6 @@ export function Assets() {
 
   useEffect(() => {
     loadAssets();
-    loadCategories();
   }, [filters, pagination.page, selectedOS, ownershipType]);
 
   const loadAssets = async () => {
@@ -77,17 +76,6 @@ export function Assets() {
       toast.error('Failed to load assets');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const response = await assetsApi.getCategories();
-      if (response.success) {
-        setCategories(response.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to load categories');
     }
   };
 
@@ -578,64 +566,6 @@ export function Assets() {
                     </button>
                   </div>
                 </section>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-      {/* Add Asset Modal */}
-      <AnimatePresence>
-        {showAddModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-              onClick={() => setShowAddModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            >
-              <div className="bg-card rounded-2xl border border-border w-full max-w-md shadow-xl overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-foreground">Add New Asset</h2>
-                  <button
-                    onClick={() => setShowAddModal(false)}
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Asset Name</label>
-                    <input type="text" className="w-full px-4 py-2 bg-muted/20 border border-border rounded-lg text-foreground focus:outline-none focus:border-primary" placeholder="e.g. MacBook Pro 16" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Category</label>
-                    <select className="w-full px-4 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-primary">
-                      {categories.map(c => <option key={c.id} value={c.name} className="bg-card text-foreground">{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Serial Number</label>
-                    <input type="text" className="w-full px-4 py-2 bg-muted/20 border border-border rounded-lg text-foreground focus:outline-none focus:border-primary" placeholder="Enter serial number" />
-                  </div>
-                </div>
-                <div className="p-6 border-t border-border bg-muted/10 flex justify-end gap-3">
-                  <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground">Cancel</button>
-                  <button onClick={() => {
-                    toast.success('Asset added successfully');
-                    setShowAddModal(false);
-                    loadAssets();
-                  }} className="px-4 py-2 bg-[#ed7422] hover:bg-[#ed7422]/90 text-white font-medium rounded-lg shadow-md transition-colors">
-                    Add Asset
-                  </button>
-                </div>
               </div>
             </motion.div>
           </>
