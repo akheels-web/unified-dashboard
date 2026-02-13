@@ -33,18 +33,39 @@ const CACHE_TTL = 30 * 1000; // 30 seconds
 /*
  * Get Hosts (Controllers)
  */
+/*
+ * Get Hosts (Controllers)
+ */
 const getHosts = async () => {
+    const tryEndpoint = async (endpoint) => {
+        try {
+            console.log(`[Unifi] Attempting to fetch: ${unifiClient.defaults.baseURL}${endpoint}`);
+            const response = await unifiClient.get(endpoint);
+            console.log(`[Unifi] Success fetching ${endpoint}`);
+            return response.data?.data || [];
+        } catch (error) {
+            console.error(`[Unifi] Failed to fetch ${endpoint}. Status: ${error.response?.status}`);
+            console.error('[Unifi] Full URL attempted:', `${unifiClient.defaults.baseURL}${endpoint}`);
+            throw error;
+        }
+    };
+
     try {
-        console.log(`[Unifi] Fetching hosts from: ${unifiClient.defaults.baseURL}/hosts`);
-        const response = await unifiClient.get('/hosts');
-        return response.data?.data || [];
+        // Try /hosts first
+        return await tryEndpoint('/hosts');
     } catch (error) {
-        console.error('❌ Error fetching hosts:',
-            error.response?.status,
-            error.response?.data || error.message,
-            'URL:', error.config?.url
-        );
-        throw error;
+        if (error.response?.status === 404) {
+            console.log('[Unifi] /hosts returned 404, trying /sites as fallback...');
+            try {
+                // Try /sites as fallback (some API versions differ)
+                return await tryEndpoint('/sites');
+            } catch (innerError) {
+                console.error('[Unifi] Both /hosts and /sites failed.');
+                return []; // Return empty array instead of throwing to prevent crash
+            }
+        }
+        console.error('❌ Error fetching hosts:', error.message);
+        return []; // Return empty array to prevent dashboard crash
     }
 };
 
