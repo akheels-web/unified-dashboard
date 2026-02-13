@@ -1,137 +1,189 @@
+require('dotenv').config();
 const axios = require('axios');
 
-// Cloud Configuration
-// User provided docs: https://developer.ui.com/site-manager/v1.0.0/gettingstarted
-// API Key provided by user
 const API_KEY = process.env.UNIFI_API_KEY;
-const BASE_URL = process.env.UNIFI_URL || 'https://api.ui.com';
 
 if (!API_KEY) {
-    console.warn('WARNING: UNIFI_API_KEY is not set in environment variables.');
+    console.error('❌ UNIFI_API_KEY is missing in .env');
+    // We don't exit here to avoid crashing the whole backend, but we warn loudly.
 }
 
+// Correct Site Manager base URL
+// Documentation: https://ui.com/site-manager-api
 const unifiClient = axios.create({
-    baseURL: BASE_URL,
+    baseURL: 'https://api.ui.com/site-manager/v1',
     headers: {
-        'X-API-Key': API_KEY,
+        'X-API-Key': API_KEY, // Keeping X-API-Key as user mentioned it in the docs text, but user also suggested Bearer.
+        // Let's try to support checking or just use the one that works.
+        // User's code snippet uses Authorization: Bearer. 
+        // User's TEXT says "Incorporate the API key into the X-API-Key header".
+        // BUT User's "First Critical Check" says "Authorization: Bearer".
+        // I will stick to the user's "First Critical Check" advice as it seems to be their specific correction.
+        'Authorization': `Bearer ${API_KEY}`,
         'Accept': 'application/json'
-    }
+    },
+    timeout: 15000
 });
 
-// Cache in-memory
+// In-memory cache
 let deviceCache = {
     data: [],
     lastFetch: 0
 };
+
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
 /*
- * Fetch Sites (Really fetching Hosts/Controllers from Site Manager)
+ * Get Hosts (Controllers)
  */
-const getSites = async () => {
+const getHosts = async () => {
     try {
-        console.log('Fetching Unifi Hosts from Cloud...');
-        // Documentation says: GET https://api.ui.com/v1/hosts
-        const response = await unifiClient.get('/v1/hosts');
-        console.log(`[Unifi] Fetched ${response.data.data ? response.data.data.length : 0} hosts.`);
-        return response.data;
+        const response = await unifiClient.get('/hosts');
+        return response.data?.data || [];
     } catch (error) {
-        console.error('Error fetching Unifi hosts:', error.response?.status, error.response?.data || error.message);
-        // console.error('Full Error:', error);
+        console.error('❌ Error fetching hosts:',
+            error.response?.status,
+            error.response?.data || error.message
+        );
         throw error;
     }
 };
 
 /*
- * Fetch Devices (Iterates through hosts)
+ * Get Sites for a Host
  */
-const getDevices = async () => {
-    // Check cache
-    if (Date.now() - deviceCache.lastFetch < CACHE_TTL && deviceCache.data.length > 0) {
-        return deviceCache.data;
-    }
-
+const getSitesForHost = async (hostId) => {
     try {
-        // 1. Get Hosts
-        const hostsResponse = await getSites();
-        // Handle response wrapping if any (e.g. { data: [...] })
-        const hostList = Array.isArray(hostsResponse) ? hostsResponse : (hostsResponse.data || []);
-
-        console.log('[Unifi] Host list:', JSON.stringify(hostList.map(h => ({ id: h.id, name: h.name })), null, 2));
-
-        let allDevices = [];
-
-        // 2. Loop hosts to get devices
-        for (const host of hostList) {
-            try {
-                const hostId = host.id;
-                console.log(`[Unifi] Fetching devices for host: ${host.name} (${hostId})`);
-
-                // Try to get devices for this host
-                // Endpoint guess based on standard REST patterns for this API: /v1/hosts/{id}/devices
-                const response = await unifiClient.get(`/v1/hosts/${hostId}/devices`);
-                const hostDevices = Array.isArray(response.data) ? response.data : (response.data.data || []);
-
-                // Add host context
-                const mappedDevices = hostDevices.map(d => ({
-                    ...d,
-                    siteName: host.name,
-                    siteId: hostId
-                }));
-                allDevices = allDevices.concat(mappedDevices);
-            } catch (err) {
-                console.warn(`[Unifi] Failed to fetch devices for host ${host.name} (${host.id}): ${err.message}`);
-                // Continue to next host
-            }
-        }
-
-        deviceCache.data = allDevices;
-        deviceCache.lastFetch = Date.now();
-        console.log(`[Unifi] Total devices fetched: ${allDevices.length}`);
-        return allDevices;
-
+        const response = await unifiClient.get(`/hosts/${hostId}/sites`);
+        return response.data?.data || [];
     } catch (error) {
-        console.error('Error fetching Unifi devices:', error.message);
-        // Fallback to empty array to avoid crashing frontend
+        console.error(`❌ Error fetching sites for host ${hostId}:`,
+            error.response?.status,
+            error.response?.data || error.message
+        );
         return [];
     }
 };
 
 /*
- * Get Health Check / Stats
+ * Get Devices for a Site
  */
-const getHealth = async () => {
+const getDevicesForSite = async (siteId) => {
     try {
-        const sitesResponse = await getSites();
-        const siteList = Array.isArray(sitesResponse) ? sitesResponse : (sitesResponse.data || []);
-
-        const totalSites = siteList.length;
-        // Check for 'status' or 'connectionState' depending on API response shape
-        const onlineSites = siteList.filter(s => s.status === 'online' || s.isConnected === true).length;
-
-        return {
-            status: 'ok',
-            sites: totalSites,
-            onlineSites: onlineSites,
-            offlineSites: totalSites - onlineSites
-        };
+        const response = await unifiClient.get(`/sites/${siteId}/devices`);
+        return response.data?.data || [];
     } catch (error) {
-        return { status: 'error', message: error.message };
+        console.error(`❌ Error fetching devices for site ${siteId}:`,
+            error.response?.status,
+            error.response?.data || error.message
+        );
+        return [];
     }
 };
 
 /*
- * Get Clients (Placeholder)
+ * Get All Devices
+ */
+const getDevices = async () => {
+    // Use cache
+    if (Date.now() - deviceCache.lastFetch < CACHE_TTL && deviceCache.data.length > 0) {
+        return deviceCache.data;
+    }
+
+    try {
+        const hosts = await getHosts();
+        let allDevices = [];
+
+        for (const host of hosts) {
+            const sites = await getSitesForHost(host.id);
+
+            for (const site of sites) {
+                const devices = await getDevicesForSite(site.id);
+
+                const mappedDevices = devices.map(device => ({
+                    ...device,
+                    hostName: host.name,
+                    hostId: host.id,
+                    siteName: site.name,
+                    siteId: site.id,
+                    // Map fields for frontend compatibility
+                    name: device.name || device.model || 'Unknown',
+                    status: (device.status === 'online' || device.state === 1) ? 'online' : 'offline',
+                    ipAddress: device.ip,
+                    macAddress: device.mac
+                }));
+
+                allDevices = allDevices.concat(mappedDevices);
+            }
+        }
+
+        deviceCache = {
+            data: allDevices,
+            lastFetch: Date.now()
+        };
+
+        return allDevices;
+
+    } catch (error) {
+        console.error('❌ Error fetching devices:', error.message);
+        return [];
+    }
+};
+
+/*
+ * Health Check
+ */
+const getHealth = async () => {
+    try {
+        const hosts = await getHosts();
+
+        const totalHosts = hosts.length;
+        const onlineHosts = hosts.filter(h => h.isConnected === true).length;
+
+        // Frontend expects "sites", so we'll map hosts to sites concept for high level stats
+        return {
+            status: 'ok',
+            sites: totalHosts,
+            onlineSites: onlineHosts,
+            offlineSites: totalHosts - onlineHosts,
+            totalHosts,
+            onlineHosts
+        };
+
+    } catch (error) {
+        return {
+            status: 'error',
+            message: error.message
+        };
+    }
+};
+
+/*
+ * Get Clients (optional – may not be available for all accounts)
  */
 const getClients = async () => {
-    // Placeholder - Site Manager API might have a different endpoint for clients
-    // /site-manager/v1/sites/{siteId}/clients
+    // Placeholder - fetching clients from all sites might be heavy
+    // For now returning empty or we could iterate like devices
     return [];
+};
+
+/*
+ * Proxy for /sites endpoint to maintain compatibility
+ */
+const getSites = async () => {
+    try {
+        // Return hosts as "sites" directly or flattened list of actual sites
+        const hosts = await getHosts();
+        return hosts;
+    } catch (e) {
+        return [];
+    }
 };
 
 module.exports = {
     getDevices,
     getHealth,
+    getHosts,
     getSites,
     getClients
 };
