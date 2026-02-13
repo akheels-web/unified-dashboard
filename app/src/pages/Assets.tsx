@@ -46,11 +46,11 @@ export function Assets() {
   const loadAssets = async () => {
     setLoading(true);
     try {
-      // Fetch all assets first
+      // Fetch ALL assets without pagination (we'll paginate client-side after filtering)
       const assetResponse = await assetsApi.getAssets(
         filters,
-        pagination.page,
-        pagination.pageSize
+        1,
+        1000 // Fetch up to 1000 devices to get all of them
       );
 
       if (assetResponse.success && assetResponse.data) {
@@ -59,26 +59,28 @@ export function Assets() {
         // Apply OS filter based on device name patterns
         if (selectedOS !== 'all') {
           filteredAssets = filteredAssets.filter((asset: Asset) => {
-            const name = asset.name; // Keep original case for accurate matching
+            const name = asset.name;
             const nameLower = name.toLowerCase();
 
             switch (selectedOS) {
               case 'windows':
-                // Match: _Windows, Windows, _windows
-                return name.includes('_Windows') || name.includes('Windows') ||
-                  nameLower.includes('_windows') || nameLower.includes('windows');
+                // Match: _Windows, Windows (space or underscore), windows
+                return name.includes('_Windows') || name.includes(' Windows') ||
+                  nameLower.includes('_windows') || nameLower.includes(' windows');
               case 'macos':
-                // Match: _MacOS, MacOS, _macos
-                return name.includes('_MacOS') || name.includes('MacOS') ||
-                  nameLower.includes('_macos') || nameLower.includes('macos');
+                // Match: _MacOS, MacOS (space or underscore), macos
+                return name.includes('_MacOS') || name.includes(' MacOS') ||
+                  nameLower.includes('_macos') || nameLower.includes(' macos');
               case 'ios':
-                // Match: _iOS, iOS, _ios
-                return name.includes('_iOS') || name.includes('iOS') ||
-                  nameLower.includes('_ios') || nameLower.includes('ios');
+                // Match: _iPhone, iPhone, _iOS, iOS
+                return name.includes('_iPhone') || name.includes(' iPhone') ||
+                  name.includes('_iOS') || name.includes(' iOS') ||
+                  nameLower.includes('_iphone') || nameLower.includes(' iphone') ||
+                  nameLower.includes('_ios') || nameLower.includes(' ios');
               case 'android':
                 // Match: _Android, Android, _android, AndroidForWork
-                return name.includes('_Android') || name.includes('Android') ||
-                  nameLower.includes('_android') || nameLower.includes('android');
+                return name.includes('_Android') || name.includes(' Android') ||
+                  nameLower.includes('_android') || nameLower.includes(' android');
               default:
                 return true;
             }
@@ -93,10 +95,18 @@ export function Assets() {
           });
         }
 
-        setAssets(filteredAssets);
+        // Now apply client-side pagination
+        const total = filteredAssets.length;
+        const totalPages = Math.ceil(total / pagination.pageSize);
+        const start = (pagination.page - 1) * pagination.pageSize;
+        const paginatedAssets = filteredAssets.slice(start, start + pagination.pageSize);
+
+        setAssets(paginatedAssets);
         setPagination({
-          total: filteredAssets.length,
-          totalPages: Math.ceil(filteredAssets.length / pagination.pageSize),
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          total: total,
+          totalPages: totalPages,
         });
       }
     } catch (error) {
