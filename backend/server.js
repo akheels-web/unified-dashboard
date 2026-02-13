@@ -110,13 +110,35 @@ app.get('/api/users/:id/groups', validateToken, async (req, res) => {
     }
 });
 
+// Get User Content (Files/Drives) - Placeholder/Future
+// app.get('/api/users/:id/content', ...);
+
+// Get User Managed Devices (Intune)
+app.get('/api/users/:id/devices', validateToken, async (req, res) => {
+    const userId = req.params.id;
+    console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/devices`);
+    try {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/managedDevices`, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (User Devices ${userId}):`, error.response?.data || error.message);
+        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch user devices' });
+    }
+});
+
 // Get User MFA Status (Authentication Methods)
 // Note: Requires UserAuthenticationMethod.Read.All permission
 app.get('/api/users/:id/mfa', validateToken, async (req, res) => {
     const userId = req.params.id;
     console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/mfa`);
     try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/authentication/methods`, {
+        // User requested beta endpoint for better MFA detail
+        const response = await axios.get(`https://graph.microsoft.com/beta/users/${userId}/authentication/methods`, {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
                 'Content-Type': 'application/json'

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useUIStore } from '@/stores/uiStore';
-import { usersApi, assetsApi } from '@/services/api';
+import { usersApi } from '@/services/api';
 import type { M365User, UserGroup, Asset } from '@/types';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { toast } from 'sonner';
@@ -76,11 +76,11 @@ export function Users() {
     setShowUserDetail(true);
 
     try {
-      // Fetch fresh user details (for MFA, etc.), groups, and assets
-      const [userRes, groupsRes, assetsRes] = await Promise.all([
+      // Fetch fresh user details (for MFA, etc.), groups, and managed devices (Intune)
+      const [userRes, groupsRes, deviceRes] = await Promise.all([
         usersApi.getUser(user.id),
         usersApi.getUserGroups(user.id),
-        assetsApi.getAssets({ assignedTo: user.id })
+        usersApi.getUserDevices(user.id)
       ]);
 
       if (userRes.success && userRes.data) {
@@ -89,8 +89,9 @@ export function Users() {
       if (groupsRes.success) {
         setUserGroups(groupsRes.data || []);
       }
-      if (assetsRes.success && assetsRes.data) {
-        setUserAssets(assetsRes.data.data);
+      if (deviceRes.success) {
+        // getUserDevices returns Asset[] directly
+        setUserAssets(deviceRes.data || []);
       }
     } catch (error) {
       toast.error('Failed to load user details');

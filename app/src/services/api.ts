@@ -236,6 +236,32 @@ export const usersApi = {
     return { success: true, data: [] };
   },
 
+  getUserDevices: async (id: string): Promise<ApiResponse<Asset[]>> => {
+    try {
+      const realData = await fetchClient(`/users/${id}/devices`);
+      if (realData && realData.value) {
+        const devices: Asset[] = realData.value.map((d: any) => ({
+          id: d.id,
+          assetTag: d.serialNumber || 'N/A',
+          name: d.deviceName || 'Unknown Device',
+          category: d.operatingSystem || 'Unknown',
+          model: d.model || '',
+          serialNumber: d.serialNumber,
+          status: 'assigned',
+          assignedTo: id,
+          assignedToName: d.userDisplayName, // Might need to be passed in or fetched
+          createdAt: d.enrolledDateTime || new Date().toISOString(),
+          updatedAt: d.lastSyncDateTime || new Date().toISOString(),
+          notes: `Compliance: ${d.complianceState}`,
+        }));
+        return { success: true, data: devices };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch user devices", e);
+    }
+    return { success: true, data: [] };
+  },
+
   disableUser: async (_id: string): Promise<ApiResponse<void>> => {
     // This requires a POST/PATCH to Graph API which we haven't implemented in backend yet
     // For now, mock success to show UI flow
