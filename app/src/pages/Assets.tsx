@@ -46,17 +46,34 @@ export function Assets() {
   const loadAssets = async () => {
     setLoading(true);
     try {
-      // Filter by OS if not 'all'
-      const osFilter = selectedOS !== 'all' ? selectedOS : filters.category;
-
+      // Fetch all assets first
       const assetResponse = await assetsApi.getAssets(
-        { ...filters, category: osFilter },
+        filters,
         pagination.page,
         pagination.pageSize
       );
 
       if (assetResponse.success && assetResponse.data) {
         let filteredAssets = assetResponse.data.data;
+
+        // Apply OS filter based on device name patterns
+        if (selectedOS !== 'all') {
+          filteredAssets = filteredAssets.filter((asset: Asset) => {
+            const nameLower = asset.name.toLowerCase();
+            switch (selectedOS) {
+              case 'windows':
+                return nameLower.includes('_windows') || nameLower.includes('windows');
+              case 'macos':
+                return nameLower.includes('_macos') || nameLower.includes('macos');
+              case 'ios':
+                return nameLower.includes('_ios') || nameLower.includes('ios');
+              case 'android':
+                return nameLower.includes('_android') || nameLower.includes('android');
+              default:
+                return true;
+            }
+          });
+        }
 
         // Apply ownership type filter
         if (ownershipType !== 'all') {
@@ -68,8 +85,8 @@ export function Assets() {
 
         setAssets(filteredAssets);
         setPagination({
-          total: assetResponse.data.total,
-          totalPages: assetResponse.data.totalPages,
+          total: filteredAssets.length,
+          totalPages: Math.ceil(filteredAssets.length / pagination.pageSize),
         });
       }
     } catch (error) {
@@ -246,8 +263,8 @@ export function Assets() {
                   <StatusBadge status={asset.status as any} size="sm" />
                 </div>
 
-                <h3 className="text-foreground font-medium mb-1">{asset.name}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{asset.assetTag}</p>
+                <h3 className="text-foreground font-medium mb-1 truncate">{asset.name}</h3>
+                <p className="text-sm text-muted-foreground mb-3 truncate">{asset.assetTag}</p>
 
                 {asset.category === 'Network Equipment' && asset.location && (
                   <div className="flex items-center gap-2 p-2 bg-blue-500/10 rounded-lg mb-2">
@@ -256,30 +273,19 @@ export function Assets() {
                   </div>
                 )}
 
-                {asset.assignedTo ? (
+                {asset.assignedTo && (
                   <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-foreground truncate">{asset.assignedToName}</span>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    <span className="text-sm text-green-500">Available</span>
-                  </div>
                 )}
 
-                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {asset.location}
-                  </span>
-                  {asset.warrantyExpiry && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {format(new Date(asset.warrantyExpiry), 'MMM yyyy')}
-                    </span>
-                  )}
-                </div>
+                {asset.warrantyExpiry && (
+                  <div className="flex items-center gap-1 mt-3 text-xs text-muted-foreground">
+                    <Calendar className="w-3 h-3" />
+                    <span>{format(new Date(asset.warrantyExpiry), 'MMM yyyy')}</span>
+                  </div>
+                )}
               </motion.div>
             );
           })}
@@ -349,7 +355,8 @@ export function Assets() {
             </tbody>
           </table>
         </div>
-      )}
+      )
+      }
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
@@ -571,6 +578,6 @@ export function Assets() {
           </>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 }
