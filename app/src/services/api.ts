@@ -126,7 +126,8 @@ export const usersApi = {
         }
 
         if (filters?.department) {
-          filteredUsers = filteredUsers.filter(u => u.department === filters.department);
+          const deptFilter = filters.department.toLowerCase().trim();
+          filteredUsers = filteredUsers.filter(u => u.department?.toLowerCase().trim() === deptFilter);
         }
 
         if (filters?.status && filters.status !== 'all') {
@@ -135,7 +136,8 @@ export const usersApi = {
         }
 
         if (filters?.location) {
-          filteredUsers = filteredUsers.filter(u => u.officeLocation === filters.location);
+          const locFilter = filters.location.toLowerCase().trim();
+          filteredUsers = filteredUsers.filter(u => u.officeLocation?.toLowerCase().trim() === locFilter);
         }
 
         const total = filteredUsers.length;
