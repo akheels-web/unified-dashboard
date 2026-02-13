@@ -48,6 +48,55 @@ const validateToken = async (req, res, next) => {
     next();
 };
 
+// ============================================================================
+// CACHING SYSTEM - Improves Dashboard Performance
+// ============================================================================
+const cache = {
+    dashboardStats: { data: null, timestamp: null },
+    licenses: { data: null, timestamp: null },
+    deviceDistribution: { data: null, timestamp: null },
+    serviceStatus: { data: null, timestamp: null }
+};
+
+const CACHE_DURATION = {
+    dashboardStats: 5 * 60 * 1000,      // 5 minutes
+    licenses: 10 * 60 * 1000,            // 10 minutes (rarely changes)
+    deviceDistribution: 10 * 60 * 1000,  // 10 minutes
+    serviceStatus: 2 * 60 * 1000         // 2 minutes
+};
+
+function getCached(key) {
+    const cached = cache[key];
+    const duration = CACHE_DURATION[key] || 5 * 60 * 1000;
+
+    if (cached.data && cached.timestamp && (Date.now() - cached.timestamp) < duration) {
+        const age = Math.round((Date.now() - cached.timestamp) / 1000);
+        console.log(`[Cache] ✓ Serving ${key} from cache (${age}s old)`);
+        return cached.data;
+    }
+    return null;
+}
+
+function setCache(key, data) {
+    cache[key] = { data, timestamp: Date.now() };
+    console.log(`[Cache] ✓ Cached ${key}`);
+}
+
+function clearCache(key) {
+    if (key) {
+        cache[key] = { data: null, timestamp: null };
+        console.log(`[Cache] Cleared ${key}`);
+    } else {
+        // Clear all cache
+        Object.keys(cache).forEach(k => {
+            cache[k] = { data: null, timestamp: null };
+        });
+        console.log(`[Cache] Cleared all cache`);
+    }
+}
+// ============================================================================
+
+
 // Routes
 
 // Health Check
@@ -56,7 +105,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // In-memory cache for dropdowns (simple implementation)
-const cache = {
+const dropdownCache = {
     departments: { data: [], timestamp: 0 },
     locations: { data: [], timestamp: 0 },
     ttl: 1000 * 60 * 60 // 1 hour cache
@@ -65,9 +114,9 @@ const cache = {
 // Helper: Fetch distinct values from Graph with caching
 const getCachedValues = async (accessToken, type) => {
     const now = Date.now();
-    if (cache[type].data.length > 0 && (now - cache[type].timestamp < cache.ttl)) {
+    if (dropdownCache[type].data.length > 0 && (now - dropdownCache[type].timestamp < dropdownCache.ttl)) {
         console.log(`[Cache] Serving ${type} from cache`);
-        return cache[type].data;
+        return dropdownCache[type].data;
     }
 
     console.log(`[Cache] Miss - Fetching ${type} from Graph...`);
@@ -79,7 +128,7 @@ const getCachedValues = async (accessToken, type) => {
         });
 
         const distinct = [...new Set(response.data.value.map(u => u[field]).filter(Boolean))].sort();
-        cache[type] = { data: distinct, timestamp: now };
+        dropdownCache[type] = { data: distinct, timestamp: now };
         return distinct;
     } catch (error) {
         console.error(`Failed to fetch ${type}`, error.message);
@@ -194,9 +243,16 @@ app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
     const userId = req.params.id;
 });
 
-// Dashboard: Get License Usage (Real Data from M365)
+// Dashboard: Get License Usage (Real Data from M365) - WITH CACHING
 app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching license data`);
+
+    // Check cache first
+    const cached = getCached('licenses');
+    if (cached) {
+        return res.json(cached);
+    }
+
     try {
         const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
         const response = await axios.get(url, {
@@ -215,6 +271,10 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
         }));
 
         console.log(`[Licenses] Success - ${licenses.length} license types`);
+
+        // Cache the result
+        setCache('licenses', licenses);
+
         res.json(licenses);
     } catch (error) {
         console.error('[Licenses] Error:', error.response?.data || error.message);
@@ -222,11 +282,19 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     }
 });
 
-// Dashboard: Get Device Distribution (Real Data from Intune)
+// Dashboard: Get Device Distribution (Real Data from Intune) - WITH CACHING
 app.get('/api/dashboard/device-distribution', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching device distribution`);
+
+    // Check cache first
+    const cached = getCached('deviceDistribution');
+    if (cached) {
+        return res.json(cached);
+    }
+
     try {
-        const url = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices';
+        // Limit to 1000 devices for performance
+        const url = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=operatingSystem&$top=1000';
         const response = await axios.get(url, {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
@@ -246,6 +314,10 @@ app.get('/api/dashboard/device-distribution', validateToken, async (req, res) =>
         }));
 
         console.log(`[Device Distribution] Success - ${chartData.length} OS types`);
+
+        // Cache the result
+        setCache('deviceDistribution', chartData);
+
         res.json(chartData);
     } catch (error) {
         console.error('[Device Distribution] Error:', error.response?.data || error.message);
@@ -253,9 +325,16 @@ app.get('/api/dashboard/device-distribution', validateToken, async (req, res) =>
     }
 });
 
-// Dashboard: Get Enhanced Stats (Real Data)
+// Dashboard: Get Enhanced Stats (Real Data) - WITH CACHING
 app.get('/api/dashboard/stats', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching dashboard stats`);
+
+    // Check cache first
+    const cached = getCached('dashboardStats');
+    if (cached) {
+        return res.json(cached);
+    }
+
     try {
         const [usersRes, devicesRes, groupsRes, licensesRes] = await Promise.all([
             axios.get('https://graph.microsoft.com/v1.0/users/$count', {
@@ -264,8 +343,8 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
                     'ConsistencyLevel': 'eventual'
                 }
             }),
-            // Intune $count doesn't work, fetch all devices and count
-            axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id', {
+            // Limit to 1000 devices for performance (instead of fetching ALL)
+            axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id&$top=1000', {
                 headers: {
                     Authorization: `Bearer ${req.accessToken}`,
                     'Content-Type': 'application/json',
@@ -298,6 +377,10 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
         };
 
         console.log(`[Dashboard Stats] Success - ${stats.totalUsers} users, ${stats.activeDevices} devices`);
+
+        // Cache the result
+        setCache('dashboardStats', stats);
+
         res.json(stats);
     } catch (error) {
         console.error('[Dashboard Stats] Error:', error.response?.data || error.message);
