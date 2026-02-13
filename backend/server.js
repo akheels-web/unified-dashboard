@@ -282,50 +282,7 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     }
 });
 
-// Dashboard: Get Device Distribution (Real Data from Intune) - WITH CACHING
-app.get('/api/dashboard/device-distribution', validateToken, async (req, res) => {
-    console.log(`[${new Date().toISOString()}] Fetching device distribution`);
-
-    // Check cache first
-    const cached = getCached('deviceDistribution');
-    if (cached) {
-        return res.json(cached);
-    }
-
-    try {
-        // Limit to 1000 devices for performance
-        const url = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=operatingSystem&$top=1000';
-        const response = await axios.get(url, {
-            headers: {
-                Authorization: `Bearer ${req.accessToken}`,
-                'Content-Type': 'application/json',
-            }
-        });
-
-        const distribution = response.data.value.reduce((acc, device) => {
-            const os = device.operatingSystem || 'Unknown';
-            acc[os] = (acc[os] || 0) + 1;
-            return acc;
-        }, {});
-
-        const chartData = Object.entries(distribution).map(([name, value]) => ({
-            name,
-            value
-        }));
-
-        console.log(`[Device Distribution] Success - ${chartData.length} OS types`);
-
-        // Cache the result
-        setCache('deviceDistribution', chartData);
-
-        res.json(chartData);
-    } catch (error) {
-        console.error('[Device Distribution] Error:', error.response?.data || error.message);
-        res.json([]);
-    }
-});
-
-// Dashboard: Get Enhanced Stats (Real Data) - WITH CACHING
+// Dashboard: Get Enhanced Stats (Real Data) - WITH CACHING (NO DEVICES)
 app.get('/api/dashboard/stats', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching dashboard stats`);
 
@@ -336,18 +293,12 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
     }
 
     try {
-        const [usersRes, devicesRes, groupsRes, licensesRes] = await Promise.all([
+        // Only fetch fast endpoints - NO DEVICES (too slow!)
+        const [usersRes, groupsRes, licensesRes] = await Promise.all([
             axios.get('https://graph.microsoft.com/v1.0/users/$count', {
                 headers: {
                     Authorization: `Bearer ${req.accessToken}`,
                     'ConsistencyLevel': 'eventual'
-                }
-            }),
-            // Limit to 1000 devices for performance (instead of fetching ALL)
-            axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id&$top=1000', {
-                headers: {
-                    Authorization: `Bearer ${req.accessToken}`,
-                    'Content-Type': 'application/json',
                 }
             }),
             axios.get('https://graph.microsoft.com/v1.0/groups/$count', {
@@ -369,14 +320,14 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
 
         const stats = {
             totalUsers: usersRes.data,
-            activeDevices: devicesRes.data.value?.length || 0,  // Count devices from array
+            activeDevices: 0,  // Removed - too slow
             totalGroups: groupsRes.data,
             licensesTotal: totalLicenses,
             licensesUsed: usedLicenses,
             licensesAvailable: totalLicenses - usedLicenses
         };
 
-        console.log(`[Dashboard Stats] Success - ${stats.totalUsers} users, ${stats.activeDevices} devices`);
+        console.log(`[Dashboard Stats] Success - ${stats.totalUsers} users, ${stats.totalGroups} groups`);
 
         // Cache the result
         setCache('dashboardStats', stats);

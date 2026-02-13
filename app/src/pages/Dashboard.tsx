@@ -23,7 +23,6 @@ export function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [licenses, setLicenses] = useState<any[]>([]);
-  const [deviceDistribution, setDeviceDistribution] = useState<any[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,10 +36,10 @@ export function Dashboard() {
       setIsLoading(true);
 
       // Use Promise.allSettled so each API call fails independently
-      const [statsRes, licensesRes, devicesRes, activityRes, statusRes] = await Promise.allSettled([
+      // Removed device distribution - too slow!
+      const [statsRes, licensesRes, activityRes, statusRes] = await Promise.allSettled([
         dashboardApi.getStats(),
         dashboardApi.getLicenses(),
-        dashboardApi.getDeviceDistribution(),
         dashboardApi.getActivity(5),
         dashboardApi.getSystemStatus(),
       ]);
@@ -53,11 +52,6 @@ export function Dashboard() {
       // Handle licenses
       if (licensesRes.status === 'fulfilled' && licensesRes.value.success && licensesRes.value.data) {
         setLicenses(licensesRes.value.data);
-      }
-
-      // Handle device distribution
-      if (devicesRes.status === 'fulfilled' && devicesRes.value.success && devicesRes.value.data) {
-        setDeviceDistribution(devicesRes.value.data);
       }
 
       // Handle activity (audit logs)
@@ -136,21 +130,6 @@ export function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          onClick={() => navigate('/assets')}
-        >
-          <StatsCard
-            title="Active Devices"
-            value={stats?.activeDevices?.toLocaleString() || '0'}
-            subtitle="Managed by Intune"
-            icon={Laptop}
-            color="green"
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
           onClick={() => navigate('/groups')}
         >
           <StatsCard
@@ -304,46 +283,6 @@ export function Dashboard() {
                 <Bar dataKey="used" fill="#2596be" name="Used" />
                 <Bar dataKey="available" fill="#10b981" name="Available" />
               </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* Device Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="bg-card rounded-xl border border-border p-6"
-        >
-          <h4 className="text-lg font-semibold text-foreground mb-4">Device Distribution</h4>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={deviceDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {deviceDistribution.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
-                  }}
-                  itemStyle={{ color: 'hsl(var(--foreground))' }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                />
-              </PieChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
