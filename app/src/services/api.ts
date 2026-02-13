@@ -55,14 +55,69 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Dashboard API
 export const dashboardApi = {
-  getStats: async (): Promise<ApiResponse<DashboardStats>> => {
-    await delay(500);
-    return { success: true, data: mockDashboardStats };
+  getStats: async (): Promise<ApiResponse<any>> => {
+    try {
+      const realData = await fetchClient('/dashboard/stats');
+      if (realData) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch dashboard stats", e);
+    }
+    return { success: false, error: 'Failed to fetch stats' };
+  },
+
+  getLicenses: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const realData = await fetchClient('/dashboard/licenses');
+      if (realData && Array.isArray(realData)) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch licenses", e);
+    }
+    return { success: true, data: [] };
+  },
+
+  getDeviceDistribution: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const realData = await fetchClient('/dashboard/device-distribution');
+      if (realData && Array.isArray(realData)) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch device distribution", e);
+    }
+    return { success: true, data: [] };
   },
 
   getActivity: async (limit: number = 10): Promise<ApiResponse<ActivityItem[]>> => {
-    await delay(400);
-    return { success: true, data: mockActivityItems.slice(0, limit) };
+    try {
+      const response = await fetchClient(`/audit-logs?limit=${limit}`);
+
+      // Validate response structure
+      if (!response || !Array.isArray(response.value)) {
+        console.warn('[Dashboard] Invalid audit logs response structure, using empty array');
+        return { success: true, data: [] };
+      }
+
+      // Map audit logs to activity items with safe navigation
+      const activities: ActivityItem[] = response.value.map((log: any) => ({
+        id: log?.id || '',
+        type: (log?.category || 'other') as 'user' | 'asset' | 'workflow' | 'system' | 'other',
+        action: log?.activityDisplayName || 'Unknown Action',
+        user: log?.initiatedBy?.user?.displayName || log?.initiatedBy?.user?.userPrincipalName || 'System',
+        target: log?.targetResources?.[0]?.displayName || log?.targetResources?.[0]?.userPrincipalName || '',
+        timestamp: log?.activityDateTime || new Date().toISOString(),
+        status: (log?.result || 'success') as 'success' | 'pending' | 'failed',
+        details: log?.resultReason || ''
+      }));
+
+      return { success: true, data: activities };
+    } catch (error) {
+      console.error('[Dashboard] Error fetching audit logs:', error);
+      return { success: true, data: [] };
+    }
   },
 
   getSystemStatus: async (): Promise<ApiResponse<SystemStatus>> => {
@@ -79,6 +134,7 @@ export const dashboardApi = {
   },
 
   getChartData: async (): Promise<ApiResponse<any>> => {
+    // This is deprecated - using getLicenses and getDeviceDistribution instead
     await delay(600);
     return {
       success: true,

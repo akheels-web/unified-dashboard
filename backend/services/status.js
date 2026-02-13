@@ -56,15 +56,45 @@ const getUnifiStatus = async () => {
     }
 };
 
+const getAtlassianStatus = async () => {
+    try {
+        const response = await axios.get('https://status.atlassian.com/api/v2/summary.json');
+        const indicator = response.data.status.indicator;
+
+        let normalizedStatus = 'operational';
+        if (indicator === 'minor') normalizedStatus = 'degraded';
+        if (indicator === 'major' || indicator === 'critical') normalizedStatus = 'outage';
+
+        return {
+            overall: normalizedStatus,
+            lastSync: new Date(),
+            services: [
+                { name: 'Jira', status: normalizedStatus },
+                { name: 'Confluence', status: normalizedStatus },
+                { name: 'Bitbucket', status: normalizedStatus }
+            ]
+        };
+    } catch (error) {
+        console.error('Error fetching Atlassian Status:', error.message);
+        return {
+            overall: 'unknown',
+            lastSync: new Date(),
+            services: []
+        };
+    }
+};
+
 const getSystemStatus = async () => {
-    const [msStatus, unifiStatus] = await Promise.all([
+    const [msStatus, unifiStatus, atlassianStatus] = await Promise.all([
         getMicrosoftStatus(),
-        getUnifiStatus()
+        getUnifiStatus(),
+        getAtlassianStatus()
     ]);
 
     return {
         microsoft: msStatus,
         unifi: unifiStatus,
+        atlassian: atlassianStatus,
         timestamp: new Date()
     };
 };

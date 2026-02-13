@@ -192,6 +192,130 @@ app.patch('/api/users/:id', validateToken, async (req, res) => {
 // Bulk Actions: Revoke Sessions
 app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
     const userId = req.params.id;
+});
+
+// Dashboard: Get License Usage (Real Data from M365)
+app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching license data`);
+    try {
+        const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const licenses = response.data.value.map(sku => ({
+            name: sku.skuPartNumber,
+            total: sku.prepaidUnits.enabled,
+            used: sku.consumedUnits,
+            available: sku.prepaidUnits.enabled - sku.consumedUnits,
+            percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
+        }));
+
+        console.log(`[Licenses] Success - ${licenses.length} license types`);
+        res.json(licenses);
+    } catch (error) {
+        console.error('[Licenses] Error:', error.response?.data || error.message);
+        res.json([]);
+    }
+});
+
+// Dashboard: Get Device Distribution (Real Data from Intune)
+app.get('/api/dashboard/device-distribution', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching device distribution`);
+    try {
+        const url = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices';
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const distribution = response.data.value.reduce((acc, device) => {
+            const os = device.operatingSystem || 'Unknown';
+            acc[os] = (acc[os] || 0) + 1;
+            return acc;
+        }, {});
+
+        const chartData = Object.entries(distribution).map(([name, value]) => ({
+            name,
+            value
+        }));
+
+        console.log(`[Device Distribution] Success - ${chartData.length} OS types`);
+        res.json(chartData);
+    } catch (error) {
+        console.error('[Device Distribution] Error:', error.response?.data || error.message);
+        res.json([]);
+    }
+});
+
+// Dashboard: Get Enhanced Stats (Real Data)
+app.get('/api/dashboard/stats', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching dashboard stats`);
+    try {
+        const [usersRes, devicesRes, groupsRes, licensesRes] = await Promise.all([
+            axios.get('https://graph.microsoft.com/v1.0/users/$count', {
+                headers: {
+                    Authorization: `Bearer ${req.accessToken}`,
+                    'ConsistencyLevel': 'eventual'
+                }
+            }),
+            axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$count', {
+                headers: {
+                    Authorization: `Bearer ${req.accessToken}`,
+                    'ConsistencyLevel': 'eventual'
+                }
+            }),
+            axios.get('https://graph.microsoft.com/v1.0/groups/$count', {
+                headers: {
+                    Authorization: `Bearer ${req.accessToken}`,
+                    'ConsistencyLevel': 'eventual'
+                }
+            }),
+            axios.get('https://graph.microsoft.com/v1.0/subscribedSkus', {
+                headers: {
+                    Authorization: `Bearer ${req.accessToken}`,
+                    'Content-Type': 'application/json',
+                }
+            })
+        ]);
+
+        const totalLicenses = licensesRes.data.value.reduce((sum, sku) => sum + sku.prepaidUnits.enabled, 0);
+        const usedLicenses = licensesRes.data.value.reduce((sum, sku) => sum + sku.consumedUnits, 0);
+
+        const stats = {
+            totalUsers: usersRes.data,
+            activeDevices: devicesRes.data,
+            totalGroups: groupsRes.data,
+            licensesTotal: totalLicenses,
+            licensesUsed: usedLicenses,
+            licensesAvailable: totalLicenses - usedLicenses
+        };
+
+        console.log(`[Dashboard Stats] Success - ${stats.totalUsers} users, ${stats.activeDevices} devices`);
+        res.json(stats);
+    } catch (error) {
+        console.error('[Dashboard Stats] Error:', error.response?.data || error.message);
+        res.json({
+            totalUsers: 0,
+            activeDevices: 0,
+            totalGroups: 0,
+            licensesTotal: 0,
+            licensesUsed: 0,
+            licensesAvailable: 0
+        });
+    }
+});
+
+});
+
+// Bulk Actions: Revoke Sessions
+app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
+    const userId = req.params.id;
     console.log(`[${new Date().toISOString()}] Revoking sessions for ${userId}`);
     try {
         await axios.post(`https://graph.microsoft.com/v1.0/users/${userId}/revokeSignInSessions`, {},
