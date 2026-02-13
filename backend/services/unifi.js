@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const axios = require('axios');
 
 const API_KEY = process.env.UNIFI_API_KEY;
