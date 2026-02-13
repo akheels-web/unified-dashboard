@@ -208,7 +208,7 @@ app.get('/api/users/:id', validateToken, async (req, res) => {
     const userId = req.params.id;
     console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}`);
     try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,lastSignInDateTime`, {
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,givenName,surname,signInActivity`, {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
                 'Content-Type': 'application/json'
@@ -221,19 +221,45 @@ app.get('/api/users/:id', validateToken, async (req, res) => {
     }
 });
 
-// Get User Groups (Transitive) - Only Groups
+// Get User Groups (Transitive) - Only Groups with Type Filtering
 app.get('/api/users/:id/groups', validateToken, async (req, res) => {
     const userId = req.params.id;
-    console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/groups`);
+    const groupType = req.query.type || 'all'; // all, security, distribution, m365
+    console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/groups?type=${groupType}`);
     try {
-        // Use microsoft.graph.group to filter out non-group objects
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/transitiveMemberOf/microsoft.graph.group?$top=999`, {
-            headers: {
-                Authorization: `Bearer ${req.accessToken}`,
-                'Content-Type': 'application/json'
+        // Fetch groups with detailed properties for filtering
+        const response = await axios.get(
+            `https://graph.microsoft.com/v1.0/users/${userId}/transitiveMemberOf/microsoft.graph.group?$select=id,displayName,description,mail,mailEnabled,securityEnabled,groupTypes&$top=999`,
+            {
+                headers: {
+                    Authorization: `Bearer ${req.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
             }
-        });
-        res.json(response.data);
+        );
+
+        let groups = response.data.value;
+
+        // Filter by type if not 'all'
+        if (groupType !== 'all') {
+            groups = groups.filter(g => {
+                // Security groups: securityEnabled=true, mailEnabled=false
+                if (groupType === 'security') {
+                    return g.securityEnabled && !g.mailEnabled;
+                }
+                // Distribution lists: mailEnabled=true, securityEnabled=true
+                if (groupType === 'distribution') {
+                    return g.mailEnabled && g.securityEnabled;
+                }
+                // M365 groups: groupTypes includes 'Unified'
+                if (groupType === 'm365') {
+                    return g.groupTypes && g.groupTypes.includes('Unified');
+                }
+                return true;
+            });
+        }
+
+        res.json({ value: groups });
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Graph API Error (User Groups ${userId}):`, error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch user groups' });
@@ -242,6 +268,51 @@ app.get('/api/users/:id/groups', validateToken, async (req, res) => {
 
 // Get User Content (Files/Drives) - Placeholder/Future
 // app.get('/api/users/:id/content', ...);
+
+// Get Group Members and Owners
+app.get('/api/groups/:id/members', validateToken, async (req, res) => {
+    const groupId = req.params.id;
+    console.log(`[${new Date().toISOString()}] Request received for /api/groups/${groupId}/members`);
+    try {
+        // Fetch both members and owners in parallel
+        const [membersRes, ownersRes] = await Promise.all([
+            axios.get(
+                `https://graph.microsoft.com/v1.0/groups/${groupId}/members?$select=id,displayName,mail,userPrincipalName,jobTitle&$top=999`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${req.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            ).catch(err => {
+                console.warn('Failed to fetch members:', err.response?.data || err.message);
+                return { data: { value: [] } };
+            }),
+            axios.get(
+                `https://graph.microsoft.com/v1.0/groups/${groupId}/owners?$select=id,displayName,mail,userPrincipalName,jobTitle&$top=999`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${req.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            ).catch(err => {
+                console.warn('Failed to fetch owners:', err.response?.data || err.message);
+                return { data: { value: [] } };
+            })
+        ]);
+
+        res.json({
+            members: membersRes.data.value,
+            owners: ownersRes.data.value
+        });
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Graph API Error (Group Members ${groupId}):`, error.response?.data || error.message);
+        // Return empty arrays to prevent frontend crashes
+        res.json({ members: [], owners: [] });
+    }
+});
+
 
 // Get User Managed Devices (Intune)
 app.get('/api/users/:id/devices', validateToken, async (req, res) => {

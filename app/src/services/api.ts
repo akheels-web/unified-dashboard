@@ -183,19 +183,29 @@ export const usersApi = {
     return { success: false, error: 'User not found' };
   },
 
-  getUserGroups: async (id: string): Promise<ApiResponse<UserGroup[]>> => {
+  getUserGroups: async (id: string, type: 'all' | 'security' | 'distribution' | 'm365' = 'all'): Promise<ApiResponse<UserGroup[]>> => {
     try {
-      const realData = await fetchClient(`/users/${id}/groups`);
+      const realData = await fetchClient(`/users/${id}/groups?type=${type}`);
       if (realData && realData.value) {
-        const groups: UserGroup[] = realData.value.map((g: any) => ({
-          id: g.id,
-          displayName: g.displayName,
-          description: g.description || 'No description',
-          groupType: g.groupTypes?.includes('Unified') ? 'M365' : 'Security',
-          email: g.mail,
-          memberCount: 0, // Requires expansion or separate call
-          createdDate: g.createdDateTime,
-        }));
+        const groups: UserGroup[] = realData.value.map((g: any) => {
+          // Determine group type based on properties
+          let groupType = 'Security';
+          if (g.groupTypes?.includes('Unified')) {
+            groupType = 'M365';
+          } else if (g.mailEnabled && g.securityEnabled) {
+            groupType = 'Distribution';
+          }
+
+          return {
+            id: g.id,
+            displayName: g.displayName,
+            description: g.description || 'No description',
+            groupType,
+            email: g.mail,
+            memberCount: 0, // Requires expansion or separate call
+            createdDate: g.createdDateTime,
+          };
+        });
         return { success: true, data: groups };
       }
     } catch (e) {
@@ -321,9 +331,16 @@ export const groupsApi = {
     return { success: true, data: mockUserGroups };
   },
 
-  getGroupMembers: async (_id: string): Promise<ApiResponse<M365User[]>> => {
-    await delay(500);
-    return { success: true, data: mockM365Users.slice(0, Math.floor(Math.random() * 5) + 1) };
+  getGroupMembers: async (id: string): Promise<ApiResponse<{ members: any[], owners: any[] }>> => {
+    try {
+      const response = await fetchClient(`/groups/${id}/members`);
+      if (response) {
+        return { success: true, data: response };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch group members", e);
+    }
+    return { success: true, data: { members: [], owners: [] } };
   },
 
   addMember: async (_groupId: string, _userId: string): Promise<ApiResponse<void>> => {
