@@ -208,14 +208,9 @@ export const usersApi = {
         return { success: true, data: user };
       }
     } catch (e) {
-      console.warn("Falling back to mock data for user details", e);
+      console.warn("Failed to fetch user details", e);
     }
 
-    await delay(400);
-    const user = mockM365Users.find(u => u.id === id);
-    if (user) {
-      return { success: true, data: { ...user, groups: mockUserGroups.slice(0, 3) } };
-    }
     return { success: false, error: 'User not found' };
   },
 
