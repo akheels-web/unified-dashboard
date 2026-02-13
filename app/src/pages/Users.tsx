@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, MoreVertical, RefreshCw, UserX, UserPlus,
-  Key, Users as UsersIcon, LogOut, Mail, Building2, MapPin,
-  ChevronLeft, ChevronRight, X, CheckCircle2, AlertTriangle,
-  Loader2, Shield, ShieldOff, Group, Laptop
+  Search, Filter, ChevronLeft, ChevronRight, X, Loader2,
+  Mail, Building2, MapPin, Calendar, Clock, Users as UsersIcon,
+  Monitor, Smartphone, Tablet, MoreVertical
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -119,7 +118,7 @@ export function Users() {
   };
 
   const handleRevokeSessions = async (userId: string) => {
-    setActionInProgress(`sessions-${userId}`);
+    setActionInProgress(`sessions - ${userId} `);
     try {
       const response = await usersApi.revokeSessions(userId);
       if (response.success) {
@@ -138,14 +137,14 @@ export function Users() {
   };
 
   const handleRemoveMfa = async (userId: string) => {
-    setActionInProgress(`mfa-${userId}`);
+    setActionInProgress(`mfa - ${userId} `);
     try {
       const response = await usersApi.removeMfa(userId);
       if (response.success) {
         toast.success('MFA methods removed successfully');
         addNotification({
           title: 'MFA Removed',
-          message: `Multi-factor authentication removed for ${userDetail?.displayName}`,
+          message: `Multi - factor authentication removed for ${userDetail?.displayName}`,
           type: 'success',
         });
       }
@@ -157,7 +156,7 @@ export function Users() {
   };
 
   const handleRemoveFromGroups = async (userId: string) => {
-    setActionInProgress(`groups-${userId}`);
+    setActionInProgress(`groups - ${userId} `);
     try {
       const response = await usersApi.removeFromGroups(userId);
       if (response.success) {
@@ -350,14 +349,13 @@ export function Users() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Location</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Last Sign-in</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">MFA</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                   </td>
                 </tr>
@@ -414,13 +412,6 @@ export function Users() {
                           : 'Never'
                         }
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {user.mfaEnabled ? (
-                        <Shield className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <ShieldOff className="w-5 h-5 text-muted-foreground" />
-                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -652,10 +643,10 @@ export function Users() {
                     </button>
                     <button
                       onClick={() => handleRevokeSessions(userDetail.id)}
-                      disabled={actionInProgress === `sessions-${userDetail.id}`}
+                      disabled={actionInProgress === `sessions - ${userDetail.id} `}
                       className="flex items-center justify-center gap-2 p-3 bg-card hover:bg-muted border border-border text-foreground rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {actionInProgress === `sessions-${userDetail.id}` ? (
+                      {actionInProgress === `sessions - ${userDetail.id} ` ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <LogOut className="w-4 h-4" />
@@ -664,10 +655,10 @@ export function Users() {
                     </button>
                     <button
                       onClick={() => handleRemoveMfa(userDetail.id)}
-                      disabled={actionInProgress === `mfa-${userDetail.id}` || !userDetail.mfaEnabled}
+                      disabled={actionInProgress === `mfa - ${userDetail.id} ` || !userDetail.mfaEnabled}
                       className="flex items-center justify-center gap-2 p-3 bg-card hover:bg-muted border border-border text-foreground rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {actionInProgress === `mfa-${userDetail.id}` ? (
+                      {actionInProgress === `mfa - ${userDetail.id} ` ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Key className="w-4 h-4" />
@@ -676,10 +667,10 @@ export function Users() {
                     </button>
                     <button
                       onClick={() => handleRemoveFromGroups(userDetail.id)}
-                      disabled={actionInProgress === `groups-${userDetail.id}` || userGroups.length === 0}
+                      disabled={actionInProgress === `groups - ${userDetail.id} ` || userGroups.length === 0}
                       className="flex items-center justify-center gap-2 p-3 bg-card hover:bg-muted border border-border text-foreground rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {actionInProgress === `groups-${userDetail.id}` ? (
+                      {actionInProgress === `groups - ${userDetail.id} ` ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <UsersIcon className="w-4 h-4" />
