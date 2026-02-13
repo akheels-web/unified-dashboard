@@ -33,6 +33,7 @@ export function Users() {
 
 
   useEffect(() => {
+    console.log('Users Page Loaded - Version: LIVE_DATA_FIX_V2');
     loadUsers();
     loadFilterOptions();
   }, [filters, pagination.page, pagination.pageSize]);
