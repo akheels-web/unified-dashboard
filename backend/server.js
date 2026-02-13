@@ -221,12 +221,13 @@ app.get('/api/users/:id', validateToken, async (req, res) => {
     }
 });
 
-// Get User Groups (Transitive)
+// Get User Groups (Transitive) - Only Groups
 app.get('/api/users/:id/groups', validateToken, async (req, res) => {
     const userId = req.params.id;
     console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/groups`);
     try {
-        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/transitiveMemberOf?$top=999`, {
+        // Use microsoft.graph.group to filter out non-group objects
+        const response = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/transitiveMemberOf/microsoft.graph.group?$top=999`, {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
                 'Content-Type': 'application/json'
@@ -266,20 +267,28 @@ app.get('/api/users/:id/mfa', validateToken, async (req, res) => {
     const userId = req.params.id;
     console.log(`[${new Date().toISOString()}] Request received for /api/users/${userId}/mfa`);
     try {
-        // User requested beta endpoint for better MFA detail
+        // Use beta endpoint for detailed authentication methods
         const response = await axios.get(`https://graph.microsoft.com/beta/users/${userId}/authentication/methods`, {
             headers: {
                 Authorization: `Bearer ${req.accessToken}`,
                 'Content-Type': 'application/json'
             }
         });
-        res.json(response.data);
+
+        // Filter out password authentication method (everyone has this)
+        const methods = response.data.value || [];
+        const mfaMethods = methods.filter(m =>
+            !m['@odata.type']?.includes('passwordAuthenticationMethod')
+        );
+
+        // Return simple boolean
+        res.json({ mfaEnabled: mfaMethods.length > 0 });
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Graph API Error (User MFA ${userId}):`, error.response?.data || error.message);
         // MFA endpoint might return 403 if permissions are missing
         if (error.response?.status === 403) {
-            console.warn('MFA fetch failed due to permissions. Returning empty list.');
-            return res.json({ value: [] }); // Graceful fallback
+            console.warn('MFA fetch failed due to permissions. Returning false.');
+            return res.json({ mfaEnabled: false }); // Graceful fallback
         }
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch MFA status' });
     }
