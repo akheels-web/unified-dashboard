@@ -264,10 +264,11 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
                     'ConsistencyLevel': 'eventual'
                 }
             }),
-            axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$count', {
+            // Intune $count doesn't work, fetch all devices and count
+            axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id', {
                 headers: {
                     Authorization: `Bearer ${req.accessToken}`,
-                    'ConsistencyLevel': 'eventual'
+                    'Content-Type': 'application/json',
                 }
             }),
             axios.get('https://graph.microsoft.com/v1.0/groups/$count', {
@@ -289,7 +290,7 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
 
         const stats = {
             totalUsers: usersRes.data,
-            activeDevices: devicesRes.data,
+            activeDevices: devicesRes.data.value?.length || 0,  // Count devices from array
             totalGroups: groupsRes.data,
             licensesTotal: totalLicenses,
             licensesUsed: usedLicenses,
