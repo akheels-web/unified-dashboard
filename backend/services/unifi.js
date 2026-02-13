@@ -10,10 +10,9 @@ if (!API_KEY) {
 
 // Correct Site Manager base URL
 // Documentation: https://ui.com/site-manager-api
-// Correct Site Manager base URL
-// Documentation: https://ui.com/site-manager-api
+// Using Early Access (EA) endpoint as standard v1 returned 404
 const unifiClient = axios.create({
-    baseURL: 'https://api.ui.com/site-manager/v1',
+    baseURL: 'https://api.ui.com/ea/site-manager/v1',
     headers: {
         'X-API-Key': API_KEY, // Primary header for Site Manager API
         'Authorization': `Bearer ${API_KEY}`, // Secondary/Alternative header
@@ -35,12 +34,14 @@ const CACHE_TTL = 30 * 1000; // 30 seconds
  */
 const getHosts = async () => {
     try {
+        console.log(`[Unifi] Fetching hosts from: ${unifiClient.defaults.baseURL}/hosts`);
         const response = await unifiClient.get('/hosts');
         return response.data?.data || [];
     } catch (error) {
         console.error('❌ Error fetching hosts:',
             error.response?.status,
-            error.response?.data || error.message
+            error.response?.data || error.message,
+            'URL:', error.config?.url
         );
         throw error;
     }
