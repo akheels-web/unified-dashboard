@@ -29,7 +29,7 @@ export function Users() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+
 
   // Group member display
   const [selectedGroup, setSelectedGroup] = useState<UserGroup | null>(null);
@@ -228,22 +228,13 @@ export function Users() {
           <h1 className="text-2xl font-bold text-foreground">Users</h1>
           <p className="text-muted-foreground">Manage M365 user accounts and access</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSync}
-            className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Sync
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#ed7422] hover:bg-[#ed7422]/90 text-white font-medium rounded-lg transition-colors shadow-lg shadow-orange-500/20"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add User
-          </button>
-        </div>
+        <button
+          onClick={handleSync}
+          className="flex items-center gap-2 px-4 py-2 bg-[#ed7422] hover:bg-[#ed7422]/90 text-white font-medium rounded-lg transition-colors shadow-lg shadow-orange-500/20"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Sync
+        </button>
       </div>
 
       {/* Filters */}
@@ -707,64 +698,6 @@ export function Users() {
                     </button>
                   </div>
                 </section>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-      {/* Add User Modal */}
-      <AnimatePresence>
-        {showAddModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-              onClick={() => setShowAddModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            >
-              <div className="bg-card rounded-2xl border border-border w-full max-w-md shadow-xl overflow-hidden">
-                <div className="p-6 border-b border-border flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-foreground">Add New User</h2>
-                  <button
-                    onClick={() => setShowAddModal(false)}
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Display Name</label>
-                    <input type="text" className="w-full px-4 py-2 bg-muted/20 border border-border rounded-lg text-foreground focus:outline-none focus:border-primary" placeholder="e.g. John Doe" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Email</label>
-                    <input type="email" className="w-full px-4 py-2 bg-muted/20 border border-border rounded-lg text-foreground focus:outline-none focus:border-primary" placeholder="john.doe@company.com" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">Department</label>
-                    <select className="w-full px-4 py-2 bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-primary">
-                      {departments.map(d => <option key={d} value={d} className="bg-card text-foreground">{d}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="p-6 border-t border-border bg-muted/10 flex justify-end gap-3">
-                  <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground">Cancel</button>
-                  <button onClick={() => {
-                    toast.success('User invite sent successfully');
-                    setShowAddModal(false);
-                    loadUsers();
-                  }} className="px-4 py-2 bg-[#ed7422] hover:bg-[#ed7422]/90 text-white font-medium rounded-lg shadow-md transition-colors">
-                    Add User
-                  </button>
-                </div>
               </div>
             </motion.div>
           </>

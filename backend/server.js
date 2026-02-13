@@ -122,8 +122,9 @@ app.get('/api/users', validateToken, async (req, res) => {
         }
 
         // 2. Filters
-        if (department) filters.push(`department eq '${department}'`);
-        if (location) filters.push(`officeLocation eq '${location}'`);
+        // Escape single quotes in filter values for OData (replace ' with '')
+        if (department) filters.push(`department eq '${department.replace(/'/g, "''")}'`);
+        if (location) filters.push(`officeLocation eq '${location.replace(/'/g, "''")}'`);
         if (enabled !== undefined && enabled !== 'all') {
             filters.push(`accountEnabled eq ${enabled === 'active'}`);
         }
