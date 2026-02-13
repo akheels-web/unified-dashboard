@@ -257,12 +257,25 @@ app.get('/api/users/:id/devices', validateToken, async (req, res) => {
         res.json(response.data);
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Graph API Error (User Devices ${userId}):`, error.response?.data || error.message);
-        // Return empty array for ResourceNotFound (user has no devices or Intune not configured)
-        if (error.response?.status === 404) {
-            console.warn('User has no managed devices or Intune not configured. Returning empty list.');
+
+        // Handle common error scenarios gracefully
+        const status = error.response?.status;
+
+        // Return empty array for:
+        // - 404: ResourceNotFound (user has no devices or Intune not configured)
+        // - 500: Internal server error from Graph API
+        // - 403: Permission issues
+        if (status === 404 || status === 500 || status === 403) {
+            const reason = status === 404 ? 'User has no managed devices or Intune not configured' :
+                status === 403 ? 'Insufficient permissions to access managed devices' :
+                    'Graph API internal error when fetching devices';
+            console.warn(`${reason}. Returning empty list.`);
             return res.json({ value: [] });
         }
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch user devices' });
+
+        // For other errors, return empty array to prevent frontend crashes
+        console.warn('Unexpected error fetching devices. Returning empty list.');
+        res.json({ value: [] });
     }
 });
 

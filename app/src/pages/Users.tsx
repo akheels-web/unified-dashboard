@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Filter, ChevronLeft, ChevronRight, X, Loader2,
   Mail, Building2, MapPin, Calendar, Clock, Users as UsersIcon,
-  Monitor, Smartphone, Tablet, MoreVertical
+  Monitor, Smartphone, Tablet, MoreVertical, RefreshCw, UserPlus,
+  CheckCircle2, AlertTriangle, UserX, LogOut, Key, Group, Laptop
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useUIStore } from '@/stores/uiStore';
