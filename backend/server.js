@@ -169,38 +169,6 @@ app.get('/api/users/locations', validateToken, async (req, res) => {
     res.json(data);
 });
 
-// Get Audit Logs (Directory Audits)
-app.get('/api/audit-logs', validateToken, async (req, res) => {
-    console.log(`[${new Date().toISOString()}] Request received for /api/audit-logs`);
-    const { limit = 10, category } = req.query;
-
-    try {
-        let url = `https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?$top=${limit}&$orderby=activityDateTime desc`;
-
-        // Optional category filter
-        if (category) {
-            url += `&$filter=category eq '${category}'`;
-        }
-
-        const headers = {
-            Authorization: `Bearer ${req.accessToken}`,
-            'Content-Type': 'application/json',
-        };
-
-        console.log(`[Graph Query] ${url}`);
-
-        const response = await axios.get(url, { headers });
-
-        res.json(response.data);
-    } catch (error) {
-        console.error(`[${new Date().toISOString()}] Audit logs error:`, error.response?.data || error.message);
-        res.status(error.response?.status || 500).json({
-            error: 'Failed to fetch audit logs',
-            details: error.response?.data || error.message
-        });
-    }
-});
-
 // Bulk Actions: Disable User
 app.patch('/api/users/:id', validateToken, async (req, res) => {
     const userId = req.params.id;

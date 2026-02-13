@@ -12,6 +12,7 @@ import {
     Shield,
     Globe,
     Server,
+    UserCog,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -38,4 +39,5 @@ export const navItems: NavItem[] = [
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit', label: 'Audit Logs', icon: ClipboardList, roles: ['it_admin'] },
     { path: '/settings', label: 'Settings', icon: Settings, roles: ['it_admin'] },
+    { path: '/admin-management', label: 'Admin Management', icon: UserCog, roles: ['it_admin'] },
 ];

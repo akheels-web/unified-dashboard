@@ -61,55 +61,8 @@ export const dashboardApi = {
   },
 
   getActivity: async (limit: number = 10): Promise<ApiResponse<ActivityItem[]>> => {
-    try {
-      const response = await fetchClient(`/audit-logs?limit=${limit}`);
-
-      if (response && response.value) {
-        // Map Graph audit logs to ActivityItem format
-        const activities: ActivityItem[] = response.value.map((log: any) => {
-          // Map category to activity type
-          const typeMapping: Record<string, string> = {
-            'UserManagement': 'user',
-            'GroupManagement': 'group',
-            'ApplicationManagement': 'app',
-            'RoleManagement': 'role',
-            'DeviceManagement': 'device',
-            'Policy': 'policy',
-          };
-
-          const activityType = typeMapping[log.category] || 'system';
-
-          // Extract user info
-          const initiator = log.initiatedBy?.user || log.initiatedBy?.app || {};
-          const userName = initiator.displayName || initiator.appDisplayName || 'System';
-          const userEmail = initiator.userPrincipalName || initiator.appId || '';
-
-          // Extract target info
-          const target = log.targetResources?.[0] || {};
-          const targetName = target.displayName || target.userPrincipalName || '';
-
-          return {
-            id: log.id,
-            type: activityType,
-            title: log.activityDisplayName,
-            description: targetName ? `${userName} - ${targetName}` : userName,
-            timestamp: log.activityDateTime,
-            status: log.result === 'success' ? 'success' : log.result === 'failure' ? 'error' : 'warning',
-            user: {
-              name: userName,
-              email: userEmail,
-            },
-          };
-        });
-
-        return { success: true, data: activities };
-      }
-    } catch (error) {
-      console.error('Failed to fetch audit logs:', error);
-    }
-
-    // Fallback to empty array if API fails
-    return { success: true, data: [] };
+    await delay(400);
+    return { success: true, data: mockActivityItems.slice(0, limit) };
   },
 
   getSystemStatus: async (): Promise<ApiResponse<SystemStatus>> => {
