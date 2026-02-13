@@ -10,16 +10,13 @@ if (!API_KEY) {
 
 // Correct Site Manager base URL
 // Documentation: https://ui.com/site-manager-api
+// Correct Site Manager base URL
+// Documentation: https://ui.com/site-manager-api
 const unifiClient = axios.create({
     baseURL: 'https://api.ui.com/site-manager/v1',
     headers: {
-        'X-API-Key': API_KEY, // Keeping X-API-Key as user mentioned it in the docs text, but user also suggested Bearer.
-        // Let's try to support checking or just use the one that works.
-        // User's code snippet uses Authorization: Bearer. 
-        // User's TEXT says "Incorporate the API key into the X-API-Key header".
-        // BUT User's "First Critical Check" says "Authorization: Bearer".
-        // I will stick to the user's "First Critical Check" advice as it seems to be their specific correction.
-        'Authorization': `Bearer ${API_KEY}`,
+        'X-API-Key': API_KEY, // Primary header for Site Manager API
+        'Authorization': `Bearer ${API_KEY}`, // Secondary/Alternative header
         'Accept': 'application/json'
     },
     timeout: 15000
