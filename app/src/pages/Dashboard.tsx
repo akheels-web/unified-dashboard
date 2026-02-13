@@ -34,17 +34,37 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const [statsRes, activityRes, statusRes, chartRes] = await Promise.all([
+
+      // Use Promise.allSettled so each API call fails independently
+      const [statsRes, activityRes, statusRes, chartRes] = await Promise.allSettled([
         dashboardApi.getStats(),
         dashboardApi.getActivity(5),
         dashboardApi.getSystemStatus(),
         dashboardApi.getChartData(),
       ]);
 
-      if (statsRes.success && statsRes.data) setStats(statsRes.data);
-      if (activityRes.success && activityRes.data) setActivities(activityRes.data);
-      if (statusRes.success && statusRes.data) setSystemStatus(statusRes.data);
-      if (chartRes.success) setChartData(chartRes.data);
+      // Handle stats
+      if (statsRes.status === 'fulfilled' && statsRes.value.success && statsRes.value.data) {
+        setStats(statsRes.value.data);
+      }
+
+      // Handle activity (audit logs) - gracefully handle failure
+      if (activityRes.status === 'fulfilled' && activityRes.value.success && activityRes.value.data) {
+        setActivities(activityRes.value.data);
+      } else {
+        console.warn('[Dashboard] Audit logs failed, using empty array');
+        setActivities([]);
+      }
+
+      // Handle system status
+      if (statusRes.status === 'fulfilled' && statusRes.value.success && statusRes.value.data) {
+        setSystemStatus(statusRes.value.data);
+      }
+
+      // Handle chart data
+      if (chartRes.status === 'fulfilled' && chartRes.value.success) {
+        setChartData(chartRes.value.data);
+      }
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {

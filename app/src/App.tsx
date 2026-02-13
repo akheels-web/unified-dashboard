@@ -19,7 +19,7 @@ import { PatchManagement } from '@/pages/PatchManagement';
 import { Reports } from '@/pages/Reports';
 import { Audit } from '@/pages/Audit';
 import { Settings } from '@/pages/Settings';
-import AdminManagement from '@/pages/AdminManagement';
+
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -112,7 +112,7 @@ function App() {
           <Route path="/reports" element={<RoleRoute roles={['it_admin']}><Reports /></RoleRoute>} />
           <Route path="/audit" element={<RoleRoute roles={['it_admin']}><Audit /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute roles={['it_admin']}><Settings /></RoleRoute>} />
-          <Route path="/admin-management" element={<RoleRoute roles={['it_admin']}><AdminManagement /></RoleRoute>} />
+
         </Route>
 
         {/* Catch all */}
