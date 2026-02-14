@@ -8,8 +8,8 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'unified_dashboard',
 });
 
-pool.connect()
-    .then(() => console.log('✅ Connected to PostgreSQL'))
-    .catch(err => console.error('❌ PostgreSQL connection error:', err.message));
+// pool.connect()
+//     .then(() => console.log('✅ Connected to PostgreSQL'))
+//     .catch(err => console.error('❌ PostgreSQL connection error:', err.message));
 
 module.exports = pool;
