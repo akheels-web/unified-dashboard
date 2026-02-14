@@ -51,7 +51,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-card/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-card">
       <div className="flex h-16 items-center px-4 md:px-6 gap-4">
         {/* Mobile Menu Toggle */}
         <button
@@ -166,23 +166,13 @@ export function Header() {
                   <div className="p-1">
                     <button
                       onClick={() => {
-                        navigate('/settings?tab=profile');
+                        navigate('/settings');
                         setShowProfileMenu(false);
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors"
                     >
                       <User className="w-4 h-4 text-muted-foreground" />
                       My Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate('/settings?tab=appearance');
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors"
-                    >
-                      <Settings className="w-4 h-4 text-muted-foreground" />
-                      Settings
                     </button>
                   </div>
 
