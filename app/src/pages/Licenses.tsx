@@ -32,6 +32,21 @@ export function Licenses() {
         try {
             const response = await dashboardApi.getLicenses();
             if (response.success && response.data) {
+                // DEBUG: Log all license data to console
+                console.log('=== ALL LICENSE DATA ===');
+                console.log('Total licenses found:', response.data.length);
+                console.table(response.data);
+                response.data.forEach((license: any, index: number) => {
+                    console.log(`\n[${index + 1}] License Details:`);
+                    console.log('  Name:', license.name);
+                    console.log('  SKU Code:', license.skuPartNumber || 'N/A');
+                    console.log('  Total:', license.total);
+                    console.log('  Used:', license.used);
+                    console.log('  Available:', license.available);
+                    console.log('  Percentage:', license.percentage + '%');
+                });
+                console.log('=== END LICENSE DATA ===\n');
+
                 setLicenses(response.data);
             }
         } catch (error) {
