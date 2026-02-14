@@ -16,6 +16,9 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Serve static files from React app (production)
+app.use(express.static(path.join(__dirname, '../app/dist')));
+
 // MSAL Configuration
 const msalConfig = {
     auth: {
@@ -715,6 +718,11 @@ const fs = require('fs');
 // const path = require('path'); // Already imported at the top
 
 // ... (previous code)
+
+// Handle React routing, return all requests to React app
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../app/dist', 'index.html'));
+});
 
 // Start Server
 const startServer = () => {
