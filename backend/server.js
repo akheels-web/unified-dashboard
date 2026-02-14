@@ -280,19 +280,20 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
             }
         });
 
-        // Filter to only tracked SKUs and map to friendly names
-        const licenses = response.data.value
-            .filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber))
-            .map(sku => ({
-                name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber,
-                skuPartNumber: sku.skuPartNumber,
-                total: sku.prepaidUnits.enabled,
-                used: sku.consumedUnits,
-                available: sku.prepaidUnits.enabled - sku.consumedUnits,
-                percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
-            }));
+        // TEMPORARY DEBUG: Show ALL licenses (filter disabled)
+        console.log('[DEBUG] Fetched ALL licenses from Microsoft Graph API');
+        console.log('[DEBUG] Total licenses in tenant:', response.data.value.length);
 
-        console.log(`[Licenses] Success - ${licenses.length} license types (filtered from ${response.data.value.length} total)`);
+        const licenses = response.data.value.map(sku => ({
+            name: sku.skuPartNumber,
+            skuPartNumber: sku.skuPartNumber,
+            total: sku.prepaidUnits.enabled,
+            used: sku.consumedUnits,
+            available: sku.prepaidUnits.enabled - sku.consumedUnits,
+            percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
+        }));
+
+        console.log(`[Licenses] Success - ${licenses.length} license types (UNFILTERED FOR DEBUG)`);
 
         // Cache the result
         setCache('licenses', licenses);
