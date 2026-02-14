@@ -254,24 +254,6 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     }
 
     try {
-        // Map of SKU Part Numbers to friendly names
-        const LICENSE_NAME_MAP = {
-            'EXCHANGESTANDARD': 'Exchange Online (Plan 1)',
-            'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
-            'EXCHANGEDESKLESS': 'Exchange Online Kiosk',
-            'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
-            'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium',
-            'SPB': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
-            'O365_BUSINESS': 'Microsoft 365 Business Standard',
-            'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
-            'SPE_E5': 'Microsoft 365 E5',
-            'POWER_BI_PRO': 'Power BI Pro',
-            'VISIOCLIENT': 'Visio Plan 2'
-        };
-
-        // SKU Part Numbers to track
-        const TRACKED_SKUS = Object.keys(LICENSE_NAME_MAP);
-
         const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
         const response = await axios.get(url, {
             headers: {
