@@ -63,24 +63,26 @@ export function Users() {
     setActiveTab(tabId);
     setPagination({ ...pagination, page: 1 }); // Reset to first page
 
-    let newFilters = { ...filters };
-
-    // Reset domain/userType first
-    delete newFilters.domain;
-    delete newFilters.userType;
+    // Explicitly set to undefined because setFilters merges shallowly
+    // We must overwrite the existing keys to clear them
+    const baseFilters = {
+      ...filters,
+      domain: undefined,
+      userType: undefined
+    };
 
     switch (tabId) {
       case 'lxt':
-        setFilters({ ...newFilters, domain: '@lxt.ai' });
+        setFilters({ ...baseFilters, domain: '@lxt.ai' });
         break;
       case 'clickworker':
-        setFilters({ ...newFilters, domain: '@clickworker.com' }); // Adjust domain as needed
+        setFilters({ ...baseFilters, domain: '@clickworker.com' });
         break;
       case 'guest':
-        setFilters({ ...newFilters, userType: 'Guest' });
+        setFilters({ ...baseFilters, userType: 'Guest' });
         break;
       default:
-        setFilters({ ...newFilters });
+        setFilters({ ...baseFilters });
     }
   };
 
