@@ -83,7 +83,43 @@ export function Reports() {
       return !isAfter(parseISO(u.lastSignInDateTime), thresholdDate);
     });
 
-    // Device Compliance (Parsing notes field for now)
+    // MFA Status (Mock logic if property missing, but using mfaEnabled if present)
+    // Note: If mfaEnabled is undefined, we might treat as 'Unknown' or 'Disabled'
+    const mfaStats = users.reduce((acc, user) => {
+      const status = user.mfaEnabled ? 'Enabled' : 'Disabled';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Department Distribution
+    const deptDist = users.reduce((acc, user) => {
+      const dept = user.department || 'Unassigned';
+      acc[dept] = (acc[dept] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Sort departments by count and take top 10
+    const topDepts = Object.entries(deptDist)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
+    // User Growth (Group by Month created)
+    const userGrowth = users.reduce((acc, user) => {
+      if (!user.createdDateTime) return acc;
+      const month = format(parseISO(user.createdDateTime), 'MMM yyyy');
+      acc[month] = (acc[month] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Convert to array and sort chronologically
+    const userGrowthData = Object.entries(userGrowth)
+      .map(([name, value]) => ({ name, value, date: parseISO(users.find(u => format(parseISO(u.createdDateTime!), 'MMM yyyy') === name)?.createdDateTime!) }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map(({ name, value }) => ({ name, value }));
+
+
+    // Device Compliance
     const compliantDevices = assets.filter(a => a.notes?.toLowerCase().includes('compliant') && !a.notes?.toLowerCase().includes('non-compliant'));
     const nonCompliantDevices = assets.filter(a => a.notes?.toLowerCase().includes('non-compliant'));
     const unknownCompliance = assets.length - compliantDevices.length - nonCompliantDevices.length;
@@ -95,7 +131,7 @@ export function Reports() {
       return acc;
     }, {} as Record<string, number>);
 
-    // License Cost (Mock $20/user avg for estimation)
+    // License Cost
     const totalLicenseCost = licenses.reduce((sum, lic) => sum + (lic.used * 20), 0);
     const potentialSavings = licenses.reduce((sum, lic) => sum + ((lic.available) * 20), 0);
 
@@ -103,10 +139,16 @@ export function Reports() {
       inactiveUsers,
       inactiveCount: inactiveUsers.length,
       activeCount: users.length - inactiveUsers.length,
+      mfaStats: [
+        { name: 'Enabled', value: mfaStats['Enabled'] || 0, color: '#10b981' },
+        { name: 'Disabled', value: mfaStats['Disabled'] || 0, color: '#ef4444' }
+      ],
+      deptDist: topDepts,
+      userGrowth: userGrowthData,
       compliance: [
-        { name: 'Compliant', value: compliantDevices.length, color: '#10b981' }, // Green
-        { name: 'Non-Compliant', value: nonCompliantDevices.length, color: '#ef4444' }, // Red
-        { name: 'Unknown', value: unknownCompliance, color: '#64748b' } // Slate
+        { name: 'Compliant', value: compliantDevices.length, color: '#10b981' },
+        { name: 'Non-Compliant', value: nonCompliantDevices.length, color: '#ef4444' },
+        { name: 'Unknown', value: unknownCompliance, color: '#64748b' }
       ],
       osDistribution: Object.entries(osDist).map(([name, value]) => ({ name, value })),
       totalLicenseCost,
@@ -119,9 +161,9 @@ export function Reports() {
     let filename = `report_${selectedReport}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
 
     if (selectedReport === 'users') {
-      csvContent = "Display Name,Email,Last Sign In,Department,Status\n";
+      csvContent = "Display Name,Email,Last Sign In,Department,MFA Status,Status\n";
       stats.inactiveUsers.forEach(u => {
-        csvContent += `"${u.displayName}","${u.email}","${u.lastSignInDateTime || 'Never'}","${u.department}","Inactive"\n`;
+        csvContent += `"${u.displayName}","${u.email}","${u.lastSignInDateTime || 'Never'}","${u.department}","${u.mfaEnabled ? 'Enabled' : 'Disabled'}","Inactive"\n`;
       });
     } else if (selectedReport === 'assets') {
       csvContent = "Asset Name,Model,Serial,Assigned To,Compliance\n";
@@ -142,9 +184,9 @@ export function Reports() {
       // Default Overview Export
       csvContent = "Metric,Value\n";
       csvContent += `Total Users,${users.length}\n`;
-      csvContent += `Inactive Users (> ${dateRange}),${stats.inactiveCount}\n`;
+      csvContent += `MFA Enabled Users,${stats.mfaStats[0].value}\n`;
+      csvContent += `inactive Users (> ${dateRange}),${stats.inactiveCount}\n`;
       csvContent += `Total Assets,${assets.length}\n`;
-      csvContent += `Non-Compliant Assets,${stats.compliance[1].value}\n`;
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -187,6 +229,38 @@ export function Reports() {
               <div className="bg-card p-6 rounded-xl border border-border">
                 <h3 className="text-muted-foreground text-sm font-medium mb-1">Total Users</h3>
                 <div className="text-3xl font-bold text-foreground">{users.length}</div>
+              </div>
+            </div>
+
+            {/* New Charts for Users Tab */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-card p-6 rounded-xl border border-border">
+                <h3 className="text-lg font-semibold mb-4">Department Distribution</h3>
+                <div className="h-64">
+                  <ResponsiveContainer>
+                    <BarChart data={stats.deptDist} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                      <XAxis type="number" stroke={axisColor} />
+                      <YAxis dataKey="name" type="category" stroke={axisColor} width={100} tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} />
+                      <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="bg-card p-6 rounded-xl border border-border">
+                <h3 className="text-lg font-semibold mb-4">User Growth Trend</h3>
+                <div className="h-64">
+                  <ResponsiveContainer>
+                    <LineChart data={stats.userGrowth}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                      <XAxis dataKey="name" stroke={axisColor} tick={{ fontSize: 12 }} />
+                      <YAxis stroke={axisColor} />
+                      <Tooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} />
+                      <Line type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
@@ -410,6 +484,29 @@ export function Reports() {
                   </div>
                   <button onClick={() => setSelectedReport('assets')} className="text-sm font-medium text-blue-500 hover:underline">View</button>
                 </div>
+              </div>
+            </div>
+
+            {/* MFA Status Chart for Overview */}
+            <div className="bg-card p-6 rounded-xl border border-border">
+              <h3 className="text-lg font-semibold mb-4">Security: MFA Status</h3>
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <RePieChart>
+                    <Pie
+                      data={stats.mfaStats}
+                      cx="50%" cy="50%"
+                      innerRadius={60} outerRadius={80}
+                      paddingAngle={5} dataKey="value"
+                    >
+                      {stats.mfaStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} />
+                    <Legend />
+                  </RePieChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
