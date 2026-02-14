@@ -260,13 +260,11 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
             'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
             'EXCHANGEDESKLESS': 'Exchange Online Kiosk',
             'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
-            'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium',
             'SPB': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
             'O365_BUSINESS': 'Microsoft 365 Business Standard',
             'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
             'SPE_E5': 'Microsoft 365 E5',
             'POWER_BI_PRO': 'Power BI Pro',
-            'POWER_BI_STANDARD': 'Power BI Pro',
             'VISIOCLIENT': 'Visio Plan 2'
         };
 
@@ -370,9 +368,8 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
         // Filter licenses to only tracked SKUs (same as /api/dashboard/licenses)
         const TRACKED_SKUS = [
             'EXCHANGESTANDARD', 'EXCHANGEENTERPRISE', 'EXCHANGEDESKLESS',
-            'O365_BUSINESS_ESSENTIALS', 'O365_BUSINESS_PREMIUM', 'SPB',
-            'O365_BUSINESS', 'MICROSOFT_365_COPILOT', 'SPE_E5',
-            'POWER_BI_PRO', 'POWER_BI_STANDARD', 'VISIOCLIENT'
+            'O365_BUSINESS_ESSENTIALS', 'SPB', 'O365_BUSINESS',
+            'MICROSOFT_365_COPILOT', 'SPE_E5', 'POWER_BI_PRO', 'VISIOCLIENT'
         ];
 
         const filteredLicenses = licensesRes.data.value.filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber));
