@@ -367,15 +367,24 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
             })
         ]);
 
-        // Filter licenses to only tracked SKUs (same as /api/dashboard/licenses)
+        // Exclude unwanted licenses (same as /api/dashboard/licenses)
+        const EXCLUDED_SKUS = [
+            'WINDOWS_STORE', 'FLOW_FREE', 'CCIBOTS_PRIVPREV_VIRAL', 'POWERAPPS_VIRAL',
+            'POWER_BI_STANDARD', 'Power_Pages_vTrial_for_Makers', 'RIGHTSMANAGEMENT_ADHOC',
+            'POWERAPPS_DEV', 'Microsoft_Teams_Rooms_Pro', 'MICROSOFT_BUSINESS_CENTER', 'TEAMS_EXPLORATORY'
+        ];
+
+        // Track only specific licenses
         const TRACKED_SKUS = [
             'EXCHANGESTANDARD', 'EXCHANGEENTERPRISE', 'EXCHANGEDESKLESS',
             'O365_BUSINESS_ESSENTIALS', 'O365_BUSINESS_PREMIUM', 'SPB',
             'O365_BUSINESS', 'MICROSOFT_365_COPILOT', 'SPE_E5',
-            'POWER_BI_PRO', 'VISIOCLIENT'
+            'POWER_BI_PRO', 'VISIOCLIENT', 'TEAMS_COMMERCIAL'
         ];
 
-        const filteredLicenses = licensesRes.data.value.filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber));
+        const filteredLicenses = licensesRes.data.value
+            .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
+            .filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber));
         const totalLicenses = filteredLicenses.reduce((sum, sku) => sum + sku.prepaidUnits.enabled, 0);
         const usedLicenses = filteredLicenses.reduce((sum, sku) => sum + sku.consumedUnits, 0);
 
