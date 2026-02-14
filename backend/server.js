@@ -737,4 +737,196 @@ const startServer = () => {
     }
 };
 
+// ======================================================
+// JSM WEBHOOK (Onboarding / Offboarding Automation)
+// ======================================================
+
+app.post('/api/jsm/webhook', async (req, res) => {
+    try {
+
+        const secret = req.headers['x-jsm-secret'];
+        if (secret !== process.env.JSM_WEBHOOK_SECRET) {
+            return res.status(403).json({ error: 'Unauthorized webhook' });
+        }
+
+        const payload = req.body;
+
+        if (!payload.issue) {
+            return res.status(400).json({ error: 'Invalid JSM payload' });
+        }
+
+        const issue = payload.issue;
+
+        const ticketKey = issue.key;
+        const issueType = issue.fields.issuetype.name;
+        const status = issue.fields.status.name;
+        const reporter = issue.fields.reporter?.displayName || null;
+        const assignee = issue.fields.assignee?.displayName || null;
+
+        let ticketType = null;
+
+        if (issueType.toLowerCase().includes('onboarding')) {
+            ticketType = 'onboarding';
+        } else if (issueType.toLowerCase().includes('offboarding')) {
+            ticketType = 'offboarding';
+        } else {
+            return res.status(200).json({ message: 'Not automation ticket' });
+        }
+
+        const employeeName = issue.fields.summary || null;
+        const department = issue.fields.department || null;
+        const manager = issue.fields.manager || null;
+        const employmentType = issue.fields.employmentType || null;
+        const startDate = issue.fields.startDate || null;
+
+        const ticketResult = await pool.query(`
+            INSERT INTO jsm_tickets 
+            (ticket_key, ticket_type, status, reporter, assignee, employee_name, department, manager, employment_type, start_date)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            ON CONFLICT (ticket_key)
+            DO UPDATE SET 
+                status = EXCLUDED.status,
+                assignee = EXCLUDED.assignee,
+                updated_at = NOW()
+            RETURNING id
+        `, [
+            ticketKey,
+            ticketType,
+            status,
+            reporter,
+            assignee,
+            employeeName,
+            department,
+            manager,
+            employmentType,
+            startDate
+        ]);
+
+        const ticketId = ticketResult.rows[0].id;
+
+        const workflowCheck = await pool.query(
+            `SELECT id FROM workflows WHERE ticket_id = $1`,
+            [ticketId]
+        );
+
+        if (workflowCheck.rows.length === 0) {
+            const workflowInsert = await pool.query(`
+                INSERT INTO workflows (ticket_id, workflow_type, status)
+                VALUES ($1, $2, 'pending')
+                RETURNING id
+            `, [ticketId, ticketType]);
+
+            const workflowId = workflowInsert.rows[0].id;
+
+            await createDefaultTasks(workflowId, ticketType);
+        }
+
+        res.status(200).json({ success: true });
+
+    } catch (error) {
+        console.error('JSM Webhook Error:', error);
+        res.status(500).json({ error: 'Webhook failed' });
+    }
+});
+
+// ======================================================
+// Default Task Creator
+// ======================================================
+
+async function createDefaultTasks(workflowId, type) {
+
+    let tasks = [];
+
+    if (type === 'onboarding') {
+        tasks = [
+            'Create M365 Account',
+            'Assign License',
+            'Add to Security Groups',
+            'Create Jira Account',
+            'Assign Device',
+            'Custody Form Signed',
+            'Send Welcome Email'
+        ];
+    }
+
+    if (type === 'offboarding') {
+        tasks = [
+            'Disable M365 Account',
+            'Revoke Sessions',
+            'Remove MFA',
+            'Remove from Groups',
+            'Collect Device',
+            'Archive Mailbox'
+        ];
+    }
+
+    for (const task of tasks) {
+        await pool.query(`
+            INSERT INTO workflow_tasks (workflow_id, task_name, status)
+            VALUES ($1, $2, 'pending')
+        `, [workflowId, task]);
+    }
+}
+
+// ======================================================
+// List Workflows
+// ======================================================
+
+app.get('/api/workflows', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                w.id,
+                w.workflow_type,
+                w.status,
+                j.ticket_key,
+                j.employee_name,
+                j.department,
+                j.start_date
+            FROM workflows w
+            JOIN jsm_tickets j ON j.id = w.ticket_id
+            ORDER BY w.created_at DESC
+        `);
+
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch workflows' });
+    }
+});
+
+// ======================================================
+// List Workflow Tasks
+// ======================================================
+
+app.get('/api/workflows/:id/tasks', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM workflow_tasks WHERE workflow_id = $1 ORDER BY id`,
+            [req.params.id]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch tasks' });
+    }
+});
+
+// ======================================================
+// Update Task Status
+// ======================================================
+
+app.patch('/api/tasks/:id', async (req, res) => {
+    try {
+        const { status } = req.body;
+
+        await pool.query(
+            `UPDATE workflow_tasks SET status = $1, updated_at = NOW() WHERE id = $2`,
+            [status, req.params.id]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update task' });
+    }
+});
+
 startServer();
