@@ -1,134 +1,154 @@
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-/* ... imports ... */
+import {
+  Bell,
+  Menu,
+  Sun,
+  Moon,
+  LogOut,
+  Settings,
+  User
+} from 'lucide-react';
+import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function Header() {
   const navigate = useNavigate();
-  /* ... hooks ... */
+  const {
+    toggleSidebar,
+    theme,
+    setTheme,
+    unreadCount,
+    notifications,
+    markAllNotificationsRead
+  } = useUIStore();
+  const { user, logout } = useAuthStore();
 
-  /* ... inside return ... */
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
-  {/* Search - REMOVED */ }
-      </div >
-
-    /* ... inside profile menu ... */
-
-    <div className="p-1">
-      <button
-        onClick={() => {
-          navigate('/settings?tab=profile');
-          setShowProfileMenu(false);
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors"
-      >
-        <User className="w-4 h-4 text-muted-foreground" />
-        My Profile
-      </button>
-      <button
-        onClick={() => {
-          navigate('/settings?tab=appearance');
-          setShowProfileMenu(false);
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors"
-      >
-        <Settings className="w-4 h-4 text-muted-foreground" />
-        Settings
-      </button>
-    </div>
-  import { Bell, Search, Menu, Sun, Moon, LogOut, Settings, User } from 'lucide-react';
-  import { useUIStore } from '@/stores/uiStore';
-  import { useAuthStore } from '@/stores/authStore';
-  import { cn } from '@/lib/utils';
-  import { motion, AnimatePresence } from 'framer-motion';
-
-  export function Header() {
-    const { toggleSidebar, theme, setTheme, sidebarCollapsed, unreadCount, toggleMobileMenu } = useUIStore();
-    const { user, logout } = useAuthStore();
-    const [showProfileMenu, setShowProfileMenu] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    // Close menu when clicking outside
-    useEffect(() => {
-      function handleClickOutside(event: MouseEvent) {
-        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-          setShowProfileMenu(false);
-        }
+  // Close menus when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
       }
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, []);
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    return (
-      <header
-        className={cn(
-          "fixed top-0 right-0 left-0 h-16 bg-card/80 backdrop-blur-md border-b border-border z-30 flex items-center justify-between px-4 transition-all duration-300",
-          sidebarCollapsed ? "md:pl-24" : "md:pl-[280px]", // Desktop padding only
-          "pl-4" // Mobile padding standard
-        )}
-      >
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => {
-              if (window.innerWidth < 768) {
-                toggleMobileMenu();
-              } else {
-                toggleSidebar();
-              }
-            }}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-          {/* Search */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border border-border focus-within:ring-2 focus-within:ring-primary/20">
-            <Search className="w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-64"
-            />
-          </div>
-        </div>
+  return (
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-card/80 backdrop-blur-md">
+      <div className="flex h-16 items-center px-4 md:px-6 gap-4">
+        {/* Mobile Menu Toggle */}
+        <button
+          onClick={toggleSidebar}
+          className="md:hidden p-2 hover:bg-muted rounded-lg"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
-        <div className="flex items-center gap-4">
+        {/* Title or spacing */}
+        <div className="flex-1" />
+
+        {/* Right Actions */}
+        <div className="flex items-center gap-2 md:gap-4">
+
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors relative"
+            className="p-2 hover:bg-muted rounded-full transition-colors relative"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
+            <Sun className="w-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 absolute" />
+            <Moon className="w-5 h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
           </button>
 
           {/* Notifications */}
-          <button className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full animate-pulse" />
-            )}
-          </button>
+          <div className="relative" ref={notificationRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 hover:bg-muted rounded-full transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </button>
 
-          {/* User Profile Dropdown */}
-          <div className="relative" ref={menuRef}>
+            {/* Notification Dropdown */}
+            <AnimatePresence>
+              {showNotifications && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.1 }}
+                  className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-xl shadow-lg overflow-hidden py-1"
+                >
+                  <div className="px-4 py-3 border-b border-border flex justify-between items-center">
+                    <h3 className="font-semibold text-sm">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllNotificationsRead}
+                        className="text-xs text-primary hover:text-primary/80"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No new notifications
+                      </div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} className={cn("px-4 py-3 hover:bg-muted/50 border-b last:border-0 border-border", !n.read && "bg-primary/5")}>
+                          <p className="text-sm font-medium">{n.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{n.message}</p>
+                          <p className="text-[10px] text-muted-foreground mt-2">{new Date(n.timestamp).toLocaleString()}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="h-6 w-px bg-border mx-1" />
+
+          {/* Profile Menu */}
+          <div className="relative" ref={profileRef}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center gap-3 pl-4 border-l border-border hover:opacity-80 transition-opacity"
+              className="flex items-center gap-3 hover:bg-muted p-1.5 pr-3 rounded-full transition-colors border border-transparent hover:border-border"
             >
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-foreground">{user?.displayName}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role?.replace('_', ' ')}</p>
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                {user?.displayName?.charAt(0) || 'U'}
               </div>
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-primary font-medium">
-                {user?.displayName?.charAt(0)}
+              <div className="hidden md:block text-left">
+                <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{user?.role?.replace('_', ' ') || 'Guest'}</p>
               </div>
             </button>
 
+            {/* Profile Dropdown */}
             <AnimatePresence>
               {showProfileMenu && (
                 <motion.div
@@ -136,19 +156,31 @@ export function Header() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.1 }}
-                  className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-lg shadow-black/5 overflow-hidden z-50 py-1"
+                  className="absolute right-0 mt-2 w-56 bg-card border border-border rounded-xl shadow-lg overflow-hidden py-1"
                 >
-                  <div className="px-4 py-3 border-b border-border md:hidden">
-                    <p className="text-sm font-medium text-foreground">{user?.displayName}</p>
+                  <div className="px-3 py-2 border-b border-border md:hidden">
+                    <p className="text-sm font-medium">{user?.displayName}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
 
                   <div className="p-1">
-                    <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors">
+                    <button
+                      onClick={() => {
+                        navigate('/settings?tab=profile');
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors"
+                    >
                       <User className="w-4 h-4 text-muted-foreground" />
                       My Profile
                     </button>
-                    <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors">
+                    <button
+                      onClick={() => {
+                        navigate('/settings?tab=appearance');
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted rounded-lg transition-colors"
+                    >
                       <Settings className="w-4 h-4 text-muted-foreground" />
                       Settings
                     </button>
@@ -158,24 +190,11 @@ export function Header() {
 
                   <div className="p-1">
                     <button
-                      onClick={() => {
-                        if (confirm('Reset application cache and logout?')) {
-                          useAuthStore.persist.clearStorage();
-                          localStorage.clear();
-                          window.location.href = '/';
-                        }
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                    >
-                      <LogOut className="w-4 h-4 rotate-180" />
-                      Reset App & Logout
-                    </button>
-                    <button
-                      onClick={() => logout()}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
-                      Logout
+                      Log out
                     </button>
                   </div>
                 </motion.div>
@@ -183,6 +202,7 @@ export function Header() {
             </AnimatePresence>
           </div>
         </div>
-      </header>
-    );
-  }
+      </div>
+    </header>
+  );
+}
