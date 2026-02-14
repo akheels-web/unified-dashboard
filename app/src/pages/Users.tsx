@@ -36,12 +36,53 @@ export function Users() {
   const [groupMembers, setGroupMembers] = useState<{ members: any[], owners: any[] }>({ members: [], owners: [] });
   const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
 
+  const [activeTab, setActiveTab] = useState('all');
+
+  const tabs = [
+    { id: 'all', label: 'All Users' },
+    { id: 'lxt', label: 'LXT Users' },
+    { id: 'clickworker', label: 'Clickworker Users' },
+    { id: 'guest', label: 'Guest Users' },
+  ];
+
 
   useEffect(() => {
     console.log('Users Page Loaded - Version: LIVE_DATA_FIX_V2');
+
+    // Sync active tab with filters on load
+    if (filters.userType === 'Guest') setActiveTab('guest');
+    else if (filters.domain?.includes('lxt')) setActiveTab('lxt');
+    else if (filters.domain?.includes('clickworker')) setActiveTab('clickworker');
+    else setActiveTab('all');
+
     loadUsers();
     loadFilterOptions();
   }, [filters, pagination.page, pagination.pageSize]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    setPagination({ ...pagination, page: 1 }); // Reset to first page
+
+    let newFilters = { ...filters };
+
+    // Reset domain/userType first
+    delete newFilters.domain;
+    delete newFilters.userType;
+
+    switch (tabId) {
+      case 'lxt':
+        setFilters({ ...newFilters, domain: '@lxt.ai' });
+        break;
+      case 'clickworker':
+        setFilters({ ...newFilters, domain: '@clickworker.com' }); // Adjust domain as needed
+        break;
+      case 'guest':
+        setFilters({ ...newFilters, userType: 'Guest' });
+        break;
+      default:
+        setFilters({ ...newFilters });
+    }
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -235,6 +276,30 @@ export function Users() {
           <RefreshCw className="w-4 h-4" />
           Sync
         </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-border">
+        <div className="flex items-center gap-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === tab.id
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+                />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filters */}

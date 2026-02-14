@@ -294,6 +294,8 @@ export interface UserFilters {
   lastActive?: string;
   allowedPages?: string[]; // List of paths the user can access
   location?: string;
+  domain?: string;
+  userType?: string;
 }
 
 // Dashboard Admin Types

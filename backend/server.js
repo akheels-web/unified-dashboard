@@ -153,12 +153,12 @@ app.get('/api/health', (req, res) => {
 app.get('/api/users', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Request received for /api/users`);
     try {
-        const { page = 1, pageSize = 25, search, department, location, enabled } = req.query;
+        const { page = 1, pageSize = 25, search, department, location, enabled, domain, userType } = req.query;
 
         // Fetch more records since we can't use $skip (Graph limitation)
         let url = `https://graph.microsoft.com/v1.0/users?$top=999&$count=true`;
         // Select fields we need
-        url += '&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,signInActivity';
+        url += '&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,signInActivity,userType';
 
         // Headers required for advanced queries ($count, $search)
         const headers = {
@@ -185,6 +185,22 @@ app.get('/api/users', validateToken, async (req, res) => {
 
         if (filters.length > 0) {
             url += `&$filter=${filters.join(' and ')}`;
+        }
+
+        // Domain Filter (Client-side filtering for reliability if Graph limitations hit, but trying server-side first)
+        // Note: endsWith on mail requires advanced query.
+        if (domain) {
+            // Graph API support for endsWith is limited. Using $search might be better for some, but endsWith(mail,...) works with eventual consistency
+            filters.push(`endsWith(mail,'${domain}')`);
+        }
+
+        if (userType) {
+            filters.push(`userType eq '${userType}'`);
+        }
+
+        if (filters.length > 0) {
+            // Re-construct filter string if we added new filters
+            url = url.split('&$filter=')[0] + `&$filter=${filters.join(' and ')}`;
         }
 
         // 3. Order By (Default to DisplayName)

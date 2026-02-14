@@ -161,6 +161,8 @@ export const usersApi = {
         if (filters.department && filters.department !== 'All Departments') params.append('department', filters.department);
         if (filters.location && filters.location !== 'All Locations') params.append('location', filters.location);
         if (filters.status && filters.status !== 'all') params.append('enabled', filters.status);
+        if (filters.domain) params.append('domain', filters.domain);
+        if (filters.userType) params.append('userType', filters.userType);
       }
 
       const realData = await fetchClient(`/users?${params.toString()}`);
