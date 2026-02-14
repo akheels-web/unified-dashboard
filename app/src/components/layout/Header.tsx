@@ -7,7 +7,8 @@ import {
   Moon,
   LogOut,
   Settings,
-  User
+  User,
+  Shield // Imported Shield
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -53,10 +54,10 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-card">
       <div className="flex h-16 items-center px-4 md:px-6 gap-4">
-        {/* Mobile Menu Toggle */}
+        {/* Sidebar Toggle - Visible on all screens */}
         <button
           onClick={toggleSidebar}
-          className="md:hidden p-2 hover:bg-muted rounded-lg"
+          className="p-2 hover:bg-muted rounded-lg"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -64,7 +65,7 @@ export function Header() {
         {/* Left Branding */}
         <div className="flex items-center gap-3">
           <div className="bg-primary/10 p-1.5 rounded-lg hidden md:block">
-            <Bell className="w-5 h-5 text-primary" /> {/* Using Bell temporarily if Shield not imported, wait, I imported Shield? No, I imported Bell. I need to import Shield. */}
+            <Shield className="w-5 h-5 text-primary" />
           </div>
           <span className="font-bold text-lg hidden md:block text-foreground">IT Operations</span>
         </div>
