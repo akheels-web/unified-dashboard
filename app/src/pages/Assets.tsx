@@ -425,16 +425,16 @@ export function Assets() {
             >
               <div className="sticky top-0 bg-card border-b border-border p-6">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
+                    <div className="w-16 h-16 rounded-xl bg-primary/10 flex-shrink-0 flex items-center justify-center">
                       {(() => {
                         const Icon = getCategoryIcon(assetDetail.category);
                         return <Icon className="w-8 h-8 text-primary" />;
                       })()}
                     </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-foreground">{assetDetail.name}</h2>
-                      <p className="text-muted-foreground">{assetDetail.assetTag}</p>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-xl font-bold text-foreground break-words">{assetDetail.name}</h2>
+                      <p className="text-muted-foreground truncate">{assetDetail.assetTag}</p>
                       <div className="flex items-center gap-2 mt-2">
                         <StatusBadge status={assetDetail.status as any} size="sm" />
                       </div>
@@ -442,7 +442,7 @@ export function Assets() {
                   </div>
                   <button
                     onClick={() => setShowAssetDetail(false)}
-                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                    className="p-2 hover:bg-muted rounded-lg transition-colors flex-shrink-0"
                   >
                     <X className="w-5 h-5 text-muted-foreground" />
                   </button>

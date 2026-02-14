@@ -165,7 +165,7 @@ export function Licenses() {
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="p-6 hover:bg-accent/50 transition-colors"
+                                className="p-6 hover:bg-muted/40 transition-colors"
                             >
                                 <div className="flex items-center justify-between mb-3">
                                     <div>
@@ -186,13 +186,13 @@ export function Licenses() {
                                 {/* Usage Bar */}
                                 <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
                                     <div
-                                        className={`h-full rounded-full transition-all duration-500 ${license.percentage >= 90
-                                            ? 'bg-red-500'
-                                            : license.percentage >= 75
-                                                ? 'bg-orange-500'
-                                                : 'bg-green-500'
+                                        className={`h-full rounded-full transition-all duration-500 ${license.percentage >= 100
+                                                ? 'bg-red-500' // 100% or more
+                                                : license.percentage >= 70
+                                                    ? 'bg-orange-500' // 70-99%
+                                                    : 'bg-green-500' // Below 70%
                                             }`}
-                                        style={{ width: `${license.percentage}%` }}
+                                        style={{ width: `${Math.min(license.percentage, 100)}%` }}
                                     />
                                 </div>
                             </motion.div>
