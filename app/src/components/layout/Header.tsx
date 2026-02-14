@@ -63,11 +63,6 @@ export function Header() {
 
         {/* Left Branding */}
         <div className="flex items-center gap-3">
-          <img
-            src="https://s40145.pcdn.co/wp-content/uploads/2022/09/LXT_Logo_Site-resized.png"
-            alt="LXT"
-            className="h-8 w-auto hidden md:block"
-          />
           <span className="font-bold text-lg hidden md:block text-foreground">IT Portal</span>
         </div>
 
