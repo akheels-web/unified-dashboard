@@ -61,7 +61,26 @@ export function Header() {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Title or spacing */}
+        {/* Left Branding */}
+        <div className="flex items-center gap-3">
+          <img
+            src="https://s40145.pcdn.co/wp-content/uploads/2022/09/LXT_Logo_Site-resized.png"
+            alt="LXT"
+            className="h-8 w-auto hidden md:block"
+          />
+          <span className="font-bold text-lg hidden md:block text-foreground">IT Portal</span>
+        </div>
+
+        {/* Center Logo - Absolute Positioned */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <img
+            src="https://s40145.pcdn.co/wp-content/uploads/2022/09/LXT_Logo_Site-resized.png"
+            alt="LXT Center"
+            className="h-8 w-auto opacity-90"
+          />
+        </div>
+
+        {/* Spacer to push right content */}
         <div className="flex-1" />
 
         {/* Right Actions */}
