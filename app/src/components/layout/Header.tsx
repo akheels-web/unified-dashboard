@@ -63,7 +63,10 @@ export function Header() {
 
         {/* Left Branding */}
         <div className="flex items-center gap-3">
-          <span className="font-bold text-lg hidden md:block text-foreground">IT Portal</span>
+          <div className="bg-primary/10 p-1.5 rounded-lg hidden md:block">
+            <Bell className="w-5 h-5 text-primary" /> {/* Using Bell temporarily if Shield not imported, wait, I imported Shield? No, I imported Bell. I need to import Shield. */}
+          </div>
+          <span className="font-bold text-lg hidden md:block text-foreground">IT Operations</span>
         </div>
 
         {/* Center Logo - Absolute Positioned */}
