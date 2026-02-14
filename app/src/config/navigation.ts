@@ -38,5 +38,4 @@ export const navItems: NavItem[] = [
     { path: '/patch-management', label: 'Patch Management', icon: Shield, roles: ['it_admin'] },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit', label: 'Audit Logs', icon: ClipboardList, roles: ['it_admin'] },
-    { path: '/settings', label: 'Settings', icon: Settings, roles: ['it_admin'] },
 ];
