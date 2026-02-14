@@ -280,20 +280,31 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
             }
         });
 
-        // TEMPORARY DEBUG: Show ALL licenses (filter disabled)
-        console.log('[DEBUG] Fetched ALL licenses from Microsoft Graph API');
-        console.log('[DEBUG] Total licenses in tenant:', response.data.value.length);
+        // Exclude free/trial licenses
+        const EXCLUDED_SKUS = ['WINDOWS_STORE', 'FLOW_FREE', 'CCIBOTS_PRIVPREV_VIRAL', 'POWERAPPS_VIRAL',
+            'POWER_BI_STANDARD', 'Power_Pages_vTrial_for_Makers', 'RIGHTSMANAGEMENT_ADHOC', 'POWERAPPS_DEV'];
 
-        const licenses = response.data.value.map(sku => ({
-            name: sku.skuPartNumber,
-            skuPartNumber: sku.skuPartNumber,
-            total: sku.prepaidUnits.enabled,
-            used: sku.consumedUnits,
-            available: sku.prepaidUnits.enabled - sku.consumedUnits,
-            percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
-        }));
+        const LICENSE_NAME_MAP = {
+            'EXCHANGESTANDARD': 'Exchange Online (Plan 1)', 'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
+            'EXCHANGEDESKLESS': 'Exchange Online Kiosk', 'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
+            'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium', 'SPB': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
+            'O365_BUSINESS': 'Microsoft 365 Business Standard', 'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
+            'SPE_E5': 'Microsoft 365 E5', 'POWER_BI_PRO': 'Power BI Pro', 'VISIOCLIENT': 'Visio Plan 2'
+        };
 
-        console.log(`[Licenses] Success - ${licenses.length} license types (UNFILTERED FOR DEBUG)`);
+        const licenses = response.data.value
+            .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
+            .filter(sku => LICENSE_NAME_MAP[sku.skuPartNumber])
+            .map(sku => ({
+                name: LICENSE_NAME_MAP[sku.skuPartNumber],
+                skuPartNumber: sku.skuPartNumber,
+                total: sku.prepaidUnits.enabled,
+                used: sku.consumedUnits,
+                available: sku.prepaidUnits.enabled - sku.consumedUnits,
+                percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
+            }));
+
+        console.log(`[Licenses] Success - ${licenses.length} license types (filtered from ${response.data.value.length} total)`);
 
         // Cache the result
         setCache('licenses', licenses);
@@ -302,34 +313,6 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     } catch (error) {
         console.error('[Licenses] Error:', error.response?.data || error.message);
         res.json([]);
-    }
-});
-
-// DEBUG: Get ALL license SKUs (temporary endpoint to discover SKU codes)
-app.get('/api/debug/all-licenses', validateToken, async (req, res) => {
-    try {
-        const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
-        const response = await axios.get(url, {
-            headers: {
-                Authorization: `Bearer ${req.accessToken}`,
-                'Content-Type': 'application/json',
-            }
-        });
-
-        // Return all SKUs with their details
-        const allSkus = response.data.value.map(sku => ({
-            skuPartNumber: sku.skuPartNumber,
-            skuId: sku.skuId,
-            total: sku.prepaidUnits.enabled,
-            used: sku.consumedUnits,
-            available: sku.prepaidUnits.enabled - sku.consumedUnits
-        }));
-
-        console.log('[DEBUG] All SKUs:', JSON.stringify(allSkus, null, 2));
-        res.json(allSkus);
-    } catch (error) {
-        console.error('[DEBUG] Error:', error.response?.data || error.message);
-        res.status(500).json({ error: error.message });
     }
 });
 
