@@ -83,13 +83,26 @@ export function Reports() {
       return !isAfter(parseISO(u.lastSignInDateTime), thresholdDate);
     });
 
-    // MFA Status (Mock logic if property missing, but using mfaEnabled if present)
-    // Note: If mfaEnabled is undefined, we might treat as 'Unknown' or 'Disabled'
-    const mfaStats = users.reduce((acc, user) => {
+    // MFA Status (Active Users Only - LXT & Clickworker)
+    const activeMfaUsers = users.filter(u => {
+      // Must be enabled
+      if (!u.accountEnabled) return false;
+      // Must not be guest
+      if (u.userPrincipalName?.includes('#EXT#')) return false;
+      // Must be LXT or Clickworker domain
+      const email = (u.userPrincipalName || u.email || '').toLowerCase();
+      return email.includes('lxt.ai') || email.includes('clickworker.com') || email.includes('lxt.com');
+    });
+
+    const mfaStatsObj = activeMfaUsers.reduce((acc, user) => {
       const status = user.mfaEnabled ? 'Enabled' : 'Disabled';
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
+
+    const mfaTotal = activeMfaUsers.length;
+    const mfaEnabledCount = mfaStatsObj['Enabled'] || 0;
+    const mfaPercentage = mfaTotal > 0 ? Math.round((mfaEnabledCount / mfaTotal) * 100) : 0;
 
     // Department Distribution
     const deptDist = users.reduce((acc, user) => {
@@ -140,9 +153,10 @@ export function Reports() {
       inactiveCount: inactiveUsers.length,
       activeCount: users.length - inactiveUsers.length,
       mfaStats: [
-        { name: 'Enabled', value: mfaStats['Enabled'] || 0, color: '#10b981' },
-        { name: 'Disabled', value: mfaStats['Disabled'] || 0, color: '#ef4444' }
+        { name: 'Enabled', value: mfaStatsObj['Enabled'] || 0, color: '#10b981' },
+        { name: 'Disabled', value: mfaStatsObj['Disabled'] || 0, color: '#ef4444' }
       ],
+      mfaPercentage,
       deptDist: topDepts,
       userGrowth: userGrowthData,
       compliance: [
@@ -490,23 +504,29 @@ export function Reports() {
             {/* MFA Status Chart for Overview */}
             <div className="bg-card p-6 rounded-xl border border-border">
               <h3 className="text-lg font-semibold mb-4">Security: MFA Status</h3>
-              <div className="h-64">
-                <ResponsiveContainer>
-                  <RePieChart>
-                    <Pie
-                      data={stats.mfaStats}
-                      cx="50%" cy="50%"
-                      innerRadius={60} outerRadius={80}
-                      paddingAngle={5} dataKey="value"
-                    >
-                      {stats.mfaStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} />
-                    <Legend />
-                  </RePieChart>
-                </ResponsiveContainer>
+              <div className="h-64 flex items-center justify-center">
+                <div className="relative w-full h-full">
+                  <ResponsiveContainer>
+                    <RePieChart>
+                      <Pie
+                        data={stats.mfaStats}
+                        cx="50%" cy="50%"
+                        innerRadius={60} outerRadius={80}
+                        paddingAngle={5} dataKey="value"
+                      >
+                        {stats.mfaStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} />
+                      <Legend />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-6">
+                    <span className="text-2xl font-bold">{stats.mfaPercentage}%</span>
+                    <span className="text-xs text-muted-foreground">Enabled</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
