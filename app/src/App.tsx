@@ -102,7 +102,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><Users /></RoleRoute>} />
           <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><Groups /></RoleRoute>} />
-          <Route path="/assets" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
+          <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
           <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
           <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
           <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><Onboarding /></RoleRoute>} />
