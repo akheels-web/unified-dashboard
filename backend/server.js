@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log("DEBUG: BACKEND CODE UPDATED " + new Date().toISOString());
 
 const pool = require('./db');
 const path = require('path');
