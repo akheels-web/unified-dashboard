@@ -334,7 +334,7 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
         // Only fetch fast endpoints - NO DEVICES (too slow!)
         // Filter users to only active accounts
         const [usersRes, groupsRes, licensesRes] = await Promise.all([
-            axios.get('https://graph.microsoft.com/v1.0/users/$count?$filter=accountEnabled eq true', {
+            axios.get('https://graph.microsoft.com/v1.0/users/$count?$filter=accountEnabled eq true and userType eq \'Member\' and (endsWith(userPrincipalName,\'@lxt.ai\') or endsWith(userPrincipalName,\'@clickworker.com\') or endsWith(userPrincipalName,\'@lxt.com\'))', {
                 headers: {
                     Authorization: `Bearer ${req.accessToken}`,
                     'ConsistencyLevel': 'eventual'

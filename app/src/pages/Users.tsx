@@ -268,7 +268,7 @@ export function Users() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Users</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Users</h1>
           <p className="text-muted-foreground">Manage M365 user accounts and access</p>
         </div>
         <button

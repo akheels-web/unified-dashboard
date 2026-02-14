@@ -76,7 +76,7 @@ export function Licenses() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground">License Management</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">License Management</h1>
                     <p className="text-muted-foreground mt-1">Monitor Microsoft 365 license usage and availability</p>
                 </div>
                 <button
@@ -187,10 +187,10 @@ export function Licenses() {
                                 <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
                                     <div
                                         className={`h-full rounded-full transition-all duration-500 ${license.percentage >= 100
-                                                ? 'bg-red-500' // 100% or more
-                                                : license.percentage >= 70
-                                                    ? 'bg-orange-500' // 70-99%
-                                                    : 'bg-green-500' // Below 70%
+                                            ? 'bg-red-500' // 100% or more
+                                            : license.percentage >= 70
+                                                ? 'bg-orange-500' // 70-99%
+                                                : 'bg-green-500' // Below 70%
                                             }`}
                                         style={{ width: `${Math.min(license.percentage, 100)}%` }}
                                     />

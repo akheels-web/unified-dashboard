@@ -83,29 +83,27 @@ export function Reports() {
       return !isAfter(parseISO(u.lastSignInDateTime), thresholdDate);
     });
 
-    // MFA Status (Active Users Only - LXT & Clickworker)
-    const activeMfaUsers = users.filter(u => {
-      // Must be enabled
+    // Active Internal Users (LXT & Clickworker) - Single truth source for all reports
+    const activeInternalUsers = users.filter(u => {
       if (!u.accountEnabled) return false;
-      // Must not be guest
       if (u.userPrincipalName?.includes('#EXT#')) return false;
-      // Must be LXT or Clickworker domain
       const email = (u.userPrincipalName || u.email || '').toLowerCase();
       return email.includes('lxt.ai') || email.includes('clickworker.com') || email.includes('lxt.com');
     });
 
-    const mfaStatsObj = activeMfaUsers.reduce((acc, user) => {
+    // MFA Status (Uses activeInternalUsers)
+    const mfaStatsObj = activeInternalUsers.reduce((acc, user) => {
       const status = user.mfaEnabled ? 'Enabled' : 'Disabled';
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const mfaTotal = activeMfaUsers.length;
+    const mfaTotal = activeInternalUsers.length;
     const mfaEnabledCount = mfaStatsObj['Enabled'] || 0;
     const mfaPercentage = mfaTotal > 0 ? Math.round((mfaEnabledCount / mfaTotal) * 100) : 0;
 
-    // Department Distribution
-    const deptDist = users.reduce((acc, user) => {
+    // Department Distribution (Uses activeInternalUsers)
+    const deptDist = activeInternalUsers.reduce((acc, user) => {
       const dept = user.department || 'Unassigned';
       acc[dept] = (acc[dept] || 0) + 1;
       return acc;
@@ -117,8 +115,8 @@ export function Reports() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
 
-    // User Growth (Group by Month created)
-    const userGrowth = users.reduce((acc, user) => {
+    // User Growth (Group by Month created - Uses activeInternalUsers)
+    const userGrowth = activeInternalUsers.reduce((acc, user) => {
       if (!user.createdDateTime) return acc;
       const month = format(parseISO(user.createdDateTime), 'MMM yyyy');
       acc[month] = (acc[month] || 0) + 1;
@@ -127,7 +125,7 @@ export function Reports() {
 
     // Convert to array and sort chronologically
     const userGrowthData = Object.entries(userGrowth)
-      .map(([name, value]) => ({ name, value, date: parseISO(users.find(u => format(parseISO(u.createdDateTime!), 'MMM yyyy') === name)?.createdDateTime!) }))
+      .map(([name, value]) => ({ name, value, date: parseISO(activeInternalUsers.find(u => format(parseISO(u.createdDateTime!), 'MMM yyyy') === name)?.createdDateTime!) }))
       .sort((a, b) => a.date.getTime() - b.date.getTime())
       .map(({ name, value }) => ({ name, value }));
 
@@ -388,11 +386,12 @@ export function Reports() {
                         {lic.used} / {lic.total} ({lic.percentage}%)
                       </span>
                     </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-3 bg-muted/50 rounded-full overflow-hidden border border-border">
                       <div
-                        className={cn("h-full rounded-full transition-all duration-500",
-                          lic.percentage >= 100 ? 'bg-red-500' :
-                            lic.percentage >= 90 ? 'bg-orange-500' : 'bg-green-500'
+                        className={cn("h-full rounded-full transition-all duration-500 shadow-sm",
+                          lic.percentage >= 100 ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                            lic.percentage >= 90 ? 'bg-gradient-to-r from-orange-400 to-orange-500' :
+                              'bg-gradient-to-r from-emerald-400 to-emerald-600'
                         )}
                         style={{ width: `${Math.min(lic.percentage, 100)}%` }}
                       />
@@ -538,7 +537,7 @@ export function Reports() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Reports & Analytics</h1>
           <p className="text-muted-foreground">Real-time system insights</p>
         </div>
         <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors">

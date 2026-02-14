@@ -16,7 +16,7 @@ export function Settings() {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">My Profile</h1>
         <p className="text-muted-foreground">Manage your account settings and preferences</p>
       </div>
 

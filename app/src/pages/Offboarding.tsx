@@ -518,7 +518,7 @@ export function Offboarding() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Offboarding</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Offboarding</h1>
           <p className="text-muted-foreground">Manage employee offboarding and account termination</p>
         </div>
         <button

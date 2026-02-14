@@ -36,7 +36,7 @@ export function MainLayout() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="p-4 md:p-6" // Smaller padding on mobile
+          className="p-6 md:p-8" // Increased padding for better spacing
         >
           <Outlet />
         </motion.div>

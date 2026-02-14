@@ -44,7 +44,7 @@ export function SoftwarePage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Software</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Software</h1>
                     <p className="text-muted-foreground mt-1">Manage software licenses and subscriptions</p>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">

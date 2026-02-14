@@ -102,7 +102,7 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">Real-time overview of your IT operations</p>
         </div>
         <button
@@ -127,8 +127,10 @@ export function Dashboard() {
         >
           <StatsCard
             title="Total Users"
-            value={stats?.totalUsers?.toLocaleString() || '0'}
-            subtitle="M365 accounts"
+            value={stats?.totalUsers ?
+              stats.totalUsers.toLocaleString() : '0'
+            }
+            subtitle="Active LXT & CW Users"
             icon={Users}
             color="blue"
           />
