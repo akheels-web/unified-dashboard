@@ -173,10 +173,10 @@ export function Groups() {
                             onClick={() => setSelectedGroup(null)}
                         />
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[80vh] bg-card rounded-xl border border-border shadow-2xl z-[100] overflow-hidden"
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            className="fixed top-24 left-1/2 -translate-x-1/2 w-full max-w-2xl max-h-[85vh] bg-card rounded-xl border border-border shadow-2xl z-[100] overflow-hidden"
                         >
                             {/* Modal Header */}
                             <div className="flex items-center justify-between p-6 border-b border-border">
