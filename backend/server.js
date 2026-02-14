@@ -254,18 +254,19 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     }
 
     try {
-        // Specific SKUs to track (only relevant licenses)
-        const TRACKED_SKUS = [
-            'EXCHANGESTANDARD',           // Exchange Online (Plan 1)
-            'EXCHANGEENTERPRISE',         // Exchange Online (Plan 2)
-            'EXCHANGEDESKLESS',           // Exchange Online Kiosk
-            'O365_BUSINESS_ESSENTIALS',   // Microsoft 365 Business Basic
-            'O365_BUSINESS_PREMIUM',      // Microsoft 365 Business Premium
-            'O365_BUSINESS',              // Microsoft 365 Business Standard
-            'MICROSOFT_BUSINESS_CENTER',  // Microsoft 365 Copilot
-            'SPE_E5',                     // Microsoft 365 E5
-            'POWER_BI_PRO',               // Power BI Pro
-            'VISIOCLIENT'                 // Visio Plan 2
+        // Specific license names to track (based on actual tenant licenses)
+        const TRACKED_LICENSE_NAMES = [
+            'Exchange Online (Plan 1)',
+            'Exchange Online (Plan 2)',
+            'Exchange Online Kiosk',
+            'Microsoft 365 Business Basic',
+            'Microsoft 365 Business Premium',
+            'Microsoft 365 Business Premium and Microsoft 365 Copilot',
+            'Microsoft 365 Business Standard',
+            'Microsoft 365 Copilot',
+            'Microsoft 365 E5',
+            'Power BI Pro',
+            'Visio Plan 2'
         ];
 
         const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
@@ -276,9 +277,13 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
             }
         });
 
-        // Filter to only tracked SKUs
+        // Filter to only tracked licenses by skuPartNumber (display name)
         const licenses = response.data.value
-            .filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber))
+            .filter(sku => {
+                // The skuPartNumber field contains the display name
+                const displayName = sku.skuPartNumber;
+                return TRACKED_LICENSE_NAMES.includes(displayName);
+            })
             .map(sku => ({
                 name: sku.skuPartNumber,
                 total: sku.prepaidUnits.enabled,
@@ -296,6 +301,34 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     } catch (error) {
         console.error('[Licenses] Error:', error.response?.data || error.message);
         res.json([]);
+    }
+});
+
+// DEBUG: Get ALL license SKUs (temporary endpoint to discover SKU codes)
+app.get('/api/debug/all-licenses', validateToken, async (req, res) => {
+    try {
+        const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        // Return all SKUs with their details
+        const allSkus = response.data.value.map(sku => ({
+            skuPartNumber: sku.skuPartNumber,
+            skuId: sku.skuId,
+            total: sku.prepaidUnits.enabled,
+            used: sku.consumedUnits,
+            available: sku.prepaidUnits.enabled - sku.consumedUnits
+        }));
+
+        console.log('[DEBUG] All SKUs:', JSON.stringify(allSkus, null, 2));
+        res.json(allSkus);
+    } catch (error) {
+        console.error('[DEBUG] Error:', error.response?.data || error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -333,14 +366,16 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
             })
         ]);
 
-        // Filter licenses to only tracked SKUs (same as /api/dashboard/licenses)
-        const TRACKED_SKUS = [
-            'EXCHANGESTANDARD', 'EXCHANGEENTERPRISE', 'EXCHANGEDESKLESS',
-            'O365_BUSINESS_ESSENTIALS', 'O365_BUSINESS_PREMIUM', 'O365_BUSINESS',
-            'MICROSOFT_BUSINESS_CENTER', 'SPE_E5', 'POWER_BI_PRO', 'VISIOCLIENT'
+        // Filter licenses to only tracked licenses (same as /api/dashboard/licenses)
+        const TRACKED_LICENSE_NAMES = [
+            'Exchange Online (Plan 1)', 'Exchange Online (Plan 2)', 'Exchange Online Kiosk',
+            'Microsoft 365 Business Basic', 'Microsoft 365 Business Premium',
+            'Microsoft 365 Business Premium and Microsoft 365 Copilot',
+            'Microsoft 365 Business Standard', 'Microsoft 365 Copilot',
+            'Microsoft 365 E5', 'Power BI Pro', 'Visio Plan 2'
         ];
 
-        const filteredLicenses = licensesRes.data.value.filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber));
+        const filteredLicenses = licensesRes.data.value.filter(sku => TRACKED_LICENSE_NAMES.includes(sku.skuPartNumber));
         const totalLicenses = filteredLicenses.reduce((sum, sku) => sum + sku.prepaidUnits.enabled, 0);
         const usedLicenses = filteredLicenses.reduce((sum, sku) => sum + sku.consumedUnits, 0);
 

@@ -6,16 +6,17 @@ import { toast } from 'sonner';
 
 // License name mapping for better display
 const LICENSE_NAMES: Record<string, string> = {
-    'EXCHANGESTANDARD': 'Exchange Online (Plan 1)',
-    'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
-    'EXCHANGEDESKLESS': 'Exchange Online Kiosk',
-    'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
-    'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium',
-    'O365_BUSINESS': 'Microsoft 365 Business Standard',
-    'MICROSOFT_BUSINESS_CENTER': 'Microsoft 365 Copilot',
-    'SPE_E5': 'Microsoft 365 E5',
-    'POWER_BI_PRO': 'Power BI Pro',
-    'VISIOCLIENT': 'Visio Plan 2'
+    'Exchange Online (Plan 1)': 'Exchange Online (Plan 1)',
+    'Exchange Online (Plan 2)': 'Exchange Online (Plan 2)',
+    'Exchange Online Kiosk': 'Exchange Online Kiosk',
+    'Microsoft 365 Business Basic': 'Microsoft 365 Business Basic',
+    'Microsoft 365 Business Premium': 'Microsoft 365 Business Premium',
+    'Microsoft 365 Business Premium and Microsoft 365 Copilot': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
+    'Microsoft 365 Business Standard': 'Microsoft 365 Business Standard',
+    'Microsoft 365 Copilot': 'Microsoft 365 Copilot',
+    'Microsoft 365 E5': 'Microsoft 365 E5',
+    'Power BI Pro': 'Power BI Pro',
+    'Visio Plan 2': 'Visio Plan 2'
 };
 
 export function Licenses() {
@@ -171,10 +172,10 @@ export function Licenses() {
                                 <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
                                     <div
                                         className={`h-full rounded-full transition-all duration-500 ${license.percentage >= 90
-                                                ? 'bg-red-500'
-                                                : license.percentage >= 75
-                                                    ? 'bg-orange-500'
-                                                    : 'bg-green-500'
+                                            ? 'bg-red-500'
+                                            : license.percentage >= 75
+                                                ? 'bg-orange-500'
+                                                : 'bg-green-500'
                                             }`}
                                         style={{ width: `${license.percentage}%` }}
                                     />
