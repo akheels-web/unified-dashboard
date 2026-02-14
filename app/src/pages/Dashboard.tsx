@@ -7,6 +7,7 @@ import {
 import { StatsCard } from '@/components/common/StatsCard';
 import { ActivityFeed } from '@/components/common/ActivityFeed';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { QuoteOfTheDay } from '@/components/common/QuoteOfTheDay';
 import { dashboardApi } from '@/services/api';
 import type { ActivityItem, SystemStatus } from '@/types';
 import {
@@ -16,8 +17,6 @@ import {
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-
-const COLORS = ['#2596be', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981'];
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -81,6 +80,11 @@ export function Dashboard() {
     });
   };
 
+  // Sort licenses by percentage used (descending), then take top 8
+  const displayedLicenses = [...licenses]
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, 8);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -108,6 +112,9 @@ export function Dashboard() {
           Sync
         </button>
       </div>
+
+      {/* Quote of the Day */}
+      <QuoteOfTheDay />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -260,28 +267,57 @@ export function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-card rounded-xl border border-border p-6"
+          className="bg-card rounded-xl border border-border p-6 shadow-sm"
         >
-          <h4 className="text-lg font-semibold text-foreground mb-4">License Utilization</h4>
-          <div className="h-80">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-semibold text-foreground">License Utilization</h4>
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-md">Top 8 by Usage</span>
+          </div>
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={licenses.slice(0, 5)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} angle={-45} textAnchor="end" height={80} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <BarChart data={displayedLicenses} margin={{ bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
                 <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
+                    borderColor: 'hsl(var(--border))',
                     borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
+                    color: 'hsl(var(--foreground))',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                   }}
                   itemStyle={{ color: 'hsl(var(--foreground))' }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}
                 />
-                <Legend />
-                <Bar dataKey="used" fill="#2596be" name="Used" />
-                <Bar dataKey="available" fill="#10b981" name="Available" />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                <Bar
+                  dataKey="used"
+                  fill="hsl(var(--primary))"
+                  name="Used"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
+                <Bar
+                  dataKey="available"
+                  fill="hsl(var(--muted))"
+                  name="Available"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

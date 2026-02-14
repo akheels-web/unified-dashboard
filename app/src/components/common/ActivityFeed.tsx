@@ -64,7 +64,7 @@ export function ActivityFeed({ activities, maxItems = 10 }: ActivityFeedProps) {
                 {' '}<span className="text-muted-foreground">{activity.action}</span>{' '}
                 <span className="font-medium">{activity.target}</span>
               </p>
-              <p className="text-xs text-[#a0a0a0] mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
               </p>
             </div>
@@ -81,8 +81,8 @@ export function ActivityFeed({ activities, maxItems = 10 }: ActivityFeedProps) {
       })}
 
       {activities.length === 0 && (
-        <div className="text-center py-8 text-[#a0a0a0]">
-          <Info className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <div className="text-center py-8 text-muted-foreground">
+          <Info className="w-12 h-12 opacity-50 mx-auto mb-3" />
           <p>No recent activity</p>
         </div>
       )}
