@@ -8,7 +8,23 @@ import { StatsCard } from '@/components/common/StatsCard';
 import { ActivityFeed } from '@/components/common/ActivityFeed';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { QuoteOfTheDay } from '@/components/common/QuoteOfTheDay';
-import { dashboardApi } from '@/services/api';
+import { ITTeamSection } from '@/components/dashboard/ITTeamSection';
+
+// ... (existing imports)
+
+// Inside Dashboard component return:
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.6 }}
+  className="bg-card rounded-xl border border-border p-6 shadow-sm"
+>
+  {/* ... License Utilization Content ... */}
+</motion.div>
+
+{/* IT Team Section */ }
+<ITTeamSection />
+      </div >
 import type { ActivityItem, SystemStatus } from '@/types';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
