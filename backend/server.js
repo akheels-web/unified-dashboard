@@ -254,6 +254,20 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
     }
 
     try {
+        // Specific SKUs to track (only relevant licenses)
+        const TRACKED_SKUS = [
+            'EXCHANGESTANDARD',           // Exchange Online (Plan 1)
+            'EXCHANGEENTERPRISE',         // Exchange Online (Plan 2)
+            'EXCHANGEDESKLESS',           // Exchange Online Kiosk
+            'O365_BUSINESS_ESSENTIALS',   // Microsoft 365 Business Basic
+            'O365_BUSINESS_PREMIUM',      // Microsoft 365 Business Premium
+            'O365_BUSINESS',              // Microsoft 365 Business Standard
+            'MICROSOFT_BUSINESS_CENTER',  // Microsoft 365 Copilot
+            'SPE_E5',                     // Microsoft 365 E5
+            'POWER_BI_PRO',               // Power BI Pro
+            'VISIOCLIENT'                 // Visio Plan 2
+        ];
+
         const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
         const response = await axios.get(url, {
             headers: {
@@ -262,15 +276,18 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
             }
         });
 
-        const licenses = response.data.value.map(sku => ({
-            name: sku.skuPartNumber,
-            total: sku.prepaidUnits.enabled,
-            used: sku.consumedUnits,
-            available: sku.prepaidUnits.enabled - sku.consumedUnits,
-            percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
-        }));
+        // Filter to only tracked SKUs
+        const licenses = response.data.value
+            .filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber))
+            .map(sku => ({
+                name: sku.skuPartNumber,
+                total: sku.prepaidUnits.enabled,
+                used: sku.consumedUnits,
+                available: sku.prepaidUnits.enabled - sku.consumedUnits,
+                percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
+            }));
 
-        console.log(`[Licenses] Success - ${licenses.length} license types`);
+        console.log(`[Licenses] Success - ${licenses.length} license types (filtered from ${response.data.value.length} total)`);
 
         // Cache the result
         setCache('licenses', licenses);
@@ -294,8 +311,9 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
 
     try {
         // Only fetch fast endpoints - NO DEVICES (too slow!)
+        // Filter users to only active accounts
         const [usersRes, groupsRes, licensesRes] = await Promise.all([
-            axios.get('https://graph.microsoft.com/v1.0/users/$count', {
+            axios.get('https://graph.microsoft.com/v1.0/users/$count?$filter=accountEnabled eq true', {
                 headers: {
                     Authorization: `Bearer ${req.accessToken}`,
                     'ConsistencyLevel': 'eventual'
@@ -315,8 +333,16 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
             })
         ]);
 
-        const totalLicenses = licensesRes.data.value.reduce((sum, sku) => sum + sku.prepaidUnits.enabled, 0);
-        const usedLicenses = licensesRes.data.value.reduce((sum, sku) => sum + sku.consumedUnits, 0);
+        // Filter licenses to only tracked SKUs (same as /api/dashboard/licenses)
+        const TRACKED_SKUS = [
+            'EXCHANGESTANDARD', 'EXCHANGEENTERPRISE', 'EXCHANGEDESKLESS',
+            'O365_BUSINESS_ESSENTIALS', 'O365_BUSINESS_PREMIUM', 'O365_BUSINESS',
+            'MICROSOFT_BUSINESS_CENTER', 'SPE_E5', 'POWER_BI_PRO', 'VISIOCLIENT'
+        ];
+
+        const filteredLicenses = licensesRes.data.value.filter(sku => TRACKED_SKUS.includes(sku.skuPartNumber));
+        const totalLicenses = filteredLicenses.reduce((sum, sku) => sum + sku.prepaidUnits.enabled, 0);
+        const usedLicenses = filteredLicenses.reduce((sum, sku) => sum + sku.consumedUnits, 0);
 
         const stats = {
             totalUsers: usersRes.data,
@@ -327,7 +353,7 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
             licensesAvailable: totalLicenses - usedLicenses
         };
 
-        console.log(`[Dashboard Stats] Success - ${stats.totalUsers} users, ${stats.totalGroups} groups`);
+        console.log(`[Dashboard Stats] Success - ${stats.totalUsers} active users, ${stats.totalGroups} groups, ${stats.licensesTotal} licenses`);
 
         // Cache the result
         setCache('dashboardStats', stats);

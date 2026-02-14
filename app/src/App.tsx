@@ -9,6 +9,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
 import { Assets } from '@/pages/Assets';
+import { Licenses } from '@/pages/Licenses';
 import { SoftwarePage } from '@/pages/Software';
 import Onboarding from '@/pages/Onboarding';
 import { Offboarding } from '@/pages/Offboarding';
@@ -102,6 +103,7 @@ function App() {
           <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><Users /></RoleRoute>} />
           <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><Groups /></RoleRoute>} />
           <Route path="/assets" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
+          <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
           <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
           <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><Onboarding /></RoleRoute>} />
           <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><Offboarding /></RoleRoute>} />

@@ -27,6 +27,7 @@ export const navItems: NavItem[] = [
     { path: '/users', label: 'Users', icon: Users, roles: ['it_admin', 'it_user'] },
     { path: '/groups', label: 'Groups', icon: Users, roles: ['it_admin', 'it_user'] },
     { path: '/assets', label: 'Assets', icon: Laptop, roles: ['it_admin', 'it_user'] },
+    { path: '/licenses', label: 'Licenses', icon: Shield, roles: ['it_admin', 'it_user'] },
     { path: '/software', label: 'Software', icon: AppWindow, roles: ['it_admin', 'it_user'] },
     { path: '/onboarding', label: 'Onboarding', icon: UserPlus, badge: 8 },
     { path: '/offboarding', label: 'Offboarding', icon: UserMinus, badge: 5 },
