@@ -679,6 +679,41 @@ app.get('/api/devices', validateToken, async (req, res) => {
     }
 });
 
+// Import Report Generator
+const { generateSecurityReport } = require('./services/reportGenerator');
+
+// Generate Security PDF Report
+app.get('/api/reports/security-summary', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Generating Security Report PDF`);
+    try {
+        // Fetch latest snapshot from DB
+        const result = await pool.query('SELECT * FROM security_snapshots ORDER BY timestamp DESC LIMIT 1');
+        const hygieneRes = await pool.query('SELECT * FROM hygiene_snapshots ORDER BY timestamp DESC LIMIT 1');
+        const deviceRes = await pool.query('SELECT * FROM device_snapshots ORDER BY timestamp DESC LIMIT 1');
+
+        // Combine data (use latest available or defaults)
+        const reportData = {
+            ...result.rows[0],
+            ...hygieneRes.rows[0],
+            ...deviceRes.rows[0]
+        };
+
+        if (!reportData.timestamp) {
+            // No DB data? Use mock for demonstration if needed, or error
+            console.warn("No security data found in DB, generating blank/mock report");
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=security_summary.pdf');
+
+        generateSecurityReport(reportData, res);
+
+    } catch (error) {
+        console.error('Failed to generate PDF:', error);
+        res.status(500).json({ error: 'Failed to generate report' });
+    }
+});
+
 // Import Unifi Service (Optional Integration)
 const unifiService = require('./services/unifi');
 const statusService = require('./services/status');

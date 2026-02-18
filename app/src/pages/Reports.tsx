@@ -540,10 +540,19 @@ export function Reports() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Reports & Analytics</h1>
           <p className="text-muted-foreground">Real-time system insights</p>
         </div>
-        <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors">
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => window.open('/api/reports/security-summary', '_blank')}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-slate-700"
+          >
+            <Shield className="w-4 h-4" />
+            Security Summary PDF
+          </button>
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors">
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
