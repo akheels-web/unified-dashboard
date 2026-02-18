@@ -207,4 +207,8 @@ function initScheduler() {
     collectHygieneSnapshot();
 }
 
-module.exports = { initScheduler };
+module.exports = {
+    initScheduler,
+    collectSecuritySnapshot,
+    collectHygieneSnapshot
+};

@@ -32,7 +32,7 @@ const msalConfig = {
 const cca = new ConfidentialClientApplication(msalConfig);
 
 // Initialize Security Collector
-const { initScheduler } = require('./services/securityCollector.js');
+const { initScheduler, collectSecuritySnapshot, collectHygieneSnapshot } = require('./services/securityCollector.js');
 // Only start if DB is connected (in a real app, wait for DB connection)
 setTimeout(() => {
     initScheduler();
@@ -286,36 +286,36 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
         });
 
         const EXCLUDED_SKUS = [
-            'WINDOWS_STORE','FLOW_FREE','CCIBOTS_PRIVPREV_VIRAL','POWERAPPS_VIRAL',
-            'POWER_BI_STANDARD','Power_Pages_vTrial_for_Makers',
-            'RIGHTSMANAGEMENT_ADHOC','POWERAPPS_DEV'
+            'WINDOWS_STORE', 'FLOW_FREE', 'CCIBOTS_PRIVPREV_VIRAL', 'POWERAPPS_VIRAL',
+            'POWER_BI_STANDARD', 'Power_Pages_vTrial_for_Makers',
+            'RIGHTSMANAGEMENT_ADHOC', 'POWERAPPS_DEV'
         ];
 
         const LICENSE_NAME_MAP = {
-            'EXCHANGESTANDARD':'Exchange Online (Plan 1)',
-            'EXCHANGEENTERPRISE':'Exchange Online (Plan 2)',
-            'EXCHANGEDESKLESS':'Exchange Online Kiosk',
-            'O365_BUSINESS_ESSENTIALS':'Microsoft 365 Business Basic',
-            'O365_BUSINESS_PREMIUM':'Microsoft 365 Business Premium',
-            'SPB':'Microsoft 365 Business Premium and Microsoft 365 Copilot',
-            'O365_BUSINESS':'Microsoft 365 Business Standard',
-            'MICROSOFT_365_COPILOT':'Microsoft 365 Copilot',
-            'SPE_E5':'Microsoft 365 E5',
-            'POWER_BI_PRO':'Power BI Pro',
-            'VISIOCLIENT':'Visio Plan 2'
+            'EXCHANGESTANDARD': 'Exchange Online (Plan 1)',
+            'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
+            'EXCHANGEDESKLESS': 'Exchange Online Kiosk',
+            'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
+            'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium',
+            'SPB': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
+            'O365_BUSINESS': 'Microsoft 365 Business Standard',
+            'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
+            'SPE_E5': 'Microsoft 365 E5',
+            'POWER_BI_PRO': 'Power BI Pro',
+            'VISIOCLIENT': 'Visio Plan 2'
         };
 
         const licenses = response.data.value
             .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
             .map(sku => ({
                 id: sku.skuId,
-                name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g,' '),
+                name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
                 skuPartNumber: sku.skuPartNumber,
                 total: sku.prepaidUnits.enabled,
                 used: sku.consumedUnits,
                 available: sku.prepaidUnits.enabled - sku.consumedUnits
             }))
-            .sort((a,b)=>b.total-a.total);
+            .sort((a, b) => b.total - a.total);
 
         setCache('licenses', licenses);
         res.json(licenses);
@@ -451,6 +451,28 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
             licensesUsed: 0,
             licensesAvailable: 0
         });
+    }
+});
+
+// Manual Sync Trigger
+app.post('/api/dashboard/sync', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Manual Sync Triggered`);
+    try {
+        // Run collectors
+        await Promise.all([
+            collectSecuritySnapshot(),
+            collectHygieneSnapshot()
+        ]);
+
+        // Clear Cache
+        clearCache('dashboardStats');
+        // We don't have separate cache keys for security summary yet, but if we did, clear them.
+        // The security-summary endpoint hits DB directly so it will see new data immediately.
+
+        res.json({ success: true, message: 'Sync completed' });
+    } catch (error) {
+        console.error('Manual sync failed:', error);
+        res.status(500).json({ error: 'Sync failed' });
     }
 });
 

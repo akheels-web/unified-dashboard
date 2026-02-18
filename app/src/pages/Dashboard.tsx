@@ -123,6 +123,31 @@ export default function Dashboard() {
 
   const activeModal = isSecurityModalOpen ? 'alerts' : isRiskyUsersModalOpen ? 'risky-users' : isDeviceModalOpen ? 'non-compliant' : isExternalForwardingModalOpen ? 'external-forwarding' : null;
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Trigger Backend Sync
+      await dashboardApi.syncDashboard();
+
+      // 2. Fetch fresh data
+      // We manually call the fetch logic again instead of full reload for better UX
+      /* 
+         Note: In a real app we might want to refactor the useEffect fetchData into a 
+         callback usable here to avoid code duplication. 
+         For now, a window reload is the most robust way to ensure all states (stores, caches) 
+         are fresh if they rely on mount. 
+         
+         However, let's try to just reload the page after sync for simplicity and robustness.
+      */
+      window.location.reload();
+    } catch (error) {
+      console.error("Sync failed", error);
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
       <SecurityDrillDownModal type={activeModal} onClose={() => {
@@ -145,9 +170,15 @@ export default function Dashboard() {
               Last synced: {new Date(current.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
             </div>
           )}
-          <Button onClick={() => window.location.reload()} size="sm" variant="outline" className="h-9">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+          <Button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            size="sm"
+            variant="outline"
+            className="h-9"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Syncing...' : 'Refresh'}
           </Button>
         </div>
       </div>

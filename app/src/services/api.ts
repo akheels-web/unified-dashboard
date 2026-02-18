@@ -56,6 +56,17 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Dashboard API
 export const dashboardApi = {
+  syncDashboard: async (): Promise<ApiResponse<void>> => {
+    try {
+      const response = await fetchClient('/dashboard/sync', { method: 'POST' });
+      if (response && response.success) {
+        return { success: true, message: 'Dashboard synced successfully' };
+      }
+    } catch (e) {
+      console.warn("Failed to sync dashboard", e);
+    }
+    return { success: false, error: 'Failed to sync dashboard' };
+  },
   getStats: async (): Promise<ApiResponse<any>> => {
     try {
       const realData = await fetchClient('/dashboard/stats');
