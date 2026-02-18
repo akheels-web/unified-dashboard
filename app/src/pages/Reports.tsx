@@ -542,7 +542,32 @@ export function Reports() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => window.open('/api/reports/security-summary', '_blank')}
+            onClick={async () => {
+              try {
+                const token = await import('@/services/auth').then(m => m.getAccessToken());
+                if (!token) throw new Error('No access token');
+
+                const response = await fetch('/api/reports/security-summary', {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to generate report');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `security_summary_${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                toast.success('Security report downloaded');
+              } catch (error) {
+                console.error(error);
+                toast.error('Failed to download security report');
+              }
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-slate-700"
           >
             <Shield className="w-4 h-4" />

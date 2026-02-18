@@ -714,6 +714,44 @@ app.get('/api/reports/security-summary', validateToken, async (req, res) => {
     }
 });
 
+// Drill-down: Get High Security Alerts (Live from Graph)
+app.get('/api/security/alerts', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching Security Alerts`);
+    try {
+        // requires SecurityEvents.Read.All
+        const response = await axios.get(
+            `https://graph.microsoft.com/v1.0/security/alerts_v2?$filter=severity eq 'high' and status ne 'resolved'&$top=20&$orderby=createdDateTime desc`,
+            {
+                headers: { Authorization: `Bearer ${req.accessToken}` }
+            }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Failed to fetch alerts:', error.response?.data || error.message);
+        // Return mock data if permission missing or error
+        res.json({ value: [] });
+    }
+});
+
+// Drill-down: Get Risky Users (Live from Graph)
+app.get('/api/security/risky-users', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching Risky Users`);
+    try {
+        // requires IdentityRiskyUser.Read.All
+        const response = await axios.get(
+            `https://graph.microsoft.com/v1.0/identityProtection/riskyUsers?$filter=riskLevel eq 'high'&$top=20`,
+            {
+                headers: { Authorization: `Bearer ${req.accessToken}` }
+            }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Failed to fetch risky users:', error.response?.data || error.message);
+        // Return mock data if permission missing
+        res.json({ value: [] });
+    }
+});
+
 // Import Unifi Service (Optional Integration)
 const unifiService = require('./services/unifi');
 const statusService = require('./services/status');

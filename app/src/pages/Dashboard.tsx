@@ -20,6 +20,8 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
+import { SecurityDrillDownModal } from '@/components/dashboard/SecurityDrillDownModal';
+
 export function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
@@ -30,6 +32,9 @@ export function Dashboard() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Drill Down State
+  const [drillDownType, setDrillDownType] = useState<'alerts' | 'risky-users' | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -90,6 +95,8 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <SecurityDrillDownModal type={drillDownType} onClose={() => setDrillDownType(null)} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -111,7 +118,10 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* High Severity Alerts */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 relative overflow-hidden">
+          <div
+            onClick={() => setDrillDownType('alerts')}
+            className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 relative overflow-hidden cursor-pointer hover:bg-destructive/15 transition-colors"
+          >
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-destructive font-medium mb-1">Attention Required</p>
@@ -136,7 +146,10 @@ export function Dashboard() {
 
         {/* Risky Users */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-6">
+          <div
+            onClick={() => setDrillDownType('risky-users')}
+            className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-6 cursor-pointer hover:bg-orange-500/15 transition-colors"
+          >
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-orange-600 font-medium mb-1">Identity Risk</p>
