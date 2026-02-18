@@ -454,6 +454,40 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
     }
 });
 
+// Dashboard: Get Device Health (Snapshot)
+app.get('/api/dashboard/device-health', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching device health snapshot`);
+    try {
+        const result = await pool.query('SELECT * FROM device_snapshots ORDER BY timestamp DESC LIMIT 1');
+        const data = result.rows[0];
+
+        if (!data) {
+            return res.json({
+                total_devices: 0,
+                compliant_devices: 0,
+                non_compliant_devices: 0,
+                encrypted_devices: 0,
+                win10_count: 0,
+                win11_count: 0,
+                timestamp: null
+            });
+        }
+
+        res.json({
+            total_devices: data.total_devices,
+            compliant_devices: data.compliant_devices,
+            non_compliant_devices: data.non_compliant_devices,
+            encrypted_devices: data.encrypted_devices,
+            win10_count: data.win10_count,
+            win11_count: data.win11_count,
+            timestamp: data.timestamp
+        });
+    } catch (error) {
+        console.error('Failed to fetch device health:', error);
+        res.status(500).json({ error: 'Failed to fetch device health' });
+    }
+});
+
 // Manual Sync Trigger
 app.post('/api/dashboard/sync', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Manual Sync Triggered`);

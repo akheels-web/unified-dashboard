@@ -44,22 +44,31 @@ async function collectSecuritySnapshot() {
         // Requires SecurityEvents.Read.All
         const alertsRes = await axios.get(
             `https://graph.microsoft.com/v1.0/security/alerts_v2?$filter=severity eq 'high' and status ne 'resolved'&$count=true`,
-            { headers }
-        ).catch(e => ({ data: { '@odata.count': 0 } })); // Fallback if perm missing
+            { headers: { ...headers, 'ConsistencyLevel': 'eventual' } }
+        ).catch(e => {
+            console.error('[Collector] Failed to fetch alerts:', e.response?.data || e.message);
+            return { data: { '@odata.count': 0 } };
+        });
 
         // B. Risky Users (High Risk)
         // Requires IdentityRiskyUser.Read.All
         const riskyUsersRes = await axios.get(
             `https://graph.microsoft.com/v1.0/identityProtection/riskyUsers?$filter=riskLevel eq 'high'&$count=true`,
-            { headers }
-        ).catch(e => ({ data: { '@odata.count': 0 } }));
+            { headers: { ...headers, 'ConsistencyLevel': 'eventual' } }
+        ).catch(e => {
+            console.error('[Collector] Failed to fetch risky users:', e.response?.data || e.message);
+            return { data: { '@odata.count': 0 } };
+        });
 
         // C. Secure Score (Most Recent)
         // Requires SecurityActions.Read.All
         const secureScoreRes = await axios.get(
             `https://graph.microsoft.com/v1.0/security/secureScores?$top=1`,
             { headers }
-        ).catch(e => ({ data: { value: [] } }));
+        ).catch(e => {
+            console.error('[Collector] Failed to fetch secure score:', e.response?.data || e.message);
+            return { data: { value: [] } };
+        });
 
         const secureScore = secureScoreRes.data.value?.[0]?.currentScore || 0;
         const maxScore = secureScoreRes.data.value?.[0]?.maxScore || 100;
