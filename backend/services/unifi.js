@@ -13,10 +13,9 @@ if (!API_KEY) {
 // Documentation: https://ui.com/site-manager-api
 // Using Early Access (EA) endpoint as standard v1 returned 404
 const unifiClient = axios.create({
-    baseURL: 'https://api.ui.com/ea/site-manager/v1',
+    baseURL: 'https://api.ui.com',
     headers: {
-        'X-API-Key': API_KEY, // Primary header for Site Manager API
-        'Authorization': `Bearer ${API_KEY}`, // Secondary/Alternative header
+        'Authorization': `Bearer ${API_KEY}`, // Primary header for Site Manager API
         'Accept': 'application/json'
     },
     timeout: 15000
