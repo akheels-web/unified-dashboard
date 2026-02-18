@@ -133,24 +133,19 @@ export function Dashboard() {
               </div>
             </div>
             <SecurityDrillDownModal type={drillDownType} onClose={() => setDrillDownType(null)} />
-
-            {/* ... Header & Quote ... */}
-
-            {/* 1. ATTENTION REQUIRED (Morning Check) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* High Severity Alerts */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <div
-                  <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-4 h-4 text-destructive" />
-                    <span className="text-destructive font-medium">Outdated Builds</span>
-                  </div>
-                  <span className="font-bold text-destructive">{deviceHealth?.outdated_builds_count || 0}</span>
-                </div>
-            </div>
+          </div>
         </motion.div>
 
+        {/* Outdated Builds */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              <span className="text-destructive font-medium">Outdated Builds</span>
+            </div>
+            <span className="font-bold text-destructive">{deviceHealth?.outdated_builds_count || 0}</span>
+          </div>
+        </motion.div>
       </div>
 
 
