@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Laptop, Shield, RefreshCw, TrendingUp, TrendingDown, ArrowRight,
-  AlertTriangle, CheckCircle, Smartphone, Lock, Mail, UserCheck
+  Shield,
+  RefreshCw, ArrowRight,
+  AlertTriangle,
+  Smartphone, Lock, Mail, UserCheck
 } from 'lucide-react';
 import { StatsCard } from '@/components/common/StatsCard';
 import { ActivityFeed } from '@/components/common/ActivityFeed';
@@ -13,18 +15,16 @@ import { ITTeamSection } from '@/components/dashboard/ITTeamSection';
 import { dashboardApi } from '@/services/api';
 import type { ActivityItem, SystemStatus, SecuritySummary, DeviceHealth, IdentityHygiene } from '@/types';
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar,
   XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, AreaChart, Area
+  Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
 import { SecurityDrillDownModal } from '@/components/dashboard/SecurityDrillDownModal';
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<any>(null);
   const [securitySummary, setSecuritySummary] = useState<SecuritySummary | null>(null);
   const [deviceHealth, setDeviceHealth] = useState<DeviceHealth | null>(null);
   const [identityHygiene, setIdentityHygiene] = useState<IdentityHygiene | null>(null);
@@ -44,8 +44,7 @@ export function Dashboard() {
     try {
       setIsLoading(true);
 
-      const [statsRes, securityRes, deviceRes, hygieneRes, licensesRes, activityRes, statusRes] = await Promise.allSettled([
-        dashboardApi.getStats(),
+      const [securityRes, deviceRes, hygieneRes, licensesRes, activityRes, statusRes] = await Promise.allSettled([
         dashboardApi.getSecuritySummary(),
         dashboardApi.getDeviceHealth(),
         dashboardApi.getIdentityHygiene(),
@@ -54,13 +53,12 @@ export function Dashboard() {
         dashboardApi.getSystemStatus(),
       ]);
 
-      if (statsRes.status === 'fulfilled' && statsRes.value.success) setStats(statsRes.value.data);
-      if (securityRes.status === 'fulfilled' && securityRes.value.success) setSecuritySummary(securityRes.value.data);
-      if (deviceRes.status === 'fulfilled' && deviceRes.value.success) setDeviceHealth(deviceRes.value.data);
-      if (hygieneRes.status === 'fulfilled' && hygieneRes.value.success) setIdentityHygiene(hygieneRes.value.data);
-      if (licensesRes.status === 'fulfilled' && licensesRes.value.success) setLicenses(licensesRes.value.data);
-      if (activityRes.status === 'fulfilled' && activityRes.value.success) setActivities(activityRes.value.data);
-      if (statusRes.status === 'fulfilled' && statusRes.value.success) setSystemStatus(statusRes.value.data);
+      if (securityRes.status === 'fulfilled' && securityRes.value.success) setSecuritySummary(securityRes.value.data as SecuritySummary);
+      if (deviceRes.status === 'fulfilled' && deviceRes.value.success) setDeviceHealth(deviceRes.value.data as DeviceHealth);
+      if (hygieneRes.status === 'fulfilled' && hygieneRes.value.success) setIdentityHygiene(hygieneRes.value.data as IdentityHygiene);
+      if (licensesRes.status === 'fulfilled' && licensesRes.value.success) setLicenses(licensesRes.value.data || []);
+      if (activityRes.status === 'fulfilled' && activityRes.value.success) setActivities(activityRes.value.data || []);
+      if (statusRes.status === 'fulfilled' && statusRes.value.success) setSystemStatus(statusRes.value.data as SystemStatus);
 
     } catch (error) {
       toast.error('Failed to load dashboard data');
@@ -94,18 +92,18 @@ export function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SecurityDrillDownModal type={drillDownType} onClose={() => setDrillDownType(null)} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Security Command Center</h1>
-          <p className="text-muted-foreground">Real-time security posture and operational health</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Security Command Center</h1>
+          <p className="text-sm text-muted-foreground">Real-time security posture and operational health</p>
         </div>
         <button
           onClick={handleSync}
-          className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border"
+          className="flex items-center gap-2 px-3 py-1.5 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border text-sm"
         >
           <RefreshCw className="w-4 h-4" />
           Sync
@@ -114,40 +112,84 @@ export function Dashboard() {
 
       <QuoteOfTheDay />
 
-      {/* 1. ATTENTION REQUIRED (Morning Check) */}
+      {/* High Priority Security Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* High Severity Alerts */}
+        {/* 1. High Severity Alerts */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <div
             onClick={() => setDrillDownType('alerts')}
-            className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 relative overflow-hidden cursor-pointer hover:bg-destructive/15 transition-colors"
+            className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-destructive/15 transition-colors group"
           >
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-destructive font-medium mb-1">Attention Required</p>
-                <h3 className="text-3xl font-bold text-foreground">{securitySummary?.current.high_security_alerts || 0}</h3>
-                <p className="text-sm text-muted-foreground mt-1">High Severity Alerts</p>
+                <p className="text-destructive font-medium mb-1 text-sm">Attention Required</p>
+                <h3 className="text-2xl font-bold text-foreground">{securitySummary?.current.high_security_alerts || 0}</h3>
+                <p className="text-xs text-muted-foreground mt-1">High Severity Alerts</p>
               </div>
-              <div className="p-2 bg-destructive/20 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-destructive" />
+              <div className="p-2 bg-destructive/20 rounded-lg group-hover:scale-110 transition-transform">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
               </div>
             </div>
-            <SecurityDrillDownModal type={drillDownType} onClose={() => setDrillDownType(null)} />
           </div>
         </motion.div>
 
-        {/* Outdated Builds */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-4 h-4 text-destructive" />
-              <span className="text-destructive font-medium">Outdated Builds</span>
+        {/* 2. High Risk Users */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div
+            onClick={() => setDrillDownType('risky-users')}
+            className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-orange-500/15 transition-colors group"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-orange-600 font-medium mb-1 text-sm">Identity Risk</p>
+                <h3 className="text-2xl font-bold text-foreground">{securitySummary?.current.high_risk_users || 0}</h3>
+                <p className="text-xs text-muted-foreground mt-1">High Risk Users</p>
+              </div>
+              <div className="p-2 bg-orange-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                <UserCheck className="w-5 h-5 text-orange-600" />
+              </div>
             </div>
-            <span className="font-bold text-destructive">{deviceHealth?.outdated_builds_count || 0}</span>
+          </div>
+        </motion.div>
+
+        {/* 3. Non-Compliant Devices */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <div
+            onClick={() => setDrillDownType('non-compliant')}
+            className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-yellow-500/15 transition-colors group"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-yellow-600 font-medium mb-1 text-sm">Device Health</p>
+                <h3 className="text-2xl font-bold text-foreground">{deviceHealth?.non_compliant_devices || 0}</h3>
+                <p className="text-xs text-muted-foreground mt-1">Non-Compliant Devices</p>
+              </div>
+              <div className="p-2 bg-yellow-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                <Shield className="w-5 h-5 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 4. External Forwarding */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <div
+            onClick={() => setDrillDownType('external-forwarding')}
+            className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-blue-500/15 transition-colors group"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-blue-600 font-medium mb-1 text-sm">Data Exfiltration</p>
+                <h3 className="text-2xl font-bold text-foreground">{identityHygiene?.external_forwarding_count || 0}</h3>
+                <p className="text-xs text-muted-foreground mt-1">External Forwarding</p>
+              </div>
+              <div className="p-2 bg-blue-500/20 rounded-lg group-hover:scale-110 transition-transform">
+                <Mail className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>
-
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

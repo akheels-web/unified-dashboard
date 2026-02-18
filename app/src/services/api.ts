@@ -222,6 +222,56 @@ export const dashboardApi = {
       }
     };
   },
+
+  getSecurityAlerts: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const realData = await fetchClient('/dashboard/alerts'); // Note: server.js route is /api/security/alerts, but fetchClient prepends /api. Wait, server.js has app.get('/api/security/alerts'). 
+      // fetchClient prepends API_URL which is '/api'. So call should be '/security/alerts'
+      const response = await fetchClient('/security/alerts');
+      if (response && response.value) {
+        return { success: true, data: response.value };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch alerts", e);
+    }
+    return { success: true, data: [] };
+  },
+
+  getRiskyUsers: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/security/risky-users');
+      if (response && response.value) {
+        return { success: true, data: response.value };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch risky users", e);
+    }
+    return { success: true, data: [] };
+  },
+
+  getNonCompliantDevices: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/security/non-compliant');
+      if (response && response.value) {
+        return { success: true, data: response.value };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch non-compliant devices", e);
+    }
+    return { success: true, data: [] };
+  },
+
+  getExternalForwardingRules: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/security/external-forwarding');
+      if (response && response.value) {
+        return { success: true, data: response.value };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch external forwarding rules", e);
+    }
+    return { success: true, data: [] };
+  },
 };
 
 // Users API
