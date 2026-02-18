@@ -33,7 +33,11 @@ const generateSecurityReport = (data, res) => {
     drawCard(50, 'Microsoft Secure Score', `${data.secure_score || 0}%`, 'Target: 80%+', getScoreColor(data.secure_score));
 
     // Card 2: Exposure Score
-    drawCard(220, 'Exposure Score', `${data.defender_exposure_score || 0}/100`, 'Lower is better', getExposureColor(data.defender_exposure_score));
+    const hasScore = data.secure_score && data.secure_score > 0;
+    const exposureDisplay = hasScore ? `${data.defender_exposure_score || 0}/100` : 'N/A';
+    const exposureColor = hasScore ? getExposureColor(data.defender_exposure_score) : '#94a3b8';
+
+    drawCard(220, 'Exposure Score', exposureDisplay, 'Lower is better', exposureColor);
 
     // Card 3: Active Alerts
     drawCard(390, 'High Sev Alerts', data.high_security_alerts || 0, 'Requires Attention', (data.high_security_alerts > 0 ? '#ef4444' : '#10b981'));

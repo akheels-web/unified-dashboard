@@ -113,7 +113,25 @@ export function Dashboard() {
       <QuoteOfTheDay />
 
       {/* High Priority Security Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* 0. Secure Score */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 relative overflow-hidden group">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-primary font-medium mb-1 text-sm">Security Posture</p>
+                <div className="flex items-baseline gap-1">
+                  <h3 className="text-2xl font-bold text-foreground">{securitySummary?.current.secure_score ? Math.round(securitySummary.current.secure_score) : 0}%</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Microsoft Secure Score</p>
+              </div>
+              <div className="p-2 bg-primary/20 rounded-lg group-hover:scale-110 transition-transform">
+                <Shield className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* 1. High Severity Alerts */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <div
