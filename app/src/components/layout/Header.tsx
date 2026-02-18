@@ -6,7 +6,6 @@ import {
   Sun,
   Moon,
   LogOut,
-  Settings,
   User,
   Shield // Imported Shield
 } from 'lucide-react';

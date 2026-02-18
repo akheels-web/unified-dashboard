@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Filter, ChevronLeft, ChevronRight, X, Loader2,
-  Mail, Building2, MapPin, Calendar, Clock, Users as UsersIcon,
-  Monitor, Smartphone, Tablet, MoreVertical, RefreshCw, UserPlus,
+  Search, ChevronLeft, ChevronRight, X, Loader2,
+  Mail, Building2, MapPin, Users as UsersIcon,
+  MoreVertical, RefreshCw,
   CheckCircle2, AlertTriangle, UserX, LogOut, Key, Group, Laptop
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';

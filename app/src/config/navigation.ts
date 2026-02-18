@@ -8,7 +8,6 @@ import {
     Wifi,
     BarChart3,
     ClipboardList,
-    Settings,
     Shield,
     Globe,
     Server,

@@ -2,14 +2,15 @@ import type {
   M365User, UserGroup, Asset, AssetCategory,
   OnboardingWorkflow, OffboardingWorkflow,
   UnifiSite, UnifiDevice,
-  ActivityItem, DashboardStats, SystemStatus,
+  ActivityItem, SystemStatus,
   UserFilters, AssetFilters, OnboardingFormData,
-  OffboardingFormData, PaginatedResponse, ApiResponse
+  OffboardingFormData, PaginatedResponse, ApiResponse,
+  SecuritySummary, DeviceHealth, IdentityHygiene
 } from '@/types';
 import {
   mockM365Users, mockUserGroups, mockAssets, mockAssetCategories,
   mockOnboardingWorkflows, mockOffboardingWorkflows,
-  mockActivityItems, mockDashboardStats, mockSystemStatus,
+  mockSystemStatus,
   mockDepartmentData, mockAssetStatusData, mockLifecycleData
 } from './mockData';
 import { useNetworkStore } from '@/stores/networkStore';
@@ -225,8 +226,6 @@ export const dashboardApi = {
 
   getSecurityAlerts: async (): Promise<ApiResponse<any[]>> => {
     try {
-      const realData = await fetchClient('/dashboard/alerts'); // Note: server.js route is /api/security/alerts, but fetchClient prepends /api. Wait, server.js has app.get('/api/security/alerts'). 
-      // fetchClient prepends API_URL which is '/api'. So call should be '/security/alerts'
       const response = await fetchClient('/security/alerts');
       if (response && response.value) {
         return { success: true, data: response.value };

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+
 import {
   Palette, Sun, Moon,
-  UserCog, ShieldCheck, Mail, User
+  UserCog, Mail, User
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';

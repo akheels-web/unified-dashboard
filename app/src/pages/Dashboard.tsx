@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import {
   Shield,
   AlertTriangle,
   Users,
   Laptop,
   Activity,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
   Server,
   Ghost,
   Lock,
@@ -18,7 +14,7 @@ import {
   Clock,
   ArrowRight
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { dashboardApi } from '../services/api';
 import {
   BarChart,
@@ -28,17 +24,14 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
   Legend
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import SecurityDrillDownModal from '@/components/dashboard/SecurityDrillDownModal';
-import ITTeamSection from '@/components/dashboard/ITTeamSection';
-import ActivityFeed from '@/components/common/ActivityFeed';
-import StatusBadge from '@/components/common/StatusBadge';
+import { SecurityDrillDownModal } from '@/components/dashboard/SecurityDrillDownModal';
+import { ITTeamSection } from '@/components/dashboard/ITTeamSection';
+import { ActivityFeed } from '@/components/common/ActivityFeed';
+import { StatusBadge } from '@/components/common/StatusBadge';
 
 // Helper for rendering trends
 const renderTrend = (value: number, inverse: boolean = false) => {
@@ -64,59 +57,57 @@ export default function Dashboard() {
   const [isRiskyUsersModalOpen, setIsRiskyUsersModalOpen] = useState(false);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [isExternalForwardingModalOpen, setIsExternalForwardingModalOpen] = useState(false);
-  const [drillDownType, setDrillDownType] = useState<string | null>(null);
 
-  // Parallel data fetching for dashboard
-  const { data: dashboardStats } = useQuery({
-    queryKey: ['dashboardStats'],
-    queryFn: dashboardApi.getDashboardStats,
-    refetchInterval: 60000 // Refresh every minute
-  });
+  const [securitySummary, setSecuritySummary] = useState<any>(null);
+  const [deviceHealth, setDeviceHealth] = useState<any>(null);
+  const [identityHygiene, setIdentityHygiene] = useState<any>(null);
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [systemStatus, setSystemStatus] = useState<any>(null);
 
-  const { data: securitySummaryData } = useQuery({
-    queryKey: ['securitySummary'],
-    queryFn: dashboardApi.getSecuritySummary,
-    refetchInterval: 30000 // Refresh every 30s
-  });
+  // Fetch data on mount and interval
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
 
-  const { data: deviceHealthData } = useQuery({
-    queryKey: ['deviceHealth'],
-    queryFn: dashboardApi.getDeviceHealth,
-    refetchInterval: 60000
-  });
+        const [
+          statsRes,
+          securityRes,
+          deviceRes,
+          hygieneRes,
+          licensesRes,
+          activityRes,
+          statusRes
+        ] = await Promise.all([
+          dashboardApi.getStats(),
+          dashboardApi.getSecuritySummary(),
+          dashboardApi.getDeviceHealth(),
+          dashboardApi.getIdentityHygiene(),
+          dashboardApi.getLicenses(),
+          dashboardApi.getActivity(5),
+          dashboardApi.getSystemStatus()
+        ]);
 
-  const { data: identityHygieneData } = useQuery({
-    queryKey: ['identityHygiene'],
-    queryFn: dashboardApi.getIdentityHygiene,
-    refetchInterval: 60000
-  });
+        if (securityRes) setSecuritySummary(securityRes.data);
+        if (deviceRes) setDeviceHealth(deviceRes.data);
+        if (hygieneRes) setIdentityHygiene(hygieneRes.data);
+        if (licensesRes) setLicenses(licensesRes.data || []);
+        if (activityRes) setActivities(activityRes.data || []);
+        if (statusRes) setSystemStatus(statusRes.data);
+      } catch (error) {
+        // console.error('Failed to fetch dashboard data', error); 
+        // Silent error for now to avoid console spam in dev without backend
+      }
+    };
 
-  const { data: licensesData } = useQuery({
-    queryKey: ['licenses'],
-    queryFn: dashboardApi.getLicenses,
-    refetchInterval: 30000
-  });
-
-  const { data: activitiesData } = useQuery({
-    queryKey: ['activities'],
-    queryFn: () => dashboardApi.getActivity(5),
-    refetchInterval: 30000
-  });
-
-  const { data: systemStatusData } = useQuery({
-    queryKey: ['systemStatus'],
-    queryFn: dashboardApi.getSystemStatus,
-    refetchInterval: 30000
-  });
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // 30s refresh
+    return () => clearInterval(interval);
+  }, []);
 
   // Safe access to data
-  const current = securitySummaryData?.data?.current;
-  const trends = securitySummaryData?.data?.trends;
-  const deviceHealth = deviceHealthData?.data;
-  const identityHygiene = identityHygieneData?.data;
-  const licenses = licensesData?.data || [];
-  const activities = activitiesData?.data || [];
-  const systemStatus = systemStatusData?.data;
+  const current = securitySummary?.current;
+  const trends = securitySummary?.trends;
 
   // Calculate License Waste (Unused Licenses)
   const unusedLicenses = licenses.filter(lic => lic.available > 0).reduce((sum, lic) => sum + lic.available, 0);
@@ -428,7 +419,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="pl-6 space-y-2">
-              {systemStatus?.microsoft.services.map((service) => (
+              {systemStatus?.microsoft.services.map((service: any) => (
                 <div key={service.name} className="flex items-center justify-between text-sm py-1">
                   <span className="text-muted-foreground">{service.name}</span>
                   <div className={`w-2 h-2 rounded-full ${service.status === 'operational' ? 'bg-green-500' : service.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
@@ -450,7 +441,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="pl-6 space-y-2">
-              {systemStatus?.atlassian?.services.map((service) => (
+              {systemStatus?.atlassian?.services.map((service: any) => (
                 <div key={service.name} className="flex items-center justify-between text-sm py-1">
                   <span className="text-muted-foreground">{service.name}</span>
                   <div className={`w-2 h-2 rounded-full ${service.status === 'operational' ? 'bg-green-500' : service.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
@@ -472,7 +463,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="pl-6 space-y-2">
-              {systemStatus?.unifi.services.map((service) => (
+              {systemStatus?.unifi.services.map((service: any) => (
                 <div key={service.name} className="flex items-center justify-between text-sm py-1">
                   <span className="text-muted-foreground">{service.name}</span>
                   <div className={`w-2 h-2 rounded-full ${service.status === 'operational' ? 'bg-green-500' : service.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />

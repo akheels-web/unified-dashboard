@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users, Laptop, TrendingUp, Download,
-  FileText, Shield, Key, History,
-  CheckCircle2, XCircle, AlertTriangle
+  Shield, Key, History,
+  CheckCircle2, AlertTriangle
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -26,7 +26,7 @@ const reportTypes = [
   { id: 'admin', name: 'Admin Audit', icon: History, description: 'Recent administrative actions' },
 ];
 
-const COLORS = ['#2596be', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981'];
+
 
 export function Reports() {
   const [selectedReport, setSelectedReport] = useState('overview');
