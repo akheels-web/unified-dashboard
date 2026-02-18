@@ -32,7 +32,7 @@ const msalConfig = {
 const cca = new ConfidentialClientApplication(msalConfig);
 
 // Initialize Security Collector
-const { initScheduler } = require('./services/securityCollector');
+const { initScheduler } = require('./services/securityCollector.js');
 // Only start if DB is connected (in a real app, wait for DB connection)
 setTimeout(() => {
     initScheduler();
@@ -680,7 +680,7 @@ app.get('/api/devices', validateToken, async (req, res) => {
 });
 
 // Import Report Generator
-const { generateSecurityReport } = require('./services/reportGenerator');
+const { generateSecurityReport } = require('./services/reportGenerator.js');
 
 // Generate Security PDF Report
 app.get('/api/reports/security-summary', validateToken, async (req, res) => {
