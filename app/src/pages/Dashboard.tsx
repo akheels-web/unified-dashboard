@@ -124,7 +124,7 @@ export default function Dashboard() {
   const activeModal = isSecurityModalOpen ? 'alerts' : isRiskyUsersModalOpen ? 'risky-users' : isDeviceModalOpen ? 'non-compliant' : isExternalForwardingModalOpen ? 'external-forwarding' : null;
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto p-6">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       <SecurityDrillDownModal type={activeModal} onClose={() => {
         setIsSecurityModalOpen(false);
         setIsRiskyUsersModalOpen(false);
