@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Laptop, Shield, RefreshCw, TrendingUp, TrendingDown, ArrowRight
+  Users, Laptop, Shield, RefreshCw, TrendingUp, TrendingDown, ArrowRight,
+  AlertTriangle, CheckCircle, Smartphone, Lock, Mail, UserCheck
 } from 'lucide-react';
 import { StatsCard } from '@/components/common/StatsCard';
 import { ActivityFeed } from '@/components/common/ActivityFeed';
@@ -10,11 +11,11 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { QuoteOfTheDay } from '@/components/common/QuoteOfTheDay';
 import { ITTeamSection } from '@/components/dashboard/ITTeamSection';
 import { dashboardApi } from '@/services/api';
-import type { ActivityItem, SystemStatus } from '@/types';
+import type { ActivityItem, SystemStatus, SecuritySummary, DeviceHealth, IdentityHygiene } from '@/types';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  Tooltip, ResponsiveContainer, Legend, AreaChart, Area
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -22,6 +23,9 @@ import { toast } from 'sonner';
 export function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
+  const [securitySummary, setSecuritySummary] = useState<SecuritySummary | null>(null);
+  const [deviceHealth, setDeviceHealth] = useState<DeviceHealth | null>(null);
+  const [identityHygiene, setIdentityHygiene] = useState<IdentityHygiene | null>(null);
   const [licenses, setLicenses] = useState<any[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -35,37 +39,24 @@ export function Dashboard() {
     try {
       setIsLoading(true);
 
-      // Use Promise.allSettled so each API call fails independently
-      // Removed device distribution - too slow!
-      const [statsRes, licensesRes, activityRes, statusRes] = await Promise.allSettled([
+      const [statsRes, securityRes, deviceRes, hygieneRes, licensesRes, activityRes, statusRes] = await Promise.allSettled([
         dashboardApi.getStats(),
+        dashboardApi.getSecuritySummary(),
+        dashboardApi.getDeviceHealth(),
+        dashboardApi.getIdentityHygiene(),
         dashboardApi.getLicenses(),
         dashboardApi.getActivity(5),
         dashboardApi.getSystemStatus(),
       ]);
 
-      // Handle stats
-      if (statsRes.status === 'fulfilled' && statsRes.value.success && statsRes.value.data) {
-        setStats(statsRes.value.data);
-      }
+      if (statsRes.status === 'fulfilled' && statsRes.value.success) setStats(statsRes.value.data);
+      if (securityRes.status === 'fulfilled' && securityRes.value.success) setSecuritySummary(securityRes.value.data);
+      if (deviceRes.status === 'fulfilled' && deviceRes.value.success) setDeviceHealth(deviceRes.value.data);
+      if (hygieneRes.status === 'fulfilled' && hygieneRes.value.success) setIdentityHygiene(hygieneRes.value.data);
+      if (licensesRes.status === 'fulfilled' && licensesRes.value.success) setLicenses(licensesRes.value.data);
+      if (activityRes.status === 'fulfilled' && activityRes.value.success) setActivities(activityRes.value.data);
+      if (statusRes.status === 'fulfilled' && statusRes.value.success) setSystemStatus(statusRes.value.data);
 
-      // Handle licenses
-      if (licensesRes.status === 'fulfilled' && licensesRes.value.success && licensesRes.value.data) {
-        setLicenses(licensesRes.value.data);
-      }
-
-      // Handle activity (audit logs)
-      if (activityRes.status === 'fulfilled' && activityRes.value.success && activityRes.value.data) {
-        setActivities(activityRes.value.data);
-      } else {
-        console.warn('[Dashboard] Audit logs failed, using empty array');
-        setActivities([]);
-      }
-
-      // Handle system status
-      if (statusRes.status === 'fulfilled' && statusRes.value.success && statusRes.value.data) {
-        setSystemStatus(statusRes.value.data);
-      }
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {
@@ -75,7 +66,7 @@ export function Dashboard() {
 
   const handleSync = async () => {
     toast.promise(loadDashboardData(), {
-      loading: 'Syncing dashboard data...',
+      loading: 'Syncing security data...',
       success: 'Dashboard updated!',
       error: 'Failed to sync',
     });
@@ -102,8 +93,8 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Real-time overview of your IT operations</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Security Command Center</h1>
+          <p className="text-muted-foreground">Real-time security posture and operational health</p>
         </div>
         <button
           onClick={handleSync}
@@ -114,67 +105,260 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* Quote of the Day */}
       <QuoteOfTheDay />
 
-      {/* Stats Grid */}
+      {/* 1. ATTENTION REQUIRED (Morning Check) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          onClick={() => navigate('/users')}
-        >
-          <StatsCard
-            title="Total Users"
-            value={stats?.totalUsers ?
-              stats.totalUsers.toLocaleString() : '0'
-            }
-            subtitle="Active LXT & CW Users"
-            icon={Users}
-            color="blue"
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          onClick={() => navigate('/groups')}
-        >
-          <StatsCard
-            title="Groups"
-            value={stats?.totalGroups?.toLocaleString() || '0'}
-            subtitle="Security & M365"
-            icon={Shield}
-            color="purple"
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <div className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-orange-400" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Licenses</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {stats?.licensesUsed?.toLocaleString() || '0'} / {stats?.licensesTotal?.toLocaleString() || '0'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stats?.licensesAvailable?.toLocaleString() || '0'} available
-                  </p>
-                </div>
+        {/* High Severity Alerts */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-destructive font-medium mb-1">Attention Required</p>
+                <h3 className="text-3xl font-bold text-foreground">{securitySummary?.current.high_security_alerts || 0}</h3>
+                <p className="text-sm text-muted-foreground mt-1">High Severity Alerts</p>
               </div>
+              <div className="p-2 bg-destructive/20 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-destructive" />
+              </div>
+            </div>
+            {securitySummary?.trends.high_security_alerts !== 0 && (
+              <div className="mt-4 flex items-center text-xs">
+                {securitySummary?.trends.high_security_alerts! < 0 ? (
+                  <span className="text-green-500 flex items-center"><TrendingDown className="w-3 h-3 mr-1" /> {Math.abs(securitySummary?.trends.high_security_alerts!)} less than yesterday</span>
+                ) : (
+                  <span className="text-destructive flex items-center"><TrendingUp className="w-3 h-3 mr-1" /> {securitySummary?.trends.high_security_alerts} new since yesterday</span>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Risky Users */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-orange-600 font-medium mb-1">Identity Risk</p>
+                <h3 className="text-3xl font-bold text-foreground">{securitySummary?.current.high_risk_users || 0}</h3>
+                <p className="text-sm text-muted-foreground mt-1">High Risk Users</p>
+              </div>
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <UserCheck className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-muted-foreground">
+              {securitySummary?.current.risky_signins_24h || 0} risky sign-ins in 24h
             </div>
           </div>
         </motion.div>
+
+        {/* Secure Score */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-blue-600 font-medium mb-1">Secure Score</p>
+                <h3 className="text-3xl font-bold text-foreground">{securitySummary?.current.secure_score || 0}%</h3>
+                <p className="text-sm text-muted-foreground mt-1">Microsoft Security Score</p>
+              </div>
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Shield className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-muted-foreground">
+              Exposure Score: {securitySummary?.current.defender_exposure_score || 0} (Lower is better)
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Non-Compliant Devices */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <div className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-muted-foreground font-medium mb-1">Device Health</p>
+                <h3 className="text-3xl font-bold text-foreground">{deviceHealth?.non_compliant_devices || 0}</h3>
+                <p className="text-sm text-muted-foreground mt-1">Non-Compliant Devices</p>
+              </div>
+              <div className="p-2 bg-secondary rounded-lg">
+                <Laptop className="w-6 h-6 text-foreground" />
+              </div>
+            </div>
+            <div className="mt-4 w-full bg-secondary h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-red-500 h-full"
+                style={{ width: `${(deviceHealth ? (deviceHealth.non_compliant_devices / deviceHealth.total_devices) * 100 : 0)}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{((deviceHealth ? (deviceHealth.compliant_devices / deviceHealth.total_devices) * 100 : 0)).toFixed(1)}% Compliant</p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* 2. OPERATIONAL SNAPSHOT (Identity Hygiene & Device Stats) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Identity Hygiene Panel */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <Shield className="w-5 h-5 text-green-500" />
+            <h3 className="text-lg font-semibold">Identity Hygiene</h3>
+          </div>
+
+          <div className="space-y-6">
+            {/* MFA Coverage */}
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span>MFA Registration Coverage</span>
+                <span className="font-semibold">{identityHygiene?.mfa_coverage_percent || 0}%</span>
+              </div>
+              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div className="bg-green-500 h-full" style={{ width: `${identityHygiene?.mfa_coverage_percent || 0}%` }} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+                  <Lock className="w-4 h-4" />
+                  <span className="text-sm">Privileged (No MFA)</span>
+                </div>
+                <p className="text-2xl font-bold">{identityHygiene?.privileged_no_mfa || 0}</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+                  <UserCheck className="w-4 h-4" />
+                  <span className="text-sm">Dormant Users (60d)</span>
+                </div>
+                <p className="text-2xl font-bold">{identityHygiene?.dormant_users_60d || 0}</p>
+              </div>
+            </div>
+
+            <div className="p-4 border border-border rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-md"><Mail className="w-4 h-4 text-blue-500" /></div>
+                <div>
+                  <p className="font-medium">External Forwarding</p>
+                  <p className="text-xs text-muted-foreground">Mailboxes forwarding outside org</p>
+                </div>
+              </div>
+              <span className="text-xl font-bold">{identityHygiene?.external_forwarding_count || 0}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Device Health Breakdown */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <Laptop className="w-5 h-5 text-purple-500" />
+            <h3 className="text-lg font-semibold">Device Fleet Health</h3>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="text-center p-4 bg-muted/30 rounded-lg">
+              <p className="text-sm text-muted-foreground">Total Devices</p>
+              <p className="text-3xl font-bold">{deviceHealth?.total_devices || 0}</p>
+            </div>
+            <div className="text-center p-4 bg-muted/30 rounded-lg">
+              <p className="text-sm text-muted-foreground">Encrypted</p>
+              <p className="text-3xl font-bold text-green-500">{deviceHealth?.encrypted_devices || 0}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-full"><img src="https://simpleicons.org/icons/windows11.svg" className="w-4 h-4 opacity-70" alt="Win11" /></div>
+                <span>Windows 11 Adoption</span>
+              </div>
+              <span className="font-semibold">{deviceHealth?.win11_count || 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-full"><img src="https://simpleicons.org/icons/windows10.svg" className="w-4 h-4 opacity-70" alt="Win10" /></div>
+                <span>Windows 10</span>
+              </div>
+              <span className="font-semibold">{deviceHealth?.win10_count || 0}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                <span className="text-destructive font-medium">Outdated Builds</span>
+              </div>
+              <span className="font-bold text-destructive">{deviceHealth?.outdated_builds_count || 0}</span>
+            </div>
+          </div>
+        </motion.div>
+
+      </div>
+
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* License Utilization */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="bg-card rounded-xl border border-border p-6 shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-semibold text-foreground">License Utilization</h4>
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-md">Top 8 by Usage</span>
+          </div>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={displayedLicenses} margin={{ bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={11}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    borderColor: 'hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  }}
+                  itemStyle={{ color: 'hsl(var(--foreground))' }}
+                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}
+                />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                <Bar
+                  dataKey="used"
+                  fill="hsl(var(--primary))"
+                  name="Used"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
+                <Bar
+                  dataKey="available"
+                  fill="hsl(var(--muted))"
+                  name="Available"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={50}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        {/* IT Team Section */}
+        <ITTeamSection />
       </div>
 
       {/* Service Health Dashboard */}
@@ -262,73 +446,6 @@ export function Dashboard() {
           </div>
         </div>
       </motion.div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* License Utilization */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="bg-card rounded-xl border border-border p-6 shadow-sm"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-lg font-semibold text-foreground">License Utilization</h4>
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-md">Top 8 by Usage</span>
-          </div>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={displayedLicenses} margin={{ bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={11}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    borderColor: 'hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                  }}
-                  itemStyle={{ color: 'hsl(var(--foreground))' }}
-                  labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}
-                />
-                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                <Bar
-                  dataKey="used"
-                  fill="hsl(var(--primary))"
-                  name="Used"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={50}
-                />
-                <Bar
-                  dataKey="available"
-                  fill="hsl(var(--muted))"
-                  name="Available"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={50}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* IT Team Section */}
-        <ITTeamSection />
-      </div>
 
       {/* Recent Activity */}
       <motion.div

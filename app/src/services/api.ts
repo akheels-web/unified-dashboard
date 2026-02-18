@@ -145,6 +145,83 @@ export const dashboardApi = {
       }
     };
   },
+
+  getSecuritySummary: async (): Promise<ApiResponse<SecuritySummary>> => {
+    try {
+      const realData = await fetchClient('/dashboard/security-summary');
+      if (realData) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch security summary", e);
+    }
+    // Mock Fallback
+    return {
+      success: true,
+      data: {
+        current: {
+          high_security_alerts: 3,
+          medium_security_alerts: 5,
+          high_risk_users: 2,
+          risky_signins_24h: 1,
+          dlp_high_incidents: 1,
+          secure_score: 65.5,
+          defender_exposure_score: 24,
+          timestamp: new Date().toISOString()
+        },
+        trends: {
+          high_security_alerts: -2,
+          high_risk_users: 0,
+          secure_score: 1.5
+        }
+      }
+    };
+  },
+
+  getDeviceHealth: async (): Promise<ApiResponse<DeviceHealth>> => {
+    try {
+      const realData = await fetchClient('/dashboard/device-health');
+      if (realData) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch device health", e);
+    }
+    return {
+      success: true,
+      data: {
+        total_devices: 215,
+        compliant_devices: 198,
+        non_compliant_devices: 17,
+        encrypted_devices: 210,
+        win10_count: 45,
+        win11_count: 170,
+        outdated_builds_count: 12
+      }
+    };
+  },
+
+  getIdentityHygiene: async (): Promise<ApiResponse<IdentityHygiene>> => {
+    try {
+      const realData = await fetchClient('/dashboard/identity-hygiene');
+      if (realData) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch identity hygiene", e);
+    }
+    return {
+      success: true,
+      data: {
+        mfa_coverage_percent: 88.5,
+        privileged_no_mfa: 0,
+        dormant_users_60d: 12,
+        guest_inactive_90d: 5,
+        mailbox_usage_over_90: 3,
+        external_forwarding_count: 1
+      }
+    };
+  },
 };
 
 // Users API

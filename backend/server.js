@@ -1,7 +1,7 @@
 require('dotenv').config();
 console.log("DEBUG: BACKEND CODE UPDATED " + new Date().toISOString());
 
-// const pool = require('./db');
+const pool = require('./db');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -30,6 +30,14 @@ const msalConfig = {
 };
 
 const cca = new ConfidentialClientApplication(msalConfig);
+
+// Initialize Security Collector
+const { initScheduler } = require('./services/securityCollector');
+// Only start if DB is connected (in a real app, wait for DB connection)
+setTimeout(() => {
+    initScheduler();
+}, 5000); // Small delay to allow DB connection
+
 
 // Token Validation Middleware (Simplified)
 // In a real app, you would validate the JWT token signature.
@@ -298,21 +306,17 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
 
         const licenses = response.data.value
             .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
-            .filter(sku => LICENSE_NAME_MAP[sku.skuPartNumber])
             .map(sku => ({
-                name: LICENSE_NAME_MAP[sku.skuPartNumber],
+                id: sku.skuId,
+                name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
                 skuPartNumber: sku.skuPartNumber,
                 total: sku.prepaidUnits.enabled,
                 used: sku.consumedUnits,
-                available: sku.prepaidUnits.enabled - sku.consumedUnits,
-                percentage: Math.round((sku.consumedUnits / sku.prepaidUnits.enabled) * 100) || 0
-            }));
+                available: sku.prepaidUnits.enabled - sku.consumedUnits
+            }))
+            .sort((a, b) => b.total - a.total); // Sort by total count
 
-        console.log(`[Licenses] Success - ${licenses.length} license types (filtered from ${response.data.value.length} total)`);
-
-        // Cache the result
         setCache('licenses', licenses);
-
         res.json(licenses);
     } catch (error) {
         console.error('[Licenses] Error:', error.response?.data || error.message);
