@@ -275,53 +275,102 @@ app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
 
 // Dashboard: Get License Usage (Real Data from M365) - WITH CACHING
 app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
-    console.log(`[${new Date().toISOString()}] Fetching license data`);
+    // ... existing code ...
+});
 
-    // Check cache first
-    const cached = getCached('licenses');
-    if (cached) {
-        return res.json(cached);
-    }
-
+// Security Dashboard Summary with Trends
+app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching Security Summary with Trends`);
     try {
-        const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
-        const response = await axios.get(url, {
-            headers: {
-                Authorization: `Bearer ${req.accessToken}`,
-                'Content-Type': 'application/json',
-            }
-        });
+        // Fetch latest 2 security snapshots for trend calculation
+        const securityRes = await pool.query('SELECT * FROM security_snapshots ORDER BY timestamp DESC LIMIT 2');
+        const hygieneRes = await pool.query('SELECT * FROM hygiene_snapshots ORDER BY timestamp DESC LIMIT 1');
 
-        // Exclude free/trial licenses
-        const EXCLUDED_SKUS = ['WINDOWS_STORE', 'FLOW_FREE', 'CCIBOTS_PRIVPREV_VIRAL', 'POWERAPPS_VIRAL',
-            'POWER_BI_STANDARD', 'Power_Pages_vTrial_for_Makers', 'RIGHTSMANAGEMENT_ADHOC', 'POWERAPPS_DEV'];
+        const current = securityRes.rows[0] || {};
+        const previous = securityRes.rows[1] || {};
+        const hygiene = hygieneRes.rows[0] || {};
 
-        const LICENSE_NAME_MAP = {
-            'EXCHANGESTANDARD': 'Exchange Online (Plan 1)', 'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
-            'EXCHANGEDESKLESS': 'Exchange Online Kiosk', 'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
-            'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium', 'SPB': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
-            'O365_BUSINESS': 'Microsoft 365 Business Standard', 'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
-            'SPE_E5': 'Microsoft 365 E5', 'POWER_BI_PRO': 'Power BI Pro', 'VISIOCLIENT': 'Visio Plan 2'
+        // Calculate trends (Current - Previous)
+        // If no previous data, trend is 0
+        const calculateTrend = (curr, prev) => {
+            if (curr === undefined || prev === undefined) return 0;
+            return curr - prev;
         };
 
-        const licenses = response.data.value
-            .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
-            .map(sku => ({
-                id: sku.skuId,
-                name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
-                skuPartNumber: sku.skuPartNumber,
-                total: sku.prepaidUnits.enabled,
-                used: sku.consumedUnits,
-                available: sku.prepaidUnits.enabled - sku.consumedUnits
-            }))
-            .sort((a, b) => b.total - a.total); // Sort by total count
+        const summary = {
+            current: {
+                high_security_alerts: current.high_security_alerts || 0,
+                high_risk_users: current.high_risk_users || 0,
+                risky_signins_24h: current.risky_signins_24h || 0,
+                secure_score: parseFloat(current.secure_score) || 0,
+                defender_exposure_score: parseFloat(current.defender_exposure_score) || 0,
+                // Hygiene Data
+                mfa_coverage_percent: parseFloat(hygiene.mfa_coverage_percent) || 0,
+                privileged_no_mfa: hygiene.privileged_no_mfa || 0,
+                external_forwarding_count: hygiene.external_forwarding_count || 0,
+                timestamp: current.timestamp || new Date().toISOString()
+            },
+            trends: {
+                high_security_alerts: calculateTrend(current.high_security_alerts, previous.high_security_alerts),
+                high_risk_users: calculateTrend(current.high_risk_users, previous.high_risk_users),
+                secure_score: calculateTrend(parseFloat(current.secure_score), parseFloat(previous.secure_score)).toFixed(1),
+                non_compliant_devices: 0 // Will need device snapshot for this, handled below separately or strictly 0 for now
+            }
+        };
 
-        setCache('licenses', licenses);
-        res.json(licenses);
+        res.json(summary);
     } catch (error) {
-        console.error('[Licenses] Error:', error.response?.data || error.message);
-        res.json([]);
+        console.error('Failed to fetch security summary:', error);
+        res.status(500).json({ error: 'Failed to fetch security summary' });
     }
+});
+console.log(`[${new Date().toISOString()}] Fetching license data`);
+
+// Check cache first
+const cached = getCached('licenses');
+if (cached) {
+    return res.json(cached);
+}
+
+try {
+    const url = 'https://graph.microsoft.com/v1.0/subscribedSkus';
+    const response = await axios.get(url, {
+        headers: {
+            Authorization: `Bearer ${req.accessToken}`,
+            'Content-Type': 'application/json',
+        }
+    });
+
+    // Exclude free/trial licenses
+    const EXCLUDED_SKUS = ['WINDOWS_STORE', 'FLOW_FREE', 'CCIBOTS_PRIVPREV_VIRAL', 'POWERAPPS_VIRAL',
+        'POWER_BI_STANDARD', 'Power_Pages_vTrial_for_Makers', 'RIGHTSMANAGEMENT_ADHOC', 'POWERAPPS_DEV'];
+
+    const LICENSE_NAME_MAP = {
+        'EXCHANGESTANDARD': 'Exchange Online (Plan 1)', 'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
+        'EXCHANGEDESKLESS': 'Exchange Online Kiosk', 'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
+        'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium', 'SPB': 'Microsoft 365 Business Premium and Microsoft 365 Copilot',
+        'O365_BUSINESS': 'Microsoft 365 Business Standard', 'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
+        'SPE_E5': 'Microsoft 365 E5', 'POWER_BI_PRO': 'Power BI Pro', 'VISIOCLIENT': 'Visio Plan 2'
+    };
+
+    const licenses = response.data.value
+        .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
+        .map(sku => ({
+            id: sku.skuId,
+            name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
+            skuPartNumber: sku.skuPartNumber,
+            total: sku.prepaidUnits.enabled,
+            used: sku.consumedUnits,
+            available: sku.prepaidUnits.enabled - sku.consumedUnits
+        }))
+        .sort((a, b) => b.total - a.total); // Sort by total count
+
+    setCache('licenses', licenses);
+    res.json(licenses);
+} catch (error) {
+    console.error('[Licenses] Error:', error.response?.data || error.message);
+    res.json([]);
+}
 });
 
 // Dashboard: Get Enhanced Stats (Real Data) - WITH CACHING (NO DEVICES)

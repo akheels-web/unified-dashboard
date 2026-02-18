@@ -1,212 +1,333 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Shield,
-  RefreshCw, ArrowRight,
   AlertTriangle,
-  Smartphone, Lock, Mail, UserCheck
+  Users,
+  Laptop,
+  Activity,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+  Server,
+  Ghost,
+  Lock,
+  ArrowDown,
+  ArrowUp,
+  RefreshCw,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
-import { StatsCard } from '@/components/common/StatsCard';
-import { ActivityFeed } from '@/components/common/ActivityFeed';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import { QuoteOfTheDay } from '@/components/common/QuoteOfTheDay';
-import { ITTeamSection } from '@/components/dashboard/ITTeamSection';
-import { dashboardApi } from '@/services/api';
-import type { ActivityItem, SystemStatus, SecuritySummary, DeviceHealth, IdentityHygiene } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { dashboardApi } from '../services/api';
 import {
-  BarChart, Bar,
-  XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  Legend
 } from 'recharts';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import SecurityDrillDownModal from '@/components/dashboard/SecurityDrillDownModal';
+import ITTeamSection from '@/components/dashboard/ITTeamSection';
+import ActivityFeed from '@/components/common/ActivityFeed';
+import StatusBadge from '@/components/common/StatusBadge';
 
-import { SecurityDrillDownModal } from '@/components/dashboard/SecurityDrillDownModal';
+// Helper for rendering trends
+const renderTrend = (value: number, inverse: boolean = false) => {
+  if (value === undefined || value === null || value === 0) return null;
+  const isPositive = value > 0;
+  // For risk metrics (inverse=true), positive trend (increase) is BAD (Red). Negative trend (decrease) is GOOD (Green).
+  // For good metrics (inverse=false), positive trend (increase) is GOOD (Green). Negative trend (decrease) is BAD (Red).
+  const isGood = inverse ? !isPositive : isPositive;
+  const color = isGood ? 'text-emerald-500' : 'text-red-500';
+  const Icon = isPositive ? ArrowUp : ArrowDown;
 
-export function Dashboard() {
+  return (
+    <div className={`flex items-center text-xs font-medium ${color} bg-white/80 px-1.5 py-0.5 rounded-full shadow-sm`}>
+      <Icon className="w-3 h-3 mr-0.5" />
+      {Math.abs(value)} since yesterday
+    </div>
+  );
+};
+
+export default function Dashboard() {
   const navigate = useNavigate();
-  const [securitySummary, setSecuritySummary] = useState<SecuritySummary | null>(null);
-  const [deviceHealth, setDeviceHealth] = useState<DeviceHealth | null>(null);
-  const [identityHygiene, setIdentityHygiene] = useState<IdentityHygiene | null>(null);
-  const [licenses, setLicenses] = useState<any[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isRiskyUsersModalOpen, setIsRiskyUsersModalOpen] = useState(false);
+  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+  const [isExternalForwardingModalOpen, setIsExternalForwardingModalOpen] = useState(false);
+  const [drillDownType, setDrillDownType] = useState<string | null>(null);
 
-  // Drill Down State
-  const [drillDownType, setDrillDownType] = useState<'alerts' | 'risky-users' | 'non-compliant' | 'external-forwarding' | null>(null);
+  // Parallel data fetching for dashboard
+  const { data: dashboardStats } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: dashboardApi.getDashboardStats,
+    refetchInterval: 60000 // Refresh every minute
+  });
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  const { data: securitySummaryData } = useQuery({
+    queryKey: ['securitySummary'],
+    queryFn: dashboardApi.getSecuritySummary,
+    refetchInterval: 30000 // Refresh every 30s
+  });
 
-  const loadDashboardData = async () => {
-    try {
-      setIsLoading(true);
+  const { data: deviceHealthData } = useQuery({
+    queryKey: ['deviceHealth'],
+    queryFn: dashboardApi.getDeviceHealth,
+    refetchInterval: 60000
+  });
 
-      const [securityRes, deviceRes, hygieneRes, licensesRes, activityRes, statusRes] = await Promise.allSettled([
-        dashboardApi.getSecuritySummary(),
-        dashboardApi.getDeviceHealth(),
-        dashboardApi.getIdentityHygiene(),
-        dashboardApi.getLicenses(),
-        dashboardApi.getActivity(5),
-        dashboardApi.getSystemStatus(),
-      ]);
+  const { data: identityHygieneData } = useQuery({
+    queryKey: ['identityHygiene'],
+    queryFn: dashboardApi.getIdentityHygiene,
+    refetchInterval: 60000
+  });
 
-      if (securityRes.status === 'fulfilled' && securityRes.value.success) setSecuritySummary(securityRes.value.data as SecuritySummary);
-      if (deviceRes.status === 'fulfilled' && deviceRes.value.success) setDeviceHealth(deviceRes.value.data as DeviceHealth);
-      if (hygieneRes.status === 'fulfilled' && hygieneRes.value.success) setIdentityHygiene(hygieneRes.value.data as IdentityHygiene);
-      if (licensesRes.status === 'fulfilled' && licensesRes.value.success) setLicenses(licensesRes.value.data || []);
-      if (activityRes.status === 'fulfilled' && activityRes.value.success) setActivities(activityRes.value.data || []);
-      if (statusRes.status === 'fulfilled' && statusRes.value.success) setSystemStatus(statusRes.value.data as SystemStatus);
+  const { data: licensesData } = useQuery({
+    queryKey: ['licenses'],
+    queryFn: dashboardApi.getLicenses,
+    refetchInterval: 30000
+  });
 
-    } catch (error) {
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: activitiesData } = useQuery({
+    queryKey: ['activities'],
+    queryFn: () => dashboardApi.getActivity(5),
+    refetchInterval: 30000
+  });
 
-  const handleSync = async () => {
-    toast.promise(loadDashboardData(), {
-      loading: 'Syncing security data...',
-      success: 'Dashboard updated!',
-      error: 'Failed to sync',
-    });
-  };
+  const { data: systemStatusData } = useQuery({
+    queryKey: ['systemStatus'],
+    queryFn: dashboardApi.getSystemStatus,
+    refetchInterval: 30000
+  });
+
+  // Safe access to data
+  const current = securitySummaryData?.data?.current;
+  const trends = securitySummaryData?.data?.trends;
+  const deviceHealth = deviceHealthData?.data;
+  const identityHygiene = identityHygieneData?.data;
+  const licenses = licensesData?.data || [];
+  const activities = activitiesData?.data || [];
+  const systemStatus = systemStatusData?.data;
+
+  // Calculate License Waste (Unused Licenses)
+  const unusedLicenses = licenses.filter(lic => lic.available > 0).reduce((sum, lic) => sum + lic.available, 0);
 
   // Sort licenses by percentage used (descending), then take top 8
   const displayedLicenses = [...licenses]
-    .sort((a, b) => b.percentage - a.percentage)
+    .sort((a, b) => {
+      const aUsage = a.total > 0 ? (a.used / a.total) : 0;
+      const bUsage = b.total > 0 ? (b.used / b.total) : 0;
+      return bUsage - aUsage;
+    })
     .slice(0, 8);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="relative w-16 h-16">
-          <div className="absolute inset-0 border-4 border-muted rounded-full" />
-          <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin" />
-        </div>
-      </div>
-    );
-  }
+  const activeModal = isSecurityModalOpen ? 'alerts' : isRiskyUsersModalOpen ? 'risky-users' : isDeviceModalOpen ? 'non-compliant' : isExternalForwardingModalOpen ? 'external-forwarding' : null;
 
   return (
-    <div className="space-y-4">
-      <SecurityDrillDownModal type={drillDownType} onClose={() => setDrillDownType(null)} />
+    <div className="space-y-6 max-w-[1600px] mx-auto p-6">
+      <SecurityDrillDownModal type={activeModal} onClose={() => {
+        setIsSecurityModalOpen(false);
+        setIsRiskyUsersModalOpen(false);
+        setIsDeviceModalOpen(false);
+        setIsExternalForwardingModalOpen(false);
+      }} />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Security Command Center</h1>
-          <p className="text-sm text-muted-foreground">Real-time security posture and operational health</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Security Command Center</h1>
+          <p className="text-muted-foreground mt-1">Real-time threat monitoring and operational health</p>
         </div>
-        <button
-          onClick={handleSync}
-          className="flex items-center gap-2 px-3 py-1.5 bg-card hover:bg-muted text-foreground rounded-lg transition-colors border border-border text-sm"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Sync
-        </button>
+        <div className="flex items-center gap-3">
+          {current?.timestamp && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 rounded-full text-xs font-medium text-muted-foreground border border-border">
+              <Clock className="w-3.5 h-3.5" />
+              Last synced: {new Date(current.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+            </div>
+          )}
+          <Button onClick={() => window.location.reload()} size="sm" variant="outline" className="h-9">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <QuoteOfTheDay />
+      {/* 1. SECURITY RISK SECTION (Red/Orange) */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground/90">
+          <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+          Security Risk Signals
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
-      {/* High Priority Security Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* 0. Secure Score */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 relative overflow-hidden group">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-primary font-medium mb-1 text-sm">Security Posture</p>
-                <div className="flex items-baseline gap-1">
-                  <h3 className="text-2xl font-bold text-foreground">{securitySummary?.current.secure_score ? Math.round(securitySummary.current.secure_score) : 0}%</h3>
+          {/* High Sev Alerts */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div
+              className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 relative overflow-hidden h-full cursor-pointer hover:shadow-md transition-all group"
+              onClick={() => setIsSecurityModalOpen(true)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Microsoft Secure Score</p>
+                {renderTrend(trends?.high_security_alerts || 0, true)}
               </div>
-              <div className="p-2 bg-primary/20 rounded-lg group-hover:scale-110 transition-transform">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* 1. High Severity Alerts */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div
-            onClick={() => setDrillDownType('alerts')}
-            className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-destructive/15 transition-colors group"
-          >
-            <div className="flex justify-between items-start">
               <div>
-                <p className="text-destructive font-medium mb-1 text-sm">Attention Required</p>
-                <h3 className="text-2xl font-bold text-foreground">{securitySummary?.current.high_security_alerts || 0}</h3>
-                <p className="text-xs text-muted-foreground mt-1">High Severity Alerts</p>
-              </div>
-              <div className="p-2 bg-destructive/20 rounded-lg group-hover:scale-110 transition-transform">
-                <AlertTriangle className="w-5 h-5 text-destructive" />
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{current?.high_security_alerts || 0}</h3>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">High Severity Alerts</p>
+                <p className="text-xs text-muted-foreground mt-1">Requires immediate attention</p>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* 2. High Risk Users */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div
-            onClick={() => setDrillDownType('risky-users')}
-            className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-orange-500/15 transition-colors group"
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-orange-600 font-medium mb-1 text-sm">Identity Risk</p>
-                <h3 className="text-2xl font-bold text-foreground">{securitySummary?.current.high_risk_users || 0}</h3>
-                <p className="text-xs text-muted-foreground mt-1">High Risk Users</p>
+          {/* High Risk Users */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <div
+              className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/50 rounded-xl p-4 relative overflow-hidden h-full cursor-pointer hover:shadow-md transition-all group"
+              onClick={() => setIsRiskyUsersModalOpen(true)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                {renderTrend(trends?.high_risk_users || 0, true)}
               </div>
-              <div className="p-2 bg-orange-500/20 rounded-lg group-hover:scale-110 transition-transform">
-                <UserCheck className="w-5 h-5 text-orange-600" />
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{current?.high_risk_users || 0}</h3>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">High Risk Users</p>
+                <p className="text-xs text-muted-foreground mt-1">Identity compromise detected</p>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* 3. Non-Compliant Devices */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <div
-            onClick={() => setDrillDownType('non-compliant')}
-            className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-yellow-500/15 transition-colors group"
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-yellow-600 font-medium mb-1 text-sm">Device Health</p>
-                <h3 className="text-2xl font-bold text-foreground">{deviceHealth?.non_compliant_devices || 0}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Non-Compliant Devices</p>
+          {/* Privileged Accounts Without MFA */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 relative overflow-hidden h-full group">
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
               </div>
-              <div className="p-2 bg-yellow-500/20 rounded-lg group-hover:scale-110 transition-transform">
-                <Shield className="w-5 h-5 text-yellow-600" />
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{current?.privileged_no_mfa || 0}</h3>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">Admins without MFA</p>
+                <p className="text-xs text-muted-foreground mt-1">Critical vulnerability</p>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* 4. External Forwarding */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <div
-            onClick={() => setDrillDownType('external-forwarding')}
-            className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 relative overflow-hidden cursor-pointer hover:bg-blue-500/15 transition-colors group"
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-blue-600 font-medium mb-1 text-sm">Data Exfiltration</p>
-                <h3 className="text-2xl font-bold text-foreground">{identityHygiene?.external_forwarding_count || 0}</h3>
-                <p className="text-xs text-muted-foreground mt-1">External Forwarding</p>
+          {/* Data Exfiltration (External Forwarding) */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+            <div
+              className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/50 rounded-xl p-4 relative overflow-hidden h-full cursor-pointer hover:shadow-md transition-all group"
+              onClick={() => setIsExternalForwardingModalOpen(true)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Activity className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                </div>
               </div>
-              <div className="p-2 bg-blue-500/20 rounded-lg group-hover:scale-110 transition-transform">
-                <Mail className="w-5 h-5 text-blue-600" />
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{identityHygiene?.external_forwarding_count || 0}</h3>
+                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">External Forwarding</p>
+                <p className="text-xs text-muted-foreground mt-1">Potential data leak</p>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* 2. OPERATIONAL HEALTH SECTION (Blue/Green) */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground/90">
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+          Operational Health
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+          {/* Secure Score */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-xl p-4 relative overflow-hidden h-full group">
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                {renderTrend(trends?.secure_score || 0, false)}
+              </div>
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{current?.secure_score ? Math.round(current.secure_score) : 0}%</h3>
+                  <span className="text-xs font-medium text-muted-foreground">Microsoft Avg: 58%</span>
+                </div>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Secure Score</p>
+                <p className="text-xs text-muted-foreground mt-1">Target: 80%+</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Non-Compliant Devices */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+            <div
+              className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/50 rounded-xl p-4 relative overflow-hidden h-full cursor-pointer hover:shadow-md transition-all group"
+              onClick={() => setIsDeviceModalOpen(true)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Laptop className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                {/* Mock trend for devices if not available */}
+                {trends?.non_compliant_devices !== undefined && renderTrend(trends.non_compliant_devices, true)}
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{deviceHealth?.non_compliant_devices || 0}</h3>
+                <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Non-Compliant Devices</p>
+                <p className="text-xs text-muted-foreground mt-1">Requires compliance update</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* License Waste */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}>
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-4 relative overflow-hidden h-full group transition-all hover:shadow-md cursor-pointer" onClick={() => navigate('/licenses')}>
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Ghost className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{unusedLicenses}</h3>
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Unused Licenses</p>
+                <p className="text-xs text-muted-foreground mt-1">Potential operational processing</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Mailbox Capacity (Mock/Placeholder for now as requested by user interest) */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}>
+            <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 rounded-xl p-4 relative overflow-hidden h-full group">
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg group-hover:scale-105 transition-transform">
+                  <Server className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">0</h3>
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Mailbox Capacity > 90%</p>
+                <p className="text-xs text-muted-foreground mt-1">Storage limit warning</p>
+              </div>
+            </div>
+          </motion.div>
+
+        </div>
       </div>
 
       {/* Charts Row */}

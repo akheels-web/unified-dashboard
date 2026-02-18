@@ -419,50 +419,16 @@ export interface SecuritySummary {
     dlp_high_incidents: number;
     secure_score: number;
     defender_exposure_score: number;
+    mfa_coverage_percent?: number;
+    privileged_no_mfa?: number;
+    external_forwarding_count?: number;
     timestamp: string;
   };
   trends: {
     high_security_alerts: number;
     high_risk_users: number;
     secure_score: number;
-  };
-}
-
-export interface DeviceHealth {
-  total_devices: number;
-  compliant_devices: number;
-  non_compliant_devices: number;
-  encrypted_devices: number;
-  win10_count: number;
-  win11_count: number;
-  outdated_builds_count: number;
-}
-
-export interface IdentityHygiene {
-  mfa_coverage_percent: number;
-  privileged_no_mfa: number;
-  dormant_users_60d: number;
-  guest_inactive_90d: number;
-  mailbox_usage_over_90: number;
-  external_forwarding_count: number;
-}
-
-// Security Dashboard Types
-export interface SecuritySummary {
-  current: {
-    high_security_alerts: number;
-    medium_security_alerts: number;
-    high_risk_users: number;
-    risky_signins_24h: number;
-    dlp_high_incidents: number;
-    secure_score: number;
-    defender_exposure_score: number;
-    timestamp: string;
-  };
-  trends: {
-    high_security_alerts: number;
-    high_risk_users: number;
-    secure_score: number;
+    non_compliant_devices?: number;
   };
 }
 
