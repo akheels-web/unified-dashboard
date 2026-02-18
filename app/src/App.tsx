@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Login } from '@/pages/Login';
-import { Dashboard } from '@/pages/Dashboard';
+import Dashboard from '@/pages/Dashboard';
 import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
 import { Assets } from '@/pages/Assets';

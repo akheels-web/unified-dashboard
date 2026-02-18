@@ -321,7 +321,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">0</h3>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Mailbox Capacity > 90%</p>
+                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Mailbox Capacity &gt; 90%</p>
                 <p className="text-xs text-muted-foreground mt-1">Storage limit warning</p>
               </div>
             </div>
