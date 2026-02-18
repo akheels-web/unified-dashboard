@@ -12,99 +12,132 @@ const generateSecurityReport = (data, res) => {
     doc.pipe(res);
 
     // --- Header ---
-    doc.fontSize(20).text('Security Executive Summary', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`, { align: 'center', color: 'gray' });
-    doc.moveDown(2);
+    doc.rect(0, 0, 600, 100).fill('#1e293b'); // Dark header background
+    doc.fontSize(24).fillColor('#ffffff').text('Security Executive Summary', 50, 40);
+    doc.fontSize(10).fillColor('#94a3b8').text(`Generated: ${new Date().toLocaleString()}`, 50, 70);
 
-    // --- High Level Score ---
-    doc.fontSize(16).text('Current Security Posture');
-    doc.roundedRect(50, 140, 500, 80, 5).stroke('#e2e8f0');
+    doc.moveDown(4);
 
-    // Secure Score
-    doc.fontSize(10).text('Microsoft Secure Score', 70, 160);
-    doc.fontSize(24).fillColor(getScoreColor(data.secure_score)).text(`${data.secure_score}%`, 70, 180).fillColor('black');
+    // --- Current Security Posture (Cards) ---
+    const startY = 130;
 
-    // Defender Score
-    doc.fontSize(10).text('Exposure Score', 250, 160);
-    doc.fontSize(24).fillColor(getExposureColor(data.defender_exposure_score)).text(`${data.defender_exposure_score}/100`, 250, 180).fillColor('black');
+    // Function to draw card
+    const drawCard = (x, title, value, subtext, color) => {
+        doc.roundedRect(x, startY, 150, 100, 8).fill('#f8fafc').stroke('#e2e8f0');
+        doc.fontSize(10).fillColor('#64748b').text(title, x + 15, startY + 15);
+        doc.fontSize(24).fillColor(color).text(value, x + 15, startY + 40);
+        doc.fontSize(9).fillColor('#94a3b8').text(subtext, x + 15, startY + 75);
+    };
 
-    // Active Alerts
-    doc.fontSize(10).text('High Sev Alerts', 430, 160);
-    doc.fontSize(24).fillColor(data.high_security_alerts > 0 ? '#ef4444' : '#10b981').text(data.high_security_alerts, 430, 180).fillColor('black');
+    // Card 1: Secure Score
+    drawCard(50, 'Microsoft Secure Score', `${data.secure_score || 0}%`, 'Target: 80%+', getScoreColor(data.secure_score));
 
-    doc.moveDown(5);
+    // Card 2: Exposure Score
+    drawCard(220, 'Exposure Score', `${data.defender_exposure_score || 0}/100`, 'Lower is better', getExposureColor(data.defender_exposure_score));
 
-    // --- Critical Attention Areas ---
-    doc.fontSize(16).text('Critical Attention Areas', 50, 250);
-    doc.moveDown(0.5);
+    // Card 3: Active Alerts
+    drawCard(390, 'High Sev Alerts', data.high_security_alerts || 0, 'Requires Attention', (data.high_security_alerts > 0 ? '#ef4444' : '#10b981'));
 
-    const startY = 280;
-    let currentY = startY;
+    doc.moveDown(8);
 
-    // Draw Table Header
-    doc.fontSize(10).fillColor('#64748b').text('METRIC', 60, currentY);
-    doc.text('STATUS', 250, currentY);
-    doc.text('VALUE', 450, currentY);
-    currentY += 20;
-    doc.moveTo(50, currentY).lineTo(550, currentY).stroke('#e2e8f0');
-    currentY += 10;
+    // --- Critical Attention Areas (Table) ---
+    doc.fontSize(16).fillColor('#1e293b').text('Critical Risks & Hygiene', 50, 260);
 
-    // Table Content
+    let currentY = 290;
+
+    // Draw Header
+    doc.rect(50, currentY, 500, 25).fill('#f1f5f9');
+    doc.fontSize(9).fillColor('#475569');
+    doc.text('METRIC', 60, currentY + 7);
+    doc.text('CATEGORY', 250, currentY + 7);
+    doc.text('STATUS', 400, currentY + 7);
+    doc.text('VALUE', 500, currentY + 7);
+
+    currentY += 25;
+
     const metrics = [
-        { label: 'High Risk Users', value: data.high_risk_users, threshold: 0 },
-        { label: 'Risky Sign-ins (24h)', value: data.risky_signins_24h, threshold: 0 },
-        { label: 'Non-Compliant Devices', value: data.non_compliant_devices, threshold: 0 },
-        { label: 'Privileged Users w/o MFA', value: data.privileged_no_mfa, threshold: 0 },
-        { label: 'Dormant Users (>60d)', value: data.dormant_users_60d, threshold: 5 },
+        { label: 'High Risk Users', category: 'Identity', value: data.high_risk_users, threshold: 0 },
+        { label: 'Risky Sign-ins (24h)', category: 'Identity', value: data.risky_signins_24h, threshold: 0 },
+        { label: 'Non-Compliant Devices', category: 'Device', value: data.non_compliant_devices, threshold: 0 },
+        { label: 'Privileged Users w/o MFA', category: 'Hygiene', value: data.privileged_no_mfa, threshold: 0 },
+        { label: 'Dormant Users (>60d)', category: 'Hygiene', value: data.dormant_users_60d, threshold: 5 },
+        { label: 'External Forwarding', category: 'DLP', value: data.external_forwarding_count, threshold: 0 },
     ];
 
-    doc.fillColor('black');
-    metrics.forEach(m => {
-        doc.text(m.label, 60, currentY);
+    metrics.forEach((m, i) => {
+        // Alternating row color
+        if (i % 2 === 1) doc.rect(50, currentY, 500, 25).fill('#f8fafc');
+
+        doc.fontSize(10).fillColor('#334155');
+        doc.text(m.label, 60, currentY + 7);
+        doc.text(m.category, 250, currentY + 7);
 
         const isBad = m.value > m.threshold;
-        const statusText = isBad ? 'ATTENTION' : 'OK';
+        const statusText = isBad ? 'ATTENTION' : 'HEALTHY';
         const statusColor = isBad ? '#ef4444' : '#10b981';
 
-        doc.fillColor(statusColor).text(statusText, 250, currentY);
-        doc.fillColor('black').text(m.value.toString(), 450, currentY);
+        // Draw Status Badge
+        doc.roundedRect(400, currentY + 5, 70, 15, 4).fill(isBad ? '#fef2f2' : '#f0fdf4');
+        doc.fillColor(statusColor).text(statusText, 410, currentY + 8);
+
+        doc.fillColor('#0f172a').text(m.value || 0, 500, currentY + 7);
 
         currentY += 25;
-        doc.moveTo(50, currentY - 5).lineTo(550, currentY - 5).strokeColor('#f1f5f9').stroke().strokeColor('black');
     });
 
-    doc.moveDown(2);
-
     // --- Device Fleet Status ---
-    doc.fontSize(16).text('Device Fleet Status', 50, 450);
-    doc.fontSize(10).text(`Total Managed Devices: ${data.total_devices || 0}`, 50, 470);
+    doc.moveDown(3);
+    const fleetY = currentY + 40;
+    doc.fontSize(16).fillColor('#1e293b').text('Device Fleet Summary', 50, fleetY);
 
-    // Simple ASCII Bar Chart for OS
+    const total = data.total_devices || 1;
     const win10 = data.win10_count || 0;
     const win11 = data.win11_count || 0;
-    const totalWindows = win10 + win11 || 1; // avoid divide by zero
+    const encrypted = data.encrypted_devices || 0;
 
-    doc.rect(50, 500, 400, 20).fill('#e2e8f0'); // Background
-    const win11Width = (win11 / totalWindows) * 400;
-    doc.rect(50, 500, win11Width, 20).fill('#3b82f6'); // Win11 Bar
+    doc.fontSize(10).fillColor('#64748b').text(`Total Managed Devices: ${data.total_devices || 0}`, 50, fleetY + 25);
+    doc.text(`Encrypted: ${encrypted} (${((encrypted / total) * 100).toFixed(0)}%)`, 200, fleetY + 25);
 
-    doc.fillColor('black').text(`Windows 11: ${win11}`, 50, 530);
-    doc.text(`Windows 10: ${win10}`, 50 + win11Width + 10, 530);
+    // OS Distribution Bar
+    const barY = fleetY + 50;
+    const barWidth = 500;
+    const barHeight = 20;
+
+    // Background
+    doc.roundedRect(50, barY, barWidth, barHeight, 4).fill('#e2e8f0');
+
+    if (total > 0) {
+        const w11W = (win11 / total) * barWidth;
+        const w10W = (win10 / total) * barWidth;
+
+        if (win11 > 0) doc.rect(50, barY, w11W, barHeight).fill('#3b82f6');
+        if (win10 > 0) doc.rect(50 + w11W, barY, w10W, barHeight).fill('#93c5fd');
+    }
+
+    // Legend
+    doc.rect(50, barY + 30, 10, 10).fill('#3b82f6');
+    doc.fillColor('#000').text(`Windows 11 (${win11})`, 65, barY + 30);
+
+    doc.rect(200, barY + 30, 10, 10).fill('#93c5fd');
+    doc.text(`Windows 10 (${win10})`, 215, barY + 30);
 
     // --- Footer ---
-    doc.fontSize(8).text('Confidential - For Internal Use Only', 50, 750, { align: 'center' });
+    doc.fontSize(8).fillColor('#94a3b8');
+    doc.text('Confidential - Unified User Lifecycle Dashboard', 50, 750, { align: 'center' });
+    doc.text('This report contains sensitive security information.', 50, 765, { align: 'center' });
 
     doc.end();
 };
 
 function getScoreColor(score) {
+    if (!score) return '#94a3b8';
     if (score >= 70) return '#10b981';
     if (score >= 50) return '#f59e0b';
     return '#ef4444';
 }
 
 function getExposureColor(score) {
+    if (!score) return '#94a3b8';
     if (score <= 30) return '#10b981';
     if (score <= 60) return '#f59e0b';
     return '#ef4444';

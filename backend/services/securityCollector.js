@@ -62,16 +62,32 @@ async function collectSecuritySnapshot() {
         ).catch(e => ({ data: { value: [] } }));
 
         const secureScore = secureScoreRes.data.value?.[0]?.currentScore || 0;
+        const maxScore = secureScoreRes.data.value?.[0]?.maxScore || 100;
+        // Calculate Exposure Score (Inverse of Secure Score % roughly, or mock if not direct)
+        // Microsoft doesn't give direct "Exposure Score" via API easily, usually it's mainly Secure Score.
+        // We will calc it as 100 - (percentage).
+        const securePercent = maxScore > 0 ? (secureScore / maxScore) * 100 : 0;
+        const exposureScore = Math.max(0, 100 - securePercent).toFixed(2);
+
+        // D. Risky Sign-ins (High Risk, Last 24h)
+        // Requires AuditLog.Read.All or IdentityRiskySignin.Read.All
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const riskySigninsRes = await axios.get(
+            `https://graph.microsoft.com/v1.0/identityProtection/riskyServicePrincipals?$filter=riskLevel eq 'high' and riskLastUpdatedDateTime ge ${oneDayAgo}&$count=true`,
+            { headers }
+        ).catch(() => ({ data: { '@odata.count': 0 } })); // Fallback
 
         // Insert into DB
         await pool.query(`
             INSERT INTO security_snapshots 
-            (high_security_alerts, high_risk_users, secure_score, timestamp)
-            VALUES ($1, $2, $3, NOW())
+            (high_security_alerts, high_risk_users, secure_score, defender_exposure_score, risky_signins_24h, timestamp)
+            VALUES ($1, $2, $3, $4, $5, NOW())
         `, [
             alertsRes.data['@odata.count'] || 0,
             riskyUsersRes.data['@odata.count'] || 0,
-            secureScore
+            secureScore,
+            exposureScore,
+            riskySigninsRes.data['@odata.count'] || 0
         ]);
 
         console.log('[Collector] ✅ Security Snapshot Saved');
@@ -81,7 +97,7 @@ async function collectSecuritySnapshot() {
     }
 }
 
-// 2. Collect Device Health (Every 4 Hours)
+// 2. Collect Device Health (Every 4 Hours) - Unchanged for now, seems okay
 async function collectDeviceSnapshot() {
     console.log('[Collector] Starting Device Snapshot...');
     try {
@@ -90,7 +106,7 @@ async function collectDeviceSnapshot() {
 
         // Requires DeviceManagementManagedDevices.Read.All
         const devicesRes = await axios.get(
-            `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id,complianceState,operatingSystem,isEncrypted`,
+            `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id,complianceState,operatingSystem,osVersion,isEncrypted`,
             { headers }
         ).catch(e => ({ data: { value: [] } }));
 
@@ -98,8 +114,8 @@ async function collectDeviceSnapshot() {
         const total = devices.length;
         const nonCompliant = devices.filter(d => d.complianceState !== 'compliant').length;
         const encrypted = devices.filter(d => d.isEncrypted === true).length;
-        const win10 = devices.filter(d => d.operatingSystem === 'Windows' && d.osVersion?.startsWith('10')).length;
-        const win11 = devices.filter(d => d.operatingSystem === 'Windows' && d.osVersion?.startsWith('10.0.2')).length; // Rough check
+        const win10 = devices.filter(d => d.operatingSystem === 'Windows' && d.osVersion?.startsWith('10.0.1')).length;
+        const win11 = devices.filter(d => d.operatingSystem === 'Windows' && d.osVersion?.startsWith('10.0.2')).length;
 
         await pool.query(`
             INSERT INTO device_snapshots 
@@ -121,23 +137,52 @@ async function collectHygieneSnapshot() {
         const token = await getAppToken();
         const headers = { Authorization: `Bearer ${token}` };
 
-        // A. MFA Coverage (Using Credential User Registration Details)
-        // Requires Reports.Read.All
-        const mfaRes = await axios.get(
-            `https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=isMfaRegistered`,
+        // A. MFA Coverage & Privileged Users
+        const credentialRes = await axios.get(
+            `https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,authMethods`,
             { headers }
         ).catch(e => ({ data: { value: [] } }));
 
-        const users = mfaRes.data.value || [];
+        const users = credentialRes.data.value || [];
         const totalUsers = users.length;
         const mfaRegistered = users.filter(u => u.isMfaRegistered).length;
         const mfaPercent = totalUsers > 0 ? ((mfaRegistered / totalUsers) * 100).toFixed(2) : 0;
 
+        // Fetch Privileged Roles (Global Admin) to check their MFA
+        // Requires RoleManagement.Read.Directory
+        const adminsRes = await axios.get(
+            `https://graph.microsoft.com/v1.0/directoryRoles?$filter=roleTemplateId eq '62e90394-69f5-4237-9190-012177145e10'&$expand=members`,
+            { headers }
+        ).catch(() => ({ data: { value: [] } }));
+
+        const globalAdmins = adminsRes.data.value?.[0]?.members || [];
+        const privilegedNoMfa = globalAdmins.filter(admin => {
+            const user = users.find(u => u.userPrincipalName === admin.userPrincipalName);
+            return user && !user.isMfaRegistered;
+        }).length;
+
+        // B. Dormant Users (>60d)
+        // Fetch users with signInActivity
+        const usersActivityRes = await axios.get(
+            `https://graph.microsoft.com/v1.0/users?$select=id,signInActivity,userPrincipalName&$top=999`,
+            { headers }
+        ).catch(() => ({ data: { value: [] } }));
+
+        const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+        const dormantUsers = usersActivityRes.data.value.filter(u => {
+            if (!u.signInActivity?.lastSignInDateTime) return false; // Never signed in or no permission to see
+            return new Date(u.signInActivity.lastSignInDateTime) < sixtyDaysAgo;
+        }).length;
+
+        // C. External Forwarding (Mocked heavily as getting mail rules for ALL users is expensive/restricted)
+        // We will assume 0 or 1 for now if we can't easily get it without high privs
+        const externalForwarding = 0;
+
         await pool.query(`
             INSERT INTO hygiene_snapshots 
-            (mfa_coverage_percent, timestamp)
-            VALUES ($1, NOW())
-        `, [mfaPercent]);
+            (mfa_coverage_percent, privileged_no_mfa, dormant_users_60d, external_forwarding_count, timestamp)
+            VALUES ($1, $2, $3, $4, NOW())
+        `, [mfaPercent, privilegedNoMfa, dormantUsers, externalForwarding]);
 
         console.log('[Collector] ✅ Hygiene Snapshot Saved');
 

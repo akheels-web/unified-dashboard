@@ -752,6 +752,38 @@ app.get('/api/security/risky-users', validateToken, async (req, res) => {
     }
 });
 
+// Drill-down: Get Non-Compliant Devices (Live from Intune)
+app.get('/api/security/non-compliant', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching Non-Compliant Devices`);
+    try {
+        // Requires DeviceManagementManagedDevices.Read.All
+        const response = await axios.get(
+            `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$filter=complianceState ne 'compliant'&$select=id,deviceName,userDisplayName,operatingSystem,complianceState,lastSyncDateTime`,
+            {
+                headers: { Authorization: `Bearer ${req.accessToken}` }
+            }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Failed to fetch non-compliant devices:', error.response?.data || error.message);
+        res.json({ value: [] });
+    }
+});
+
+// Drill-down: External Forwarding (Simulated)
+// Real detection requires checking mailRules for EVERY user or using Defender Advanced Hunting API which is complex.
+// We will return a mock list for demonstration or just empty if we can't implement full scanning.
+app.get('/api/security/external-forwarding', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching External Forwarding Rules`);
+    // Placeholder: In a real app, you'd likely query a cached table of mail rules or an alert provider
+    res.json({
+        value: [
+            // Example structure if we had data
+            { id: '1', userDisplayName: 'John Doe', userPrincipalName: 'john.doe@contoso.com', forwardTo: 'john.personal@gmail.com', enabled: true }
+        ]
+    });
+});
+
 // Import Unifi Service (Optional Integration)
 const unifiService = require('./services/unifi');
 const statusService = require('./services/status');

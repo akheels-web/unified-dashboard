@@ -34,7 +34,7 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Drill Down State
-  const [drillDownType, setDrillDownType] = useState<'alerts' | 'risky-users' | null>(null);
+  const [drillDownType, setDrillDownType] = useState<'alerts' | 'risky-users' | 'non-compliant' | 'external-forwarding' | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -132,176 +132,23 @@ export function Dashboard() {
                 <AlertTriangle className="w-6 h-6 text-destructive" />
               </div>
             </div>
-            {securitySummary?.trends.high_security_alerts !== 0 && (
-              <div className="mt-4 flex items-center text-xs">
-                {securitySummary?.trends.high_security_alerts! < 0 ? (
-                  <span className="text-green-500 flex items-center"><TrendingDown className="w-3 h-3 mr-1" /> {Math.abs(securitySummary?.trends.high_security_alerts!)} less than yesterday</span>
-                ) : (
-                  <span className="text-destructive flex items-center"><TrendingUp className="w-3 h-3 mr-1" /> {securitySummary?.trends.high_security_alerts} new since yesterday</span>
-                )}
-              </div>
-            )}
-          </div>
-        </motion.div>
+            <SecurityDrillDownModal type={drillDownType} onClose={() => setDrillDownType(null)} />
 
-        {/* Risky Users */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <div
-            onClick={() => setDrillDownType('risky-users')}
-            className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-6 cursor-pointer hover:bg-orange-500/15 transition-colors"
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-orange-600 font-medium mb-1">Identity Risk</p>
-                <h3 className="text-3xl font-bold text-foreground">{securitySummary?.current.high_risk_users || 0}</h3>
-                <p className="text-sm text-muted-foreground mt-1">High Risk Users</p>
-              </div>
-              <div className="p-2 bg-orange-500/20 rounded-lg">
-                <UserCheck className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-            <div className="mt-4 text-xs text-muted-foreground">
-              {securitySummary?.current.risky_signins_24h || 0} risky sign-ins in 24h
-            </div>
-          </div>
-        </motion.div>
+            {/* ... Header & Quote ... */}
 
-        {/* Secure Score */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-blue-600 font-medium mb-1">Secure Score</p>
-                <h3 className="text-3xl font-bold text-foreground">{securitySummary?.current.secure_score || 0}%</h3>
-                <p className="text-sm text-muted-foreground mt-1">Microsoft Security Score</p>
-              </div>
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Shield className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-            <div className="mt-4 text-xs text-muted-foreground">
-              Exposure Score: {securitySummary?.current.defender_exposure_score || 0} (Lower is better)
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Non-Compliant Devices */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <div className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-muted-foreground font-medium mb-1">Device Health</p>
-                <h3 className="text-3xl font-bold text-foreground">{deviceHealth?.non_compliant_devices || 0}</h3>
-                <p className="text-sm text-muted-foreground mt-1">Non-Compliant Devices</p>
-              </div>
-              <div className="p-2 bg-secondary rounded-lg">
-                <Laptop className="w-6 h-6 text-foreground" />
-              </div>
-            </div>
-            <div className="mt-4 w-full bg-secondary h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-red-500 h-full"
-                style={{ width: `${(deviceHealth ? (deviceHealth.non_compliant_devices / deviceHealth.total_devices) * 100 : 0)}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">{((deviceHealth ? (deviceHealth.compliant_devices / deviceHealth.total_devices) * 100 : 0)).toFixed(1)}% Compliant</p>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* 2. OPERATIONAL SNAPSHOT (Identity Hygiene & Device Stats) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Identity Hygiene Panel */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-card rounded-xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Shield className="w-5 h-5 text-green-500" />
-            <h3 className="text-lg font-semibold">Identity Hygiene</h3>
-          </div>
-
-          <div className="space-y-6">
-            {/* MFA Coverage */}
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span>MFA Registration Coverage</span>
-                <span className="font-semibold">{identityHygiene?.mfa_coverage_percent || 0}%</span>
-              </div>
-              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-                <div className="bg-green-500 h-full" style={{ width: `${identityHygiene?.mfa_coverage_percent || 0}%` }} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-                  <Lock className="w-4 h-4" />
-                  <span className="text-sm">Privileged (No MFA)</span>
+            {/* 1. ATTENTION REQUIRED (Morning Check) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* High Severity Alerts */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                <div
+                  <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                    <span className="text-destructive font-medium">Outdated Builds</span>
+                  </div>
+                  <span className="font-bold text-destructive">{deviceHealth?.outdated_builds_count || 0}</span>
                 </div>
-                <p className="text-2xl font-bold">{identityHygiene?.privileged_no_mfa || 0}</p>
-              </div>
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-                  <UserCheck className="w-4 h-4" />
-                  <span className="text-sm">Dormant Users (60d)</span>
-                </div>
-                <p className="text-2xl font-bold">{identityHygiene?.dormant_users_60d || 0}</p>
-              </div>
             </div>
-
-            <div className="p-4 border border-border rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-md"><Mail className="w-4 h-4 text-blue-500" /></div>
-                <div>
-                  <p className="font-medium">External Forwarding</p>
-                  <p className="text-xs text-muted-foreground">Mailboxes forwarding outside org</p>
-                </div>
-              </div>
-              <span className="text-xl font-bold">{identityHygiene?.external_forwarding_count || 0}</span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Device Health Breakdown */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-card rounded-xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Laptop className="w-5 h-5 text-purple-500" />
-            <h3 className="text-lg font-semibold">Device Fleet Health</h3>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <p className="text-sm text-muted-foreground">Total Devices</p>
-              <p className="text-3xl font-bold">{deviceHealth?.total_devices || 0}</p>
-            </div>
-            <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <p className="text-sm text-muted-foreground">Encrypted</p>
-              <p className="text-3xl font-bold text-green-500">{deviceHealth?.encrypted_devices || 0}</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-full"><img src="https://simpleicons.org/icons/windows11.svg" className="w-4 h-4 opacity-70" alt="Win11" /></div>
-                <span>Windows 11 Adoption</span>
-              </div>
-              <span className="font-semibold">{deviceHealth?.win11_count || 0}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-full"><img src="https://simpleicons.org/icons/windows10.svg" className="w-4 h-4 opacity-70" alt="Win10" /></div>
-                <span>Windows 10</span>
-              </div>
-              <span className="font-semibold">{deviceHealth?.win10_count || 0}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-4 h-4 text-destructive" />
-                <span className="text-destructive font-medium">Outdated Builds</span>
-              </div>
-              <span className="font-bold text-destructive">{deviceHealth?.outdated_builds_count || 0}</span>
-            </div>
-          </div>
         </motion.div>
 
       </div>
