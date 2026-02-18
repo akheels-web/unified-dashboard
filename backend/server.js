@@ -832,7 +832,7 @@ app.get('/api/security/external-forwarding', validateToken, async (req, res) => 
 });
 
 // Import Unifi Service (Optional Integration)
-const unifiService = require('./services/unifi');
+const unifiService = require('./services/unifiLocal');
 const statusService = require('./services/status');
 
 // Status Route
