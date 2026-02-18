@@ -34,10 +34,10 @@ async function getAppToken() {
 }
 
 // 1. Collect Security Snapshots (High Frequency)
-async function collectSecuritySnapshot() {
+async function collectSecuritySnapshot(accessToken = null) {
     console.log('[Collector] Starting Security Snapshot...');
     try {
-        const token = await getAppToken();
+        const token = accessToken || await getAppToken();
         const headers = { Authorization: `Bearer ${token}` };
 
         // A. Defender Alerts (High Severity, Unresolved)
@@ -99,18 +99,15 @@ async function collectSecuritySnapshot() {
             riskySigninsRes.data['@odata.count'] || 0
         ]);
 
-        console.log('[Collector] ✅ Security Snapshot Saved');
-
     } catch (error) {
         console.error('[Collector] Security Snapshot Failed:', error.message);
     }
 }
 
 // 2. Collect Device Health (Every 4 Hours) - Unchanged for now, seems okay
-async function collectDeviceSnapshot() {
-    console.log('[Collector] Starting Device Snapshot...');
+async function collectDeviceSnapshot(accessToken = null) {
     try {
-        const token = await getAppToken();
+        const token = accessToken || await getAppToken();
         const headers = { Authorization: `Bearer ${token}` };
 
         // Requires DeviceManagementManagedDevices.Read.All
@@ -132,18 +129,15 @@ async function collectDeviceSnapshot() {
             VALUES ($1, $2, $3, $4, $5, $6, NOW())
         `, [total, total - nonCompliant, nonCompliant, encrypted, win10, win11]);
 
-        console.log('[Collector] ✅ Device Snapshot Saved');
-
     } catch (error) {
         console.error('[Collector] Device Snapshot Failed:', error.message);
     }
 }
 
 // 3. Collect Identity Hygiene (Daily)
-async function collectHygieneSnapshot() {
-    console.log('[Collector] Starting Hygiene Snapshot...');
+async function collectHygieneSnapshot(accessToken = null) {
     try {
-        const token = await getAppToken();
+        const token = accessToken || await getAppToken();
         const headers = { Authorization: `Bearer ${token}` };
 
         // A. MFA Coverage & Privileged Users

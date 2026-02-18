@@ -492,10 +492,12 @@ app.get('/api/dashboard/device-health', validateToken, async (req, res) => {
 app.post('/api/dashboard/sync', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Manual Sync Triggered`);
     try {
-        // Run collectors
+        // Run collectors with user token (User Delegated permissions)
         await Promise.all([
-            collectSecuritySnapshot(),
-            collectHygieneSnapshot()
+            collectSecuritySnapshot(req.accessToken),
+            collectHygieneSnapshot(req.accessToken),
+            // We should also collect device snapshot on sync to fix the device numbers
+            require('./services/securityCollector.js').collectDeviceSnapshot(req.accessToken)
         ]);
 
         // Clear Cache
