@@ -150,13 +150,6 @@ const getCachedValues = async (accessToken, type) => {
     }
 };
 
-// Routes
-
-// Health Check
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date() });
-});
-
 // Advanced User Search & Filter (Real Graph Proxy)
 // Note: Graph API /users endpoint doesn't support $skip, so we fetch a larger set and do client-side pagination
 app.get('/api/users', validateToken, async (req, res) => {
@@ -275,8 +268,50 @@ app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
 
 // Dashboard: Get License Usage (Real Data from M365) - WITH CACHING
 app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
-    // ... existing code ...
+
+    const EXCLUDED_SKUS = [
+        'WINDOWS_STORE', 'FLOW_FREE', 'CCIBOTS_PRIVPREV_VIRAL',
+        'POWERAPPS_VIRAL', 'POWER_BI_STANDARD',
+        'Power_Pages_vTrial_for_Makers', 'RIGHTSMANAGEMENT_ADHOC',
+        'POWERAPPS_DEV'
+    ];
+
+    const LICENSE_NAME_MAP = {
+        'EXCHANGESTANDARD': 'Exchange Online (Plan 1)',
+        'EXCHANGEENTERPRISE': 'Exchange Online (Plan 2)',
+        'EXCHANGEDESKLESS': 'Exchange Online Kiosk',
+        'O365_BUSINESS_ESSENTIALS': 'Microsoft 365 Business Basic',
+        'O365_BUSINESS_PREMIUM': 'Microsoft 365 Business Premium',
+        'SPB': 'Microsoft 365 Business Premium + Copilot',
+        'O365_BUSINESS': 'Microsoft 365 Business Standard',
+        'MICROSOFT_365_COPILOT': 'Microsoft 365 Copilot',
+        'SPE_E5': 'Microsoft 365 E5',
+        'POWER_BI_PRO': 'Power BI Pro',
+        'VISIOCLIENT': 'Visio Plan 2'
+    };
+
+    const licenses = response.data.value
+        .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
+        .map(sku => ({
+            id: sku.skuId,
+            name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
+            skuPartNumber: sku.skuPartNumber,
+            total: sku.prepaidUnits.enabled,
+            used: sku.consumedUnits,
+            available: sku.prepaidUnits.enabled - sku.consumedUnits
+        }))
+        .sort((a, b) => b.total - a.total);
+
+    setCache('licenses', licenses);
+
+    res.json(licenses);
+
+} catch (error) {
+    console.error('[Licenses] Error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch licenses' });
+}
 });
+
 
 // Security Dashboard Summary with Trends
 app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
