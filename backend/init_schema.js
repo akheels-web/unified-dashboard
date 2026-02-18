@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS hygiene_snapshots (
 
 async function initDB() {
     try {
-        console.log('Connecting to database to initialize schema...');
+        console.log(`Connecting via host: ${pool.options.host}`);
+        console.log(`Connecting to database '${pool.options.database}' as user '${pool.options.user}'...`);
         await pool.connect();
         console.log('Connected. Creating tables if they do not exist...');
         await pool.query(schema);
