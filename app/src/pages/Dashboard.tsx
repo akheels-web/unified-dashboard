@@ -149,7 +149,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 w-full">
       <SecurityDrillDownModal type={activeModal} onClose={() => {
         setIsSecurityModalOpen(false);
         setIsRiskyUsersModalOpen(false);
