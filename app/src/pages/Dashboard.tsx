@@ -71,21 +71,21 @@ export default function Dashboard() {
       try {
 
         const [
-          statsRes,
           securityRes,
           deviceRes,
           hygieneRes,
           licensesRes,
           activityRes,
-          statusRes
+          statusRes,
+          mfaRes // New
         ] = await Promise.all([
-          dashboardApi.getStats(),
           dashboardApi.getSecuritySummary(),
           dashboardApi.getDeviceHealth(),
           dashboardApi.getIdentityHygiene(),
           dashboardApi.getLicenses(),
           dashboardApi.getActivity(5),
-          dashboardApi.getSystemStatus()
+          dashboardApi.getSystemStatus(),
+          dashboardApi.getMfaCoverage() // New
         ]);
 
         if (securityRes) setSecuritySummary(securityRes.data);
@@ -94,6 +94,7 @@ export default function Dashboard() {
         if (licensesRes) setLicenses(licensesRes.data || []);
         if (activityRes) setActivities(activityRes.data || []);
         if (statusRes) setSystemStatus(statusRes.data);
+        if (mfaRes.success) setMfaCoverage(mfaRes.data); // New
       } catch (error) {
         // console.error('Failed to fetch dashboard data', error); 
         // Silent error for now to avoid console spam in dev without backend
@@ -231,18 +232,18 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* Privileged Accounts Without MFA */}
+          {/* Users Without MFA (Updated) */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 relative overflow-hidden h-full group">
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 relative overflow-hidden h-full group" onClick={() => navigate('/reports')}>
               <div className="flex justify-between items-start mb-2">
                 <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg group-hover:scale-105 transition-transform">
                   <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{current?.privileged_no_mfa || 0}</h3>
-                <p className="text-sm font-medium text-red-600 dark:text-red-400">Admins without MFA</p>
-                <p className="text-xs text-muted-foreground mt-1">Critical vulnerability</p>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{mfaCoverage?.disabled || 0}</h3>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">Users without MFA</p>
+                <p className="text-xs text-muted-foreground mt-1">Security Risk Coverage</p>
               </div>
             </div>
           </motion.div>
