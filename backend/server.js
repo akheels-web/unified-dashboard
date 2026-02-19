@@ -69,14 +69,20 @@ const cache = {
     dashboardStats: { data: null, timestamp: null },
     licenses: { data: null, timestamp: null },
     deviceDistribution: { data: null, timestamp: null },
-    serviceStatus: { data: null, timestamp: null }
+    serviceStatus: { data: null, timestamp: null },
+    users: { data: null, timestamp: null },
+    groups: { data: null, timestamp: null },
+    devices: { data: null, timestamp: null }
 };
 
 const CACHE_DURATION = {
     dashboardStats: 5 * 60 * 1000,      // 5 minutes
-    licenses: 10 * 60 * 1000,            // 10 minutes (rarely changes)
-    deviceDistribution: 10 * 60 * 1000,  // 10 minutes
-    serviceStatus: 2 * 60 * 1000         // 2 minutes
+    licenses: 10 * 60 * 1000,           // 10 minutes
+    deviceDistribution: 10 * 60 * 1000, // 10 minutes
+    serviceStatus: 2 * 60 * 1000,       // 2 minutes
+    users: 5 * 60 * 1000,               // 5 minutes
+    groups: 5 * 60 * 1000,              // 5 minutes
+    devices: 5 * 60 * 1000              // 5 minutes
 };
 
 function getCached(key) {
@@ -158,63 +164,84 @@ app.get('/api/users', validateToken, async (req, res) => {
     try {
         const { page = 1, pageSize = 25, search, department, location, enabled, domain, userType } = req.query;
 
-        // Fetch more records since we can't use $skip (Graph limitation)
-        let url = `https://graph.microsoft.com/v1.0/users?$top=999&$count=true`;
-        // Select fields we need
-        url += '&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,signInActivity,userType';
+        let allUsers = [];
 
-        // Headers required for advanced queries ($count, $search)
-        const headers = {
-            Authorization: `Bearer ${req.accessToken}`,
-            'Content-Type': 'application/json',
-            'ConsistencyLevel': 'eventual'
-        };
+        // CACHING STRATEGY:
+        // Use cache ONLY if there are NO filters (default view)
+        const hasFilters = search || department || location || (enabled && enabled !== 'all') || domain || userType;
 
-        const filters = [];
-
-        // 1. Search (DisplayName or Mail)
-        if (search) {
-            // Note: $search requires "ConsistencyLevel: eventual"
-            url += `&$search="displayName:${search}" OR "mail:${search}"`;
+        if (!hasFilters) {
+            const cached = getCached('users');
+            if (cached) {
+                allUsers = cached;
+            }
         }
 
-        // 2. Filters
-        // Escape single quotes in filter values for OData (replace ' with '')
-        if (department) filters.push(`department eq '${department.replace(/'/g, "''")}'`);
-        if (location) filters.push(`officeLocation eq '${location.replace(/'/g, "''")}'`);
-        if (enabled !== undefined && enabled !== 'all') {
-            filters.push(`accountEnabled eq ${enabled === 'active'}`);
+        // If not cached or has filters, fetch from Graph
+        if (allUsers.length === 0) {
+            // Fetch more records since we can't use $skip (Graph limitation)
+            let url = `https://graph.microsoft.com/v1.0/users?$top=999&$count=true`;
+            // Select fields we need
+            url += '&$select=id,displayName,userPrincipalName,mail,jobTitle,department,officeLocation,accountEnabled,createdDateTime,signInActivity,userType';
+
+            // Headers required for advanced queries ($count, $search)
+            const headers = {
+                Authorization: `Bearer ${req.accessToken}`,
+                'Content-Type': 'application/json',
+                'ConsistencyLevel': 'eventual'
+            };
+
+            const filters = [];
+
+            // 1. Search (DisplayName or Mail)
+            if (search) {
+                // Note: $search requires "ConsistencyLevel: eventual"
+                url += `&$search="displayName:${search}" OR "mail:${search}"`;
+            }
+
+            // 2. Filters
+            // Escape single quotes in filter values for OData (replace ' with '')
+            if (department) filters.push(`department eq '${department.replace(/'/g, "''")}'`);
+            if (location) filters.push(`officeLocation eq '${location.replace(/'/g, "''")}'`);
+            if (enabled !== undefined && enabled !== 'all') {
+                filters.push(`accountEnabled eq ${enabled === 'active'}`);
+            }
+
+            if (filters.length > 0) {
+                url += `&$filter=${filters.join(' and ')}`;
+            }
+
+            // Domain Filter (Client-side filtering for reliability if Graph limitations hit, but trying server-side first)
+            // Note: endsWith on mail requires advanced query.
+            if (domain) {
+                // Graph API support for endsWith is limited. Using $search might be better for some, but endsWith(mail,...) works with eventual consistency
+                filters.push(`endsWith(mail,'${domain}')`);
+            }
+
+            if (userType) {
+                filters.push(`userType eq '${userType}'`);
+            }
+
+            if (filters.length > 0) {
+                // Re-construct filter string if we added new filters
+                url = url.split('&$filter=')[0] + `&$filter=${filters.join(' and ')}`;
+            }
+
+            // 3. Order By (Default to DisplayName)
+            url += '&$orderby=displayName';
+
+            console.log(`[Graph Query] ${url}`);
+
+            const response = await axios.get(url, { headers });
+
+            allUsers = response.data.value || [];
+
+            // Cache ONLY if no filters were applied (basic list)
+            if (!hasFilters) {
+                setCache('users', allUsers);
+            }
         }
 
-        if (filters.length > 0) {
-            url += `&$filter=${filters.join(' and ')}`;
-        }
-
-        // Domain Filter (Client-side filtering for reliability if Graph limitations hit, but trying server-side first)
-        // Note: endsWith on mail requires advanced query.
-        if (domain) {
-            // Graph API support for endsWith is limited. Using $search might be better for some, but endsWith(mail,...) works with eventual consistency
-            filters.push(`endsWith(mail,'${domain}')`);
-        }
-
-        if (userType) {
-            filters.push(`userType eq '${userType}'`);
-        }
-
-        if (filters.length > 0) {
-            // Re-construct filter string if we added new filters
-            url = url.split('&$filter=')[0] + `&$filter=${filters.join(' and ')}`;
-        }
-
-        // 3. Order By (Default to DisplayName)
-        url += '&$orderby=displayName';
-
-        console.log(`[Graph Query] ${url}`);
-
-        const response = await axios.get(url, { headers });
-
-        // Server-side pagination on the filtered results
-        const allUsers = response.data.value || [];
         const total = allUsers.length;
         const startIndex = (page - 1) * pageSize;
         const endIndex = startIndex + parseInt(pageSize);
@@ -594,10 +621,19 @@ app.get('/api/users/:id/groups', validateToken, async (req, res) => {
 // Groups Endpoints
 // ===========================
 
-// Get All Groups (with optional type filtering)
+// Get All Groups (with optional type filtering) - WITH CACHING
 app.get('/api/groups', validateToken, async (req, res) => {
     const groupType = req.query.type || 'all'; // all, security, distribution, m365
     console.log(`[${new Date().toISOString()}] Request received for /api/groups?type=${groupType}`);
+
+    // CACHING: Only cache the 'all' groups request
+    if (groupType === 'all') {
+        const cached = getCached('groups');
+        if (cached) {
+            return res.json({ value: cached });
+        }
+    }
+
     try {
         // Fetch all groups from the organization
         const response = await axios.get(
@@ -606,6 +642,11 @@ app.get('/api/groups', validateToken, async (req, res) => {
         );
 
         let groups = response.data.value;
+
+        // Cache the full list if no filters applied (or if we fetched all)
+        if (groupType === 'all') {
+            setCache('groups', groups);
+        }
 
         // Filter by type if not 'all'
         if (groupType !== 'all') {
@@ -747,27 +788,15 @@ app.get('/api/users/:id/mfa', validateToken, async (req, res) => {
     }
 });
 
-// Get Groups
-app.get('/api/groups', validateToken, async (req, res) => {
-    console.log(`[${new Date().toISOString()}] Request received for /api/groups`);
-    try {
-        const response = await axios.get('https://graph.microsoft.com/v1.0/groups?$top=999', {
-            headers: {
-                Authorization: `Bearer ${req.accessToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log(`[${new Date().toISOString()}] Graph API Success: ${response.status} - Fetched ${response.data.value.length} groups`);
-        res.json(response.data);
-    } catch (error) {
-        console.error(`[${new Date().toISOString()}] Graph API Error (Groups):`, error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Failed to fetch groups' });
-    }
-});
-
-// Get Intune Managed Devices
+// Get Intune Managed Devices - WITH CACHING
 app.get('/api/devices', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Request received for /api/devices`);
+
+    const cached = getCached('devices');
+    if (cached) {
+        return res.json(cached);
+    }
+
     try {
         const response = await axios.get('https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$top=999', {
             headers: {
@@ -776,6 +805,8 @@ app.get('/api/devices', validateToken, async (req, res) => {
             }
         });
         console.log(`[${new Date().toISOString()}] Graph API Success: ${response.status} - Fetched ${response.data.value.length} devices`);
+
+        setCache('devices', response.data);
         res.json(response.data);
     } catch (error) {
         console.error(`[${new Date().toISOString()}] Graph API Error (Devices):`, error.response?.data || error.message);
