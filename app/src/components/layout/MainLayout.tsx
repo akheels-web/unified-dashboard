@@ -27,7 +27,7 @@ export function MainLayout() {
       {/* Main Content */}
       <main
         className={cn(
-          "pt-16 min-h-screen transition-all duration-300",
+          "min-h-screen transition-all duration-300",
           sidebarCollapsed ? "md:pl-20" : "md:pl-64" // Desktop: Padding based on sidebar
         )}
       >
