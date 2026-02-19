@@ -321,7 +321,7 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
 
         // 2. Fetch Credential Details (MFA Status)
         // Note: Beta endpoint
-        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods';
+        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods&$top=999';
         const credsRes = await axios.get(credsUrl, {
             headers: { Authorization: `Bearer ${req.accessToken}` }
         }).catch(err => {
@@ -1192,7 +1192,7 @@ app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
         const allUsers = usersRes.data.value || [];
 
         // 2. Fetch Credential Details
-        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods';
+        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods&$top=999';
         const credsRes = await axios.get(credsUrl, {
             headers: { Authorization: `Bearer ${req.accessToken}` }
         }).catch(() => ({ data: { value: [] } }));

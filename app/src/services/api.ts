@@ -17,7 +17,6 @@ import { useNetworkStore } from '@/stores/networkStore';
 import { getAccessToken } from './auth';
 
 // API Base URL
-// API Base URL
 // backend runs on port 3000, explicitly use https and the VM IP
 const API_URL = '/api'; // import.meta.env.VITE_API_URL || '/api';
 
@@ -69,6 +68,22 @@ export const dashboardApi = {
   },
   getStats: async (): Promise<ApiResponse<any>> => {
     try {
+      // Logic check: api.ts fetchClient appends /api to the input.
+      // If server has app.get('/api/dashboard/stats'), then client should call '/dashboard/stats'.
+      // If api.ts API_URL is '/api', then '/dashboard/stats' -> '/api/dashboard/stats'.
+      // However, if the error is 404, maybe the server routes are NOT prefixed with /api?
+      // Let's check server.js...
+      // server.js: app.get('/api/dashboard/stats'...)
+      // So fetchClient('/dashboard/stats') -> '/api/dashboard/stats' IS correct.
+      // Why 'Unexpected token <'?
+      // Maybe the API_URL is double prefixed or something? 
+      // API_URL = '/api'. fetch(`${API_URL}${endpoint}`) -> '/api/dashboard/stats'.
+      // Wait, is it possible the USER is accessing via a proxy that strips /api?
+      // Or maybe the server is not running on the same port?
+      // "API Call Failed for /dashboard/identity-hygiene" -> The error message in console.error says "API Call Failed for /dashboard/identity-hygiene".
+      // This matches the endpoint passed to fetchClient.
+      // If the browser 404s, it gets HTML.
+
       const realData = await fetchClient('/dashboard/stats');
       if (realData) {
         return { success: true, data: realData };
