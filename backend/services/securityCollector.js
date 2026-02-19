@@ -82,8 +82,8 @@ async function collectSecuritySnapshot(accessToken = null) {
         // Requires AuditLog.Read.All or IdentityRiskySignin.Read.All
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const riskySigninsRes = await axios.get(
-            `https://graph.microsoft.com/v1.0/identityProtection/riskyServicePrincipals?$filter=riskLevel eq 'high' and riskLastUpdatedDateTime ge ${oneDayAgo}&$count=true`,
-            { headers }
+            `https://graph.microsoft.com/v1.0/identityProtection/riskySignIns?$filter=riskLevel eq 'high' and createdDateTime ge ${oneDayAgo}&$count=true`,
+            { headers: { ...headers, 'ConsistencyLevel': 'eventual' } }
         ).catch(() => ({ data: { '@odata.count': 0 } })); // Fallback
 
         // Insert into DB
@@ -99,12 +99,14 @@ async function collectSecuritySnapshot(accessToken = null) {
             riskySigninsRes.data['@odata.count'] || 0
         ]);
 
+        console.log('[Collector] ✅ Security Snapshot Saved to DB');
+
     } catch (error) {
         console.error('[Collector] Security Snapshot Failed:', error.message);
     }
 }
 
-// 2. Collect Device Health (Every 4 Hours) - Unchanged for now, seems okay
+// 2. Collect Device Health (Every 4 Hours)
 async function collectDeviceSnapshot(accessToken = null) {
     try {
         const token = accessToken || await getAppToken();
@@ -128,6 +130,8 @@ async function collectDeviceSnapshot(accessToken = null) {
             (total_devices, compliant_devices, non_compliant_devices, encrypted_devices, win10_count, win11_count, timestamp)
             VALUES ($1, $2, $3, $4, $5, $6, NOW())
         `, [total, total - nonCompliant, nonCompliant, encrypted, win10, win11]);
+
+        console.log('[Collector] ✅ Device Snapshot Saved to DB');
 
     } catch (error) {
         console.error('[Collector] Device Snapshot Failed:', error.message);
@@ -173,12 +177,11 @@ async function collectHygieneSnapshot(accessToken = null) {
 
         const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
         const dormantUsers = usersActivityRes.data.value.filter(u => {
-            if (!u.signInActivity?.lastSignInDateTime) return false; // Never signed in or no permission to see
+            if (!u.signInActivity?.lastSignInDateTime) return false;
             return new Date(u.signInActivity.lastSignInDateTime) < sixtyDaysAgo;
         }).length;
 
         // C. External Forwarding (Mocked heavily as getting mail rules for ALL users is expensive/restricted)
-        // We will assume 0 or 1 for now if we can't easily get it without high privs
         const externalForwarding = 0;
 
         await pool.query(`
@@ -187,7 +190,7 @@ async function collectHygieneSnapshot(accessToken = null) {
             VALUES ($1, $2, $3, $4, NOW())
         `, [mfaPercent, privilegedNoMfa, dormantUsers, externalForwarding]);
 
-        console.log('[Collector] ✅ Hygiene Snapshot Saved');
+        console.log('[Collector] ✅ Hygiene Snapshot Saved to DB');
 
     } catch (error) {
         console.error('[Collector] Hygiene Snapshot Failed:', error.message);
@@ -213,5 +216,6 @@ function initScheduler() {
 module.exports = {
     initScheduler,
     collectSecuritySnapshot,
-    collectHygieneSnapshot
+    collectHygieneSnapshot,
+    collectDeviceSnapshot
 };
