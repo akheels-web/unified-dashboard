@@ -27,16 +27,15 @@ export function MainLayout() {
       {/* Main Content */}
       <main
         className={cn(
-          'pt-16 transition-all duration-300',
-          'pl-0', // Mobile: No padding
-          sidebarCollapsed ? 'md:pl-20' : 'md:pl-64' // Desktop: Padding based on sidebar
+          "pt-16 min-h-screen transition-all duration-300",
+          sidebarCollapsed ? "md:pl-20" : "md:pl-64" // Desktop: Padding based on sidebar
         )}
       >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="px-6 py-6 max-w-[1600px] mx-auto"
+          transition={{ duration: 0.25 }}
+          className="px-6 py-6"   // 🔥 CLEAN consistent spacing
         >
           <Outlet />
         </motion.div>
