@@ -1,22 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, AlertTriangle, Key, Users, Calendar, Activity } from 'lucide-react';
+import { Shield, AlertTriangle, Key, Users, Calendar, Activity, Search } from 'lucide-react';
 import { dashboardApi } from '../services/api';
 import { toast } from 'sonner';
 
 export function ApplicationGovernance() {
     const [apps, setApps] = useState<any[]>([]);
+    const [filteredApps, setFilteredApps] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         loadApps();
     }, []);
+
+    useEffect(() => {
+        if (!searchTerm) {
+            setFilteredApps(apps);
+            return;
+        }
+        const lowerTerm = searchTerm.toLowerCase();
+        const filtered = apps.filter(app =>
+            app.displayName.toLowerCase().includes(lowerTerm) ||
+            app.appId.toLowerCase().includes(lowerTerm)
+        );
+        setFilteredApps(filtered);
+    }, [searchTerm, apps]);
 
     const loadApps = async () => {
         try {
             const response = await dashboardApi.getApplications();
             if (response.success && response.data) {
                 setApps(response.data);
+                setFilteredApps(response.data);
             }
         } catch (error) {
             toast.error('Failed to load applications');
@@ -25,10 +41,10 @@ export function ApplicationGovernance() {
         }
     };
 
-    // Metrics Calculation
+    // Metrics Calculation (Always based on TOTAL apps, not filtered)
     const totalApps = apps.length;
     const newApps = apps.filter(a => a.riskFactors.includes('Recently Created')).length;
-    const expiringSecrets = apps.filter(a => a.riskFactors.includes('Expiring Secrets') || a.riskFactors.includes('Expired Secrets')).length;
+    const expiringSecrets = apps.filter(a => a.secrets.expiring > 0 || a.secrets.expired > 0).length;
     const noOwners = apps.filter(a => a.riskFactors.includes('No Owner')).length;
     const highPrivilege = apps.filter(a => a.riskFactors.includes('High Privilege') || a.riskFactors.includes('Multi-tenant')).length;
 
@@ -42,13 +58,25 @@ export function ApplicationGovernance() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Application Governance</h1>
                     <p className="text-muted-foreground mt-1">Monitor enterprise applications, risk, and compliance</p>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                    Total Enterprise Apps: <span className="font-bold text-foreground">{totalApps}</span>
+                <div className="flex items-center gap-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search apps..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9 pr-4 py-2 border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 w-64"
+                        />
+                    </div>
+                    <div className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
+                        Total: <span className="font-bold text-foreground">{totalApps}</span>
+                    </div>
                 </div>
             </div>
 
@@ -102,7 +130,7 @@ export function ApplicationGovernance() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {apps.map((app) => (
+                            {filteredApps.map((app) => (
                                 <tr key={app.id} className="hover:bg-muted/50 transition-colors">
                                     <td className="p-4">
                                         <div className="font-medium text-foreground">{app.displayName}</div>
