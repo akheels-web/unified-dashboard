@@ -321,7 +321,7 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
 
         // 2. Fetch Credential Details (MFA Status)
         // Note: Beta endpoint
-        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable';
+        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods';
         const credsRes = await axios.get(credsUrl, {
             headers: { Authorization: `Bearer ${req.accessToken}` }
         }).catch(err => {
@@ -378,13 +378,15 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
 
             // Debug first few users
             if (mockDebugCount < 5) {
-                console.log(`[MFA Debug] User: ${upn}, Found in Creds: ${!!cred}, MFA Reg: ${cred?.isMfaRegistered}, Capable: ${cred?.isMfaCapable}`);
+                console.log(`[MFA Debug] User: ${upn}, Found in Creds: ${!!cred}, MFA Reg: ${cred?.isMfaRegistered}, Capable: ${cred?.isMfaCapable}, Methods: ${cred?.authMethods}`);
                 mockDebugCount++;
             }
 
-            // MFA Enabled: Registered OR Capable (Relaxed check)
-            // Sometimes isMfaRegistered is false but they have methods. isMfaCapable is often a better indicator of readiness.
-            if (cred && (cred.isMfaRegistered || cred.isMfaCapable)) {
+            // MFA Enabled: Registered OR Capable OR Has Secure Methods (Robust check)
+            const strongMethods = ['microsoftAuthenticator', 'mobilePhone', 'officePhone', 'fido2', 'windowsHelloForBusiness', 'softwareOneTimePasscode'];
+            const hasStrongMethod = cred?.authMethods && Array.isArray(cred.authMethods) && cred.authMethods.some(m => strongMethods.includes(m));
+
+            if (cred && (cred.isMfaRegistered || cred.isMfaCapable || hasStrongMethod)) {
                 enabledCount++;
                 if (cred.isMfaCapable) capableCount++;
             } else {
@@ -1190,7 +1192,7 @@ app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
         const allUsers = usersRes.data.value || [];
 
         // 2. Fetch Credential Details
-        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable';
+        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods';
         const credsRes = await axios.get(credsUrl, {
             headers: { Authorization: `Bearer ${req.accessToken}` }
         }).catch(() => ({ data: { value: [] } }));
@@ -1221,8 +1223,12 @@ app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
             // MFA Check
             const upn = u.userPrincipalName.toLowerCase();
             const cred = credsMap.get(upn);
-            // If registered OR capable, they are SAFE. If neither, they are VULNERABLE.
-            if (cred && (cred.isMfaRegistered || cred.isMfaCapable)) {
+
+            // MFA Enabled: Registered OR Capable OR Has Secure Methods (Robust check)
+            const strongMethods = ['microsoftAuthenticator', 'mobilePhone', 'officePhone', 'fido2', 'windowsHelloForBusiness', 'softwareOneTimePasscode'];
+            const hasStrongMethod = cred?.authMethods && Array.isArray(cred.authMethods) && cred.authMethods.some(m => strongMethods.includes(m));
+
+            if (cred && (cred.isMfaRegistered || cred.isMfaCapable || hasStrongMethod)) {
                 return false; // Has MFA
             }
             return true; // No MFA
