@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS security_snapshots (
     high_risk_users INT DEFAULT 0,
     risky_signins_24h INT DEFAULT 0,
     dlp_high_incidents INT DEFAULT 0,
-    secure_score DECIMAL(5,2) DEFAULT 0,
-    defender_exposure_score DECIMAL(5,2) DEFAULT 0
+    secure_score DECIMAL(10,2) DEFAULT 0,
+    defender_exposure_score DECIMAL(10,2) DEFAULT 0
 );
 
 -- Device Health Snapshots (Every 4 hours)

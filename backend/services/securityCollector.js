@@ -86,17 +86,22 @@ async function collectSecuritySnapshot(accessToken = null) {
             { headers: { ...headers, 'ConsistencyLevel': 'eventual' } }
         ).catch(() => ({ data: { '@odata.count': 0 } })); // Fallback
 
+        // Sanitize numbers to prevent SQL overflow
+        const safeInt = (val) => Math.min(2147483647, Math.max(0, parseInt(val || 0)));
+        const safeDec = (val) => Math.min(99999999.99, Math.max(0, parseFloat(val || 0)));
+
         // Insert into DB
+        // NOTE: storing securePercent in secure_score column as dashboard expects percentage
         await pool.query(`
             INSERT INTO security_snapshots 
             (high_security_alerts, high_risk_users, secure_score, defender_exposure_score, risky_signins_24h, timestamp)
             VALUES ($1, $2, $3, $4, $5, NOW())
         `, [
-            alertsRes.data['@odata.count'] || 0,
-            riskyUsersRes.data['@odata.count'] || 0,
-            secureScore,
-            exposureScore,
-            riskySigninsRes.data['@odata.count'] || 0
+            safeInt(alertsRes.data['@odata.count']),
+            safeInt(riskyUsersRes.data['@odata.count']),
+            safeDec(securePercent),
+            safeDec(exposureScore),
+            safeInt(riskySigninsRes.data['@odata.count'])
         ]);
 
         console.log('[Collector] ✅ Security Snapshot Saved to DB');
