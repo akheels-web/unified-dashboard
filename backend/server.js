@@ -334,14 +334,21 @@ app.get('/api/dashboard/licenses', validateToken, async (req, res) => {
 
         const licenses = response.data.value
             .filter(sku => !EXCLUDED_SKUS.includes(sku.skuPartNumber))
-            .map(sku => ({
-                id: sku.skuId,
-                name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
-                skuPartNumber: sku.skuPartNumber,
-                total: sku.prepaidUnits.enabled,
-                used: sku.consumedUnits,
-                available: sku.prepaidUnits.enabled - sku.consumedUnits
-            }))
+            .map(sku => {
+                const total = sku.prepaidUnits.enabled;
+                const used = sku.consumedUnits;
+                const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
+
+                return {
+                    id: sku.skuId,
+                    name: LICENSE_NAME_MAP[sku.skuPartNumber] || sku.skuPartNumber.replace(/_/g, ' '),
+                    skuPartNumber: sku.skuPartNumber,
+                    total: total,
+                    used: used,
+                    available: total - used,
+                    percentage: percentage
+                };
+            })
             .sort((a, b) => b.total - a.total);
 
         setCache('licenses', licenses);
