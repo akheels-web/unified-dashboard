@@ -12,6 +12,7 @@ import { Assets } from '@/pages/Assets';
 import { Licenses } from '@/pages/Licenses';
 import { SoftwarePage } from '@/pages/Software';
 import Onboarding from '@/pages/Onboarding';
+import { ApplicationGovernance } from '@/pages/ApplicationGovernance';
 import { Offboarding } from '@/pages/Offboarding';
 import { Network } from '@/pages/Network';
 import { Sites } from '@/pages/Sites';
@@ -105,6 +106,7 @@ function App() {
           <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
           <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
           <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
+          <Route path="/identity/apps" element={<RoleRoute roles={['it_admin', 'it_user']}><ApplicationGovernance /></RoleRoute>} />
           <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><Onboarding /></RoleRoute>} />
           <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><Offboarding /></RoleRoute>} />
           <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><Network /></RoleRoute>} />

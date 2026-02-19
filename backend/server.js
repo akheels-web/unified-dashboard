@@ -72,7 +72,8 @@ const cache = {
     serviceStatus: { data: null, timestamp: null },
     users: { data: null, timestamp: null },
     groups: { data: null, timestamp: null },
-    devices: { data: null, timestamp: null }
+    devices: { data: null, timestamp: null },
+    applications: { data: null, timestamp: null }
 };
 
 const CACHE_DURATION = {
@@ -82,7 +83,8 @@ const CACHE_DURATION = {
     serviceStatus: 2 * 60 * 1000,       // 2 minutes
     users: 5 * 60 * 1000,               // 5 minutes
     groups: 5 * 60 * 1000,              // 5 minutes
-    devices: 5 * 60 * 1000              // 5 minutes
+    devices: 5 * 60 * 1000,              // 5 minutes
+    applications: 10 * 60 * 1000        // 10 minutes
 };
 
 function getCached(key) {
@@ -822,6 +824,145 @@ app.get('/api/devices', validateToken, async (req, res) => {
     }
 });
 
+// ===========================
+// Application Governance Endpoints
+// ===========================
+
+// Get Enterprise Applications with Risk Analysis
+app.get('/api/applications', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Request received for /api/applications`);
+
+    const cached = getCached('applications');
+    if (cached) {
+        return res.json(cached);
+    }
+
+    try {
+        // 1. Fetch Service Principals (Enterprise Apps)
+        // We need: id, displayName, appId, appOwnerOrganizationId (to detect multi-tenant), 
+        //          createdDateTime, keyCredentials, passwordCredentials, servicePrincipalType,
+        //          owners (start with expansion if possible, or fetch separate if needed)
+        //          appRoles, oauth2PermissionScopes (for permissions exposed) -> actually we need 'resourceAccess' usually on the App Registration side, 
+        //          but for Service Principals we look at 'publishedPermissionScopes' or assigned roles.
+        //          
+        //          Correct logic for "High Privilege" usually involves checking what permissions THIS app has on OTHER APIs (appRoleAssignments).
+        //          Fetching appRoleAssignments for ALL apps is heavy. 
+        //          For now, we'll check 'keyCredentials' and 'passwordCredentials' for expiry 
+        //          and basics. Deep permission analysis might need a separate background job or on-demand detail fetch.
+        //          
+        //          Let's try to fetch basic info first + owners + simplistic risk checks.
+
+        const spUrl = `https://graph.microsoft.com/v1.0/servicePrincipals?$top=999&$select=id,appId,displayName,appOwnerOrganizationId,createdDateTime,keyCredentials,passwordCredentials,servicePrincipalType,signInAudience,tags,accountEnabled`;
+
+        const response = await axios.get(spUrl, {
+            headers: { Authorization: `Bearer ${req.accessToken}` }
+        });
+
+        const apps = response.data.value;
+        const processedApps = [];
+
+        // LIMITATION: Fetching owners for 999 apps is 999 calls. 
+        // Optimization: We will NOT fetch owners for every single app in this list view to avoid throttling.
+        // Instead, we can try to expand owners: $expand=owners($select=id,displayName) 
+        // Graph API supports $expand=owners on servicePrincipals but it can be heavy. Let's try it.
+        // If it fails, we assume "Unknown" owner or implement a "Scan Owners" button/background job.
+
+        // Let's attempt the fetch WITH expand first.
+        let appsWithOwners = apps;
+        try {
+            const expandRes = await axios.get(spUrl + '&$expand=owners($select=id,displayName)', {
+                headers: { Authorization: `Bearer ${req.accessToken}` }
+            });
+            appsWithOwners = expandRes.data.value;
+        } catch (e) {
+            console.warn("Could not expand owners, proceeding without owner data for risk score (or will be 0)");
+        }
+
+        const now = new Date();
+        const thirtyDaysInfo = 30 * 24 * 60 * 60 * 1000;
+
+        for (const app of appsWithOwners) {
+            let riskScore = 0;
+            const riskFactors = [];
+
+            // 1. Expiring Secrets logic
+            const creds = [...(app.keyCredentials || []), ...(app.passwordCredentials || [])];
+            let expiringCount = 0;
+            let expiredCount = 0;
+
+            creds.forEach(cred => {
+                const end = new Date(cred.endDateTime);
+                const diff = end - now;
+                if (diff < 0) {
+                    expiredCount++;
+                } else if (diff < thirtyDaysInfo) {
+                    expiringCount++;
+                }
+            });
+
+            if (expiredCount > 0) {
+                riskScore += 20;
+                riskFactors.push('Expired Secrets');
+            }
+            if (expiringCount > 0) {
+                riskScore += 15;
+                riskFactors.push('Expiring Secrets');
+            }
+
+            // 2. High Privilege Logic
+            // (Simple version: Check specific tags or if it's an Admin app. Real perm check requires appRoleAssignments)
+            // For now, we'll check if it has "Directory.ReadWrite.All" in its 'servicePrincipalNames'/roles? No, that's complex.
+            // Placeholder for High Priv until we add the heavy query.
+            // Alternative: Check if it is a multi-tenant app (often higher risk)
+            if (app.signInAudience && app.signInAudience !== 'AzureADMyOrg') {
+                riskScore += 10;
+                riskFactors.push('Multi-tenant');
+            }
+
+            // 3. No Owner
+            // If owners expanded successfully
+            if (app.owners && app.owners.length === 0) {
+                riskScore += 15;
+                riskFactors.push('No Owner');
+            }
+
+            // 4. New App
+            if (app.createdDateTime) {
+                const created = new Date(app.createdDateTime);
+                if ((now - created) < thirtyDaysInfo) {
+                    riskScore += 10;
+                    riskFactors.push('Recently Created');
+                }
+            }
+
+            processedApps.push({
+                id: app.id,
+                appId: app.appId,
+                displayName: app.displayName,
+                createdDateTime: app.createdDateTime,
+                owners: app.owners || [],
+                riskScore,
+                riskFactors,
+                status: app.accountEnabled ? 'Active' : 'Disabled',
+                secrets: {
+                    total: creds.length,
+                    expiring: expiringCount,
+                    expired: expiredCount
+                }
+            });
+        }
+
+        // Sort by Risk Score desc
+        processedApps.sort((a, b) => b.riskScore - a.riskScore);
+
+        setCache('applications', processedApps);
+        res.json({ value: processedApps });
+
+    } catch (error) {
+        console.error('Failed to fetch applications:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+});
 // Import Report Generator
 const { generateSecurityReport } = require('./services/reportGenerator.js');
 

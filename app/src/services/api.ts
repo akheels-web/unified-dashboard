@@ -103,6 +103,22 @@ export const dashboardApi = {
     return { success: true, data: [] };
   },
 
+  getApplications: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/applications');
+      if (response && response.value) {
+        return { success: true, data: response.value };
+      }
+      // If response is just the array
+      if (Array.isArray(response)) {
+        return { success: true, data: response };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch applications", e);
+    }
+    return { success: true, data: [] };
+  },
+
   getActivity: async (limit: number = 10): Promise<ApiResponse<ActivityItem[]>> => {
     try {
       const response = await fetchClient(`/audit-logs?limit=${limit}`);
