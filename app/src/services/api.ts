@@ -176,7 +176,7 @@ export const dashboardApi = {
 
   getSystemStatus: async (): Promise<ApiResponse<SystemStatus>> => {
     try {
-      const realData = await fetchClient('/status');
+      const realData = await fetchClient('/dashboard/system-status');
       if (realData) {
         return { success: true, data: realData };
       }

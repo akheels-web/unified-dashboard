@@ -1320,6 +1320,7 @@ app.get('/api/audit-logs', validateToken, async (req, res) => {
 // ... (existing comments)
 
 // System Status Endpoint (Atlassian Real-time + Mock others)
+// Note: We deliberately do NOT cache this endpoint to ensure real-time status of incidents.
 app.get('/api/dashboard/system-status', validateToken, async (req, res) => {
     try {
         // 1. Fetch Atlassian Status

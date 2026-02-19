@@ -404,7 +404,7 @@ export default function Dashboard() {
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 <Bar
                   dataKey="used"
-                  fill="#3b82f6" // Blue
+                  fill="#2596be" // Brand Blue
                   name="Used"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={50}
