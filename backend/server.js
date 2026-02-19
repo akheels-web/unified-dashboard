@@ -1520,6 +1520,103 @@ app.get('/api/dashboard/system-status', validateToken, async (req, res) => {
 });
 // Real detection requires checking mailRules for EVERY user or using Defender Advanced Hunting API which is complex.
 // We will return a mock list for demonstration or just empty if we can't implement full scanning.
+// Dashboard: Get Sites (Aggregated from User Locations)
+app.get('/api/dashboard/sites', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching Sites data`);
+
+    // Check cache
+    const cached = getCached('sites');
+    if (cached) return res.json(cached);
+
+    try {
+        // 1. Fetch Users with Location
+        const usersUrl = 'https://graph.microsoft.com/v1.0/users?$select=id,displayName,userPrincipalName,officeLocation,city,country,accountEnabled,userType&$top=999';
+        const usersRes = await axios.get(usersUrl, {
+            headers: { Authorization: `Bearer ${req.accessToken}`, 'ConsistencyLevel': 'eventual' }
+        });
+        const users = usersRes.data.value || [];
+
+        // 2. Fetch Devices
+        const devicesUrl = 'https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=id,deviceName,userPrincipalName,operatingSystem&$top=999';
+        // Note: Managing devices requires DeviceManagementManagedDevices.Read.All
+        // If this fails (permissions), we proceed with 0 devices.
+        let devices = [];
+        try {
+            const devicesRes = await axios.get(devicesUrl, {
+                headers: { Authorization: `Bearer ${req.accessToken}` }
+            });
+            devices = devicesRes.data.value || [];
+        } catch (e) {
+            console.warn('Failed to fetch devices for sites aggregation:', e.message);
+        }
+
+        // 3. Aggregate Data
+        const siteMap = new Map();
+        const userLocationMap = new Map();
+
+        // Process Users
+        users.forEach(u => {
+            if (!u.accountEnabled) return;
+
+            const rawLocation = u.officeLocation || u.city || 'Unassigned';
+            const location = rawLocation.trim();
+
+            // Map User to Location for distinct site creation
+            userLocationMap.set(u.userPrincipalName.toLowerCase(), location);
+
+            if (!siteMap.has(location)) {
+                siteMap.set(location, {
+                    id: `site_${location.replace(/\s+/g, '_').toLowerCase()}`,
+                    name: location,
+                    location: location, // Display name
+                    description: `Auto-discovered site: ${location}`,
+                    status: 'online',
+                    isActive: true,
+                    userCount: 0,
+                    deviceCount: 0,
+                    users: []
+                });
+            }
+
+            const site = siteMap.get(location);
+            site.userCount++;
+        });
+
+        // Process Devices
+        devices.forEach(d => {
+            if (!d.userPrincipalName) return;
+            const userLoc = userLocationMap.get(d.userPrincipalName.toLowerCase()) || 'Unassigned';
+
+            // If we have devices for a location that has no users
+            if (!siteMap.has(userLoc)) {
+                siteMap.set(userLoc, {
+                    id: `site_${userLoc.replace(/\s+/g, '_').toLowerCase()}`,
+                    name: userLoc,
+                    location: userLoc,
+                    description: `Auto-discovered site: ${userLoc}`,
+                    status: 'online',
+                    isActive: true,
+                    userCount: 0,
+                    deviceCount: 0
+                });
+            }
+
+            const site = siteMap.get(userLoc);
+            site.deviceCount++;
+        });
+
+        const sites = Array.from(siteMap.values()).sort((a, b) => b.userCount - a.userCount);
+
+        setCache('sites', sites);
+
+        res.json(sites);
+
+    } catch (error) {
+        console.error('Failed to fetch sites:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Failed to fetch sites' });
+    }
+});
+
 app.get('/api/security/external-forwarding', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching External Forwarding Rules`);
     // Placeholder: In a real app, you'd likely query a cached table of mail rules or an alert provider
