@@ -64,6 +64,7 @@ export default function Dashboard() {
   const [licenses, setLicenses] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [mfaCoverage, setMfaCoverage] = useState<any>(null);
 
   // Fetch data on mount and interval
   useEffect(() => {
