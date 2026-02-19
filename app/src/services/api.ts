@@ -66,6 +66,19 @@ export const dashboardApi = {
     }
     return { success: false, error: 'Failed to sync dashboard' };
   },
+
+  getSites: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const realData = await fetchClient('/dashboard/sites');
+      if (realData) {
+        return { success: true, data: realData };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch sites", e);
+    }
+    return { success: false, error: 'Failed to fetch sites' };
+  },
+
   getStats: async (): Promise<ApiResponse<any>> => {
     try {
       // Logic check: api.ts fetchClient appends /api to the input.

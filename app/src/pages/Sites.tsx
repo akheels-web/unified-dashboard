@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { ApiService } from '@/services/api';
+import { dashboardApi } from '@/services/api';
 import type { UnifiSite } from '@/types';
 
 // Extended type for our aggregated sites
@@ -26,7 +26,7 @@ export function Sites() {
     const fetchSites = async () => {
         try {
             setLoading(true);
-            const response = await ApiService.getSites();
+            const response = await dashboardApi.getSites();
             if (response.success && response.data) {
                 setSites(response.data);
             } else {
