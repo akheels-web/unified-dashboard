@@ -119,6 +119,17 @@ export const dashboardApi = {
     return { success: true, data: [] };
   },
 
+  getMfaCoverage: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await fetchClient('/reports/mfa-coverage');
+      return { success: true, data: response };
+    } catch (e) {
+      console.warn("Failed to fetch MFA coverage", e);
+      // Return default structure on failure
+      return { success: false, data: { totalUsers: 0, enabled: 0, disabled: 0, percentage: 0 } };
+    }
+  },
+
   getActivity: async (limit: number = 10): Promise<ApiResponse<ActivityItem[]>> => {
     try {
       const response = await fetchClient(`/audit-logs?limit=${limit}`);

@@ -52,17 +52,20 @@ export function Reports() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [usersRes, assetsRes, licensesRes, auditRes] = await Promise.all([
+        const [usersRes, assetsRes, licensesRes, auditRes, mfaRes] = await Promise.all([
           usersApi.getUsers({}, 1, 999),
           assetsApi.getAssets({}, 1, 999),
           dashboardApi.getLicenses(),
-          dashboardApi.getActivity(100)
+          dashboardApi.getActivity(100),
+          dashboardApi.getMfaCoverage() // New Endpoint
         ]);
 
         if (usersRes.success && usersRes.data) setUsers(usersRes.data.data);
         if (assetsRes.success && assetsRes.data) setAssets(assetsRes.data.data);
         if (licensesRes.success && Array.isArray(licensesRes.data)) setLicenses(licensesRes.data);
         if (auditRes.success && Array.isArray(auditRes.data)) setAuditLogs(auditRes.data);
+        if (mfaRes.success) setMfaData(mfaRes.data);
+
       } catch (error) {
         console.error("Failed to fetch report data", error);
         toast.error("Failed to load some report data");
@@ -72,6 +75,9 @@ export function Reports() {
     };
     fetchData();
   }, []);
+
+  // State for MFA Data
+  const [mfaData, setMfaData] = useState<any>({ enabled: 0, disabled: 0, percentage: 0 });
 
   // Aggregated Metrics (Client-Side)
   const stats = useMemo(() => {
@@ -88,19 +94,12 @@ export function Reports() {
       if (!u.accountEnabled) return false;
       if (u.userPrincipalName?.includes('#EXT#')) return false;
       const email = (u.userPrincipalName || u.email || '').toLowerCase();
+      // Keep this filter for Department/Growth charts if desired, but MFA now uses Server Data
       return email.includes('lxt.ai') || email.includes('clickworker.com') || email.includes('lxt.com');
     });
 
-    // MFA Status (Uses activeInternalUsers)
-    const mfaStatsObj = activeInternalUsers.reduce((acc, user) => {
-      const status = user.mfaEnabled ? 'Enabled' : 'Disabled';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const mfaTotal = activeInternalUsers.length;
-    const mfaEnabledCount = mfaStatsObj['Enabled'] || 0;
-    const mfaPercentage = mfaTotal > 0 ? Math.round((mfaEnabledCount / mfaTotal) * 100) : 0;
+    // MFA Status (Now uses server-side mfaData)
+    // We override the client-side calculation
 
     // Department Distribution (Uses activeInternalUsers)
     const deptDist = activeInternalUsers.reduce((acc, user) => {
@@ -151,10 +150,10 @@ export function Reports() {
       inactiveCount: inactiveUsers.length,
       activeCount: users.length - inactiveUsers.length,
       mfaStats: [
-        { name: 'Enabled', value: mfaStatsObj['Enabled'] || 0, color: '#10b981' },
-        { name: 'Disabled', value: mfaStatsObj['Disabled'] || 0, color: '#ef4444' }
+        { name: 'Enabled', value: mfaData.enabled, color: '#10b981' },
+        { name: 'Disabled', value: mfaData.disabled, color: '#ef4444' }
       ],
-      mfaPercentage,
+      mfaPercentage: mfaData.percentage,
       deptDist: topDepts,
       userGrowth: userGrowthData,
       compliance: [
@@ -166,7 +165,7 @@ export function Reports() {
       totalLicenseCost,
       potentialSavings
     };
-  }, [users, assets, licenses, dateRange]);
+  }, [users, assets, licenses, dateRange, mfaData]);
 
   const handleExport = () => {
     let csvContent = "";
