@@ -372,7 +372,7 @@ export default function Dashboard() {
           </div>
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={displayedLicenses} margin={{ bottom: 20 }}>
+              <BarChart data={displayedLicenses} margin={{ bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
                   dataKey="name"
@@ -380,8 +380,9 @@ export default function Dashboard() {
                   fontSize={11}
                   angle={-45}
                   textAnchor="end"
-                  height={80}
+                  height={100}
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  interval={0}
                 />
                 <YAxis
                   stroke="hsl(var(--muted-foreground))"
@@ -403,14 +404,14 @@ export default function Dashboard() {
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                 <Bar
                   dataKey="used"
-                  fill="hsl(var(--primary))"
+                  fill="#3b82f6" // Blue
                   name="Used"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={50}
                 />
                 <Bar
                   dataKey="available"
-                  fill="hsl(var(--muted))"
+                  fill="#f97316" // Orange
                   name="Available"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={50}
@@ -477,12 +478,14 @@ export default function Dashboard() {
               />
             </div>
             <div className="pl-6 space-y-2">
-              {systemStatus?.atlassian?.services.map((service: any) => (
-                <div key={service.name} className="flex items-center justify-between text-sm py-1">
-                  <span className="text-muted-foreground">{service.name}</span>
-                  <div className={`w-2 h-2 rounded-full ${service.status === 'operational' ? 'bg-green-500' : service.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
-                </div>
-              ))}
+              <div className="pl-6 space-y-2">
+                {systemStatus?.atlassian?.services?.map((service: any) => (
+                  <div key={service.name} className="flex items-center justify-between text-sm py-1">
+                    <span className="text-muted-foreground">{service.name}</span>
+                    <div className={`w-2 h-2 rounded-full ${service.status === 'operational' ? 'bg-green-500' : service.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
