@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertTriangle, UserX, Shield, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { X, AlertTriangle, UserX, Shield, ExternalLink, Loader2, RefreshCw, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { dashboardApi } from '@/services/api';
 
 interface DrillDownModalProps {
-    type: 'alerts' | 'risky-users' | 'non-compliant' | 'external-forwarding' | null;
+    type: 'alerts' | 'risky-users' | 'non-compliant' | 'external-forwarding' | 'users-without-mfa' | null;
     onClose: () => void;
 }
 
@@ -38,6 +38,9 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
                 case 'external-forwarding':
                     response = await dashboardApi.getExternalForwardingRules();
                     break;
+                case 'users-without-mfa':
+                    response = await dashboardApi.getUsersWithoutMfa();
+                    break;
             }
 
             if (response && response.success) {
@@ -61,6 +64,7 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
             case 'risky-users': return 'High Risk Users';
             case 'non-compliant': return 'Non-Compliant Devices';
             case 'external-forwarding': return 'External Forwarding Rules';
+            case 'users-without-mfa': return 'Users Without MFA';
             default: return '';
         }
     };
@@ -71,6 +75,7 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
             case 'risky-users': return 'Users flagged with high risk level in Identity Protection';
             case 'non-compliant': return 'Devices failing compliance policies';
             case 'external-forwarding': return 'Mailbox rules forwarding email externally';
+            case 'users-without-mfa': return 'Active users with MFA disabled or not registered';
             default: return '';
         }
     };
@@ -81,6 +86,7 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
             case 'risky-users': return <UserX className="w-5 h-5" />;
             case 'non-compliant': return <Shield className="w-5 h-5" />;
             case 'external-forwarding': return <ExternalLink className="w-5 h-5" />;
+            case 'users-without-mfa': return <Lock className="w-5 h-5" />;
             default: return null;
         }
     };
@@ -91,6 +97,7 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
             case 'risky-users': return 'bg-orange-500/10 text-orange-500';
             case 'non-compliant': return 'bg-yellow-500/10 text-yellow-500';
             case 'external-forwarding': return 'bg-blue-500/10 text-blue-500';
+            case 'users-without-mfa': return 'bg-red-500/10 text-red-500';
             default: return '';
         }
     };
@@ -174,6 +181,14 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
                                                 <th className="p-4 font-medium">Status</th>
                                             </>
                                         )}
+                                        {type === 'users-without-mfa' && (
+                                            <>
+                                                <th className="p-4 font-medium">User</th>
+                                                <th className="p-4 font-medium">Department</th>
+                                                <th className="p-4 font-medium">Last Sign-in</th>
+                                                <th className="p-4 font-medium">Status</th>
+                                            </>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
@@ -227,6 +242,23 @@ export function SecurityDrillDownModal({ type, onClose }: DrillDownModalProps) {
                                                     <td className="p-4">
                                                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${item.enabled ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'}`}>
                                                             {item.enabled ? 'Enabled' : 'Disabled'}
+                                                        </span>
+                                                    </td>
+                                                </>
+                                            )}
+                                            {type === 'users-without-mfa' && (
+                                                <>
+                                                    <td className="p-4 font-medium">
+                                                        <div>{item.displayName}</div>
+                                                        <div className="text-xs text-muted-foreground">{item.userPrincipalName}</div>
+                                                    </td>
+                                                    <td className="p-4 text-muted-foreground">{item.department}</td>
+                                                    <td className="p-4 text-muted-foreground">
+                                                        {item.lastSignInDateTime ? format(new Date(item.lastSignInDateTime), 'MMM d, yyyy') : 'Never'}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
+                                                            Disabled
                                                         </span>
                                                     </td>
                                                 </>

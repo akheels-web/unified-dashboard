@@ -107,6 +107,8 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
+
   // Safe access to data
   const current = securitySummary?.current;
   const trends = securitySummary?.trends;
@@ -123,7 +125,7 @@ export default function Dashboard() {
     })
     .slice(0, 8);
 
-  const activeModal = isSecurityModalOpen ? 'alerts' : isRiskyUsersModalOpen ? 'risky-users' : isDeviceModalOpen ? 'non-compliant' : isExternalForwardingModalOpen ? 'external-forwarding' : null;
+  const activeModal = isSecurityModalOpen ? 'alerts' : isRiskyUsersModalOpen ? 'risky-users' : isDeviceModalOpen ? 'non-compliant' : isExternalForwardingModalOpen ? 'external-forwarding' : isMfaModalOpen ? 'users-without-mfa' : null;
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -157,6 +159,7 @@ export default function Dashboard() {
         setIsRiskyUsersModalOpen(false);
         setIsDeviceModalOpen(false);
         setIsExternalForwardingModalOpen(false);
+        setIsMfaModalOpen(false);
       }} />
 
       {/* Header */}
@@ -235,7 +238,7 @@ export default function Dashboard() {
 
           {/* Users Without MFA (Updated) */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 relative overflow-hidden h-full group" onClick={() => navigate('/reports')}>
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 relative overflow-hidden h-full group cursor-pointer hover:shadow-md transition-all" onClick={() => setIsMfaModalOpen(true)}>
               <div className="flex justify-between items-start mb-2">
                 <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg group-hover:scale-105 transition-transform">
                   <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />

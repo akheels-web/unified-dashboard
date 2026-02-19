@@ -298,6 +298,15 @@ export const dashboardApi = {
     return { success: true, data: [] };
   },
 
+  getUsersWithoutMfa: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/security/users-without-mfa');
+      return { success: true, data: response.value || [] };
+    } catch (e) {
+      return { success: false, data: [] };
+    }
+  },
+
   getExternalForwardingRules: async (): Promise<ApiResponse<any[]>> => {
     try {
       const response = await fetchClient('/security/external-forwarding');

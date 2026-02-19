@@ -1177,6 +1177,74 @@ app.get('/api/security/non-compliant', validateToken, async (req, res) => {
     }
 });
 
+// Drill-down: Users Without MFA
+app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Fetching Users Without MFA`);
+    try {
+        // Reuse logic roughly from mfa-coverage but focus on returning the list
+        // 1. Fetch Users
+        const usersUrl = 'https://graph.microsoft.com/v1.0/users?$filter=userType eq \'Member\' and accountEnabled eq true&$select=id,displayName,userPrincipalName,accountEnabled,userType,signInActivity,department,createdDateTime&$top=999';
+        const usersRes = await axios.get(usersUrl, {
+            headers: { Authorization: `Bearer ${req.accessToken}`, 'ConsistencyLevel': 'eventual' }
+        });
+        const allUsers = usersRes.data.value || [];
+
+        // 2. Fetch Credential Details
+        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable';
+        const credsRes = await axios.get(credsUrl, {
+            headers: { Authorization: `Bearer ${req.accessToken}` }
+        }).catch(() => ({ data: { value: [] } }));
+
+        const credsMap = new Map();
+        if (credsRes.data && Array.isArray(credsRes.data.value)) {
+            credsRes.data.value.forEach(c => credsMap.set(c.userPrincipalName.toLowerCase(), c));
+        }
+
+        // 3. Process & Filter
+        const vulnerableUsers = allUsers.filter(u => {
+            // Exclusions
+            if (u.userType === 'Guest') return false;
+            if (u.userPrincipalName.includes('#EXT#')) return false;
+            if (!u.accountEnabled) return false;
+
+            // Inactive Check
+            if (!u.signInActivity || !u.signInActivity.lastSignInDateTime) {
+                const created = new Date(u.createdDateTime);
+                const daysSinceCreation = (new Date() - created) / (1000 * 60 * 60 * 24);
+                if (daysSinceCreation > 30) return false;
+            } else {
+                const lastSignIn = new Date(u.signInActivity.lastSignInDateTime);
+                const daysSinceLogin = (new Date() - lastSignIn) / (1000 * 60 * 60 * 24);
+                if (daysSinceLogin > 90) return false;
+            }
+
+            // MFA Check
+            const upn = u.userPrincipalName.toLowerCase();
+            const cred = credsMap.get(upn);
+            // If registered OR capable, they are SAFE. If neither, they are VULNERABLE.
+            if (cred && (cred.isMfaRegistered || cred.isMfaCapable)) {
+                return false; // Has MFA
+            }
+            return true; // No MFA
+        });
+
+        // Map to response format
+        const response = vulnerableUsers.map(u => ({
+            id: u.id,
+            displayName: u.displayName,
+            userPrincipalName: u.userPrincipalName,
+            department: u.department || 'Unassigned',
+            lastSignInDateTime: u.signInActivity?.lastSignInDateTime
+        }));
+
+        res.json({ value: response });
+
+    } catch (error) {
+        console.error('Failed to fetch users without MFA:', error.response?.data || error.message);
+        res.json({ value: [] });
+    }
+});
+
 // Drill-down: External Forwarding (Simulated)
 // Real detection requires checking mailRules for EVERY user or using Defender Advanced Hunting API which is complex.
 // We will return a mock list for demonstration or just empty if we can't implement full scanning.
