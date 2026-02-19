@@ -27,7 +27,7 @@ export function MainLayout() {
       {/* Main Content */}
       <main
         className={cn(
-          'pt-16 min-h-screen transition-all duration-300',
+          'pt-16 transition-all duration-300',
           'pl-0', // Mobile: No padding
           sidebarCollapsed ? 'md:pl-20' : 'md:pl-64' // Desktop: Padding based on sidebar
         )}
@@ -36,7 +36,7 @@ export function MainLayout() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="p-4 md:p-6" // Reduced padding to minimize gap
+          className="px-6 py-6 max-w-[1600px] mx-auto"
         >
           <Outlet />
         </motion.div>
