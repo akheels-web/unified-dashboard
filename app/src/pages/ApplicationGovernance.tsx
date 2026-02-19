@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, AlertTriangle, Key, Users, Calendar, Activity, Search } from 'lucide-react';
+import { Shield, AlertTriangle, Key, Users, Calendar, Search } from 'lucide-react';
 import { dashboardApi } from '../services/api';
 import { toast } from 'sonner';
 

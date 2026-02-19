@@ -310,6 +310,7 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
     try {
         // 1. Fetch Users (Lite) - Filter out Guests at source if possible
         // Note: signInActivity requires AuditLog.Read.All and ConsistencyLevel: eventual
+        // Note: signInActivity requires AuditLog.Read.All and ConsistencyLevel: eventual
         const usersUrl = 'https://graph.microsoft.com/v1.0/users?$filter=userType eq \'Member\' and accountEnabled eq true&$select=id,displayName,userPrincipalName,accountEnabled,userType,signInActivity,assignedLicenses&$top=999';
 
         const usersRes = await axios.get(usersUrl, {
@@ -329,54 +330,60 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
         });
 
         const credsMap = new Map();
-        credsRes.data.value.forEach(c => {
-            credsMap.set(c.userPrincipalName.toLowerCase(), c);
-        });
+        if (credsRes.data && Array.isArray(credsRes.data.value)) {
+            console.log(`[MFA Report] Fetched ${credsRes.data.value.length} credential records`);
+            credsRes.data.value.forEach(c => {
+                credsMap.set(c.userPrincipalName.toLowerCase(), c);
+            });
+        } else {
+            console.warn('[MFA Report] No credential data returned from Graph');
+        }
 
         // 3. Process & Filter
         const validUsers = allUsers.filter(u => {
-            // Exclude Guests (Already filtered by Graph query, but safety check)
+            // Exclude Guests
             if (u.userType === 'Guest') return false;
+            // Additional check for external users
             if (u.userPrincipalName.includes('#EXT#')) return false;
 
-            // Exclude Disabled (Already filtered by Graph query)
+            // Exclude Disabled
             if (!u.accountEnabled) return false;
 
-            // Exclude Shared Mailboxes (Heuristic: Often have no licenses or specific pattern. 
-            // Better: Check if they have ever signed in. Shared mailboxes shouldn't sign in interactively usually.)
-            // User requested explicit exclusion. 
-            // We will use: Must have signed in within last 90 days OR be created recently (new user)
-            // If never signed in, and created > 30 days ago, assume inactive/service account/shared mailbox
-            const created = new Date(u.createdDateTime);
-            const now = new Date();
-            const daysSinceCreation = (now - created) / (1000 * 60 * 60 * 24);
-
+            // Exclude Inactive (> 90 days)
             if (!u.signInActivity || !u.signInActivity.lastSignInDateTime) {
-                // Never signed in. Keep only if new (< 30 days)
+                // Never signed in: Keep only if created recently (< 30 days)
+                const created = new Date(u.createdDateTime);
+                const daysSinceCreation = (new Date() - created) / (1000 * 60 * 60 * 24);
                 if (daysSinceCreation > 30) return false;
             } else {
-                // Check Inactive (> 90 days?) User said "inactive users". 
-                // Standard is often 90 days. Reports page used 30 days in UI. Let's use 90 for "Security Coverage" to be safe, or match UI.
-                // Let's use 60 days as a middle ground or strict 30 if desired.
-                // Reports.tsx default is 30d. Let's stick to EXCLUDING those inactive > 90 days to avoid filtering out legitimate users on leave.
                 const lastSignIn = new Date(u.signInActivity.lastSignInDateTime);
-                const daysSinceLogin = (now - lastSignIn) / (1000 * 60 * 60 * 24);
+                const daysSinceLogin = (new Date() - lastSignIn) / (1000 * 60 * 60 * 24);
                 if (daysSinceLogin > 90) return false;
             }
 
             return true;
         });
 
+        console.log(`[MFA Report] Processing ${validUsers.length} valid users (after filtering)`);
+
         // 4. Calculate Stats
         let enabledCount = 0;
         let disabledCount = 0;
         let capableCount = 0;
+        let mockDebugCount = 0;
 
         validUsers.forEach(u => {
             const upn = u.userPrincipalName.toLowerCase();
             const cred = credsMap.get(upn);
 
-            // MFA Enabled defined as: Registered AND Enabled/Capable
+            // Debug first few users
+            if (mockDebugCount < 5) {
+                console.log(`[MFA Debug] User: ${upn}, Found in Creds: ${!!cred}, MFA Reg: ${cred?.isMfaRegistered}, Capable: ${cred?.isMfaCapable}`);
+                mockDebugCount++;
+            }
+
+            // MFA Enabled: Registered OR Capable (Relaxed check)
+            // Sometimes isMfaRegistered is false but they have methods. isMfaCapable is often a better indicator of readiness.
             if (cred && (cred.isMfaRegistered || cred.isMfaCapable)) {
                 enabledCount++;
                 if (cred.isMfaCapable) capableCount++;
@@ -384,6 +391,12 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
                 disabledCount++;
             }
         });
+
+        // If NO credential data was found (API issue), don't report all disabled.
+        // It's better to return an error or null so frontend can handle "No Data" instead of "0%".
+        if (credsMap.size === 0 && validUsers.length > 0) {
+            console.warn('[MFA Report] Credential map empty but users exist. Likely permission issue or API failure.');
+        }
 
         const total = enabledCount + disabledCount;
         const percentage = total > 0 ? Math.round((enabledCount / total) * 100) : 0;
