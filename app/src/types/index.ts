@@ -272,6 +272,11 @@ export interface SystemStatus {
     lastSync: string;
     services: ServiceStatus[];
   };
+  atlassian: {
+    overall: 'operational' | 'degraded' | 'outage';
+    lastSync: string;
+    services: ServiceStatus[];
+  };
   unifi: {
     overall: 'operational' | 'degraded' | 'outage';
     lastSync: string;

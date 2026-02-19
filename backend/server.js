@@ -1317,6 +1317,106 @@ app.get('/api/audit-logs', validateToken, async (req, res) => {
 });
 
 // Drill-down: External Forwarding (Simulated)
+// ... (existing comments)
+
+// System Status Endpoint (Atlassian Real-time + Mock others)
+app.get('/api/dashboard/system-status', validateToken, async (req, res) => {
+    try {
+        // 1. Fetch Atlassian Status
+        let atlassianStatus = {
+            overall: 'operational',
+            lastSync: new Date().toISOString(),
+            services: []
+        };
+
+        try {
+            const atlassianRes = await axios.get('https://status.atlassian.com/api/v2/summary.json');
+            const data = atlassianRes.data;
+
+            // Services to track: Jira, Jira Service Management, Confluence, Trello, Opsgenie, Guard, Rovo
+            // Note: "Guard" might be listed as "Atlassian Access" or similar. Rovo is newer.
+            // We'll search by name.
+            const targetServices = [
+                'Jira Software',
+                'Jira Service Management',
+                'Confluence',
+                'Trello',
+                'Opsgenie',
+                'Atlassian Guard', // Formerly Access
+                'Rovo' // Might not be in public status page yet, but we'll try
+            ];
+
+            const components = data.components || [];
+            const trackedServices = [];
+
+            // Helper to map Atlassian status to our status
+            const mapStatus = (s) => {
+                if (s === 'operational') return 'operational';
+                if (s === 'degraded_performance' || s === 'under_maintenance') return 'degraded';
+                return 'outage';
+            };
+
+            targetServices.forEach(target => {
+                // Find main component match
+                const comp = components.find(c => c.name === target);
+                if (comp) {
+                    trackedServices.push({
+                        name: target,
+                        status: mapStatus(comp.status),
+                        lastUpdated: comp.updated_at || new Date().toISOString()
+                    });
+                }
+            });
+
+            // Determine overall status
+            const isDegraded = trackedServices.some(s => s.status === 'degraded');
+            const isOutage = trackedServices.some(s => s.status === 'outage');
+
+            atlassianStatus.overall = isOutage ? 'outage' : (isDegraded ? 'degraded' : 'operational');
+            atlassianStatus.services = trackedServices;
+
+        } catch (e) {
+            console.error('Failed to fetch Atlassian status:', e.message);
+            // Fallback to offline/unknown if fetch fails
+            atlassianStatus.overall = 'outage';
+        }
+
+        // 2. Mock Microsoft & UniFi (Keep existing mock logic for now)
+        const microsoftStatus = {
+            overall: 'operational',
+            lastSync: new Date().toISOString(),
+            services: [
+                { name: 'Exchange Online', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'SharePoint Online', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'Teams', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'OneDrive', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'Entra ID', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'Intune', status: 'operational', lastUpdated: new Date().toISOString() },
+            ]
+        };
+
+        const unifiStatus = {
+            overall: 'operational',
+            lastSync: new Date().toISOString(),
+            services: [
+                { name: 'New York HQ', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'London Branch', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'Singapore Hub', status: 'operational', lastUpdated: new Date().toISOString() },
+                { name: 'Remote Operations', status: 'degraded', lastUpdated: new Date().toISOString() },
+            ]
+        };
+
+        res.json({
+            microsoft: microsoftStatus,
+            atlassian: atlassianStatus,
+            unifi: unifiStatus
+        });
+
+    } catch (error) {
+        console.error('Failed to fetch system status:', error);
+        res.status(500).json({ error: 'Failed to fetch status' });
+    }
+});
 // Real detection requires checking mailRules for EVERY user or using Defender Advanced Hunting API which is complex.
 // We will return a mock list for demonstration or just empty if we can't implement full scanning.
 app.get('/api/security/external-forwarding', validateToken, async (req, res) => {
