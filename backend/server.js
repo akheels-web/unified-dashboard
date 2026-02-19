@@ -1323,6 +1323,17 @@ app.get('/api/audit-logs', validateToken, async (req, res) => {
 app.get('/api/dashboard/system-status', validateToken, async (req, res) => {
     try {
         // 1. Fetch Atlassian Status
+        // Atlassian separates status pages by product. We must query each relevant one.
+        const atlassianEndpoints = [
+            { id: 'jira-software', name: 'Jira Software', url: 'https://jira-software.status.atlassian.com/api/v2/summary.json' },
+            { id: 'jira-service-management', name: 'Jira Service Management', url: 'https://jira-service-management.status.atlassian.com/api/v2/summary.json' },
+            { id: 'confluence', name: 'Confluence', url: 'https://confluence.status.atlassian.com/api/v2/summary.json' },
+            { id: 'trello', name: 'Trello', url: 'https://trello.status.atlassian.com/api/v2/summary.json' },
+            { id: 'opsgenie', name: 'Opsgenie', url: 'https://opsgenie.status.atlassian.com/api/v2/summary.json' },
+            { id: 'access', name: 'Atlassian Guard', url: 'https://access.status.atlassian.com/api/v2/summary.json' },
+            { id: 'rovo', name: 'Rovo', url: 'https://rovo.status.atlassian.com/api/v2/summary.json' }
+        ];
+
         let atlassianStatus = {
             overall: 'operational',
             lastSync: new Date().toISOString(),
@@ -1330,40 +1341,50 @@ app.get('/api/dashboard/system-status', validateToken, async (req, res) => {
         };
 
         try {
-            const atlassianRes = await axios.get('https://status.atlassian.com/api/v2/summary.json');
-            const data = atlassianRes.data;
+            const results = await Promise.allSettled(
+                atlassianEndpoints.map(ep => axios.get(ep.url).then(res => ({ ...ep, data: res.data })))
+            );
 
-            // Services to track: Jira, Jira Service Management, Confluence, Trello, Opsgenie, Guard, Rovo
-            // Note: "Guard" might be listed as "Atlassian Access" or similar. Rovo is newer.
-            // We'll search by name.
-            const targetServices = [
-                'Jira Software',
-                'Jira Service Management',
-                'Confluence',
-                'Trello',
-                'Opsgenie',
-                'Atlassian Guard', // Formerly Access
-                'Rovo' // Might not be in public status page yet, but we'll try
-            ];
-
-            const components = data.components || [];
             const trackedServices = [];
 
-            // Helper to map Atlassian status to our status
-            const mapStatus = (s) => {
-                if (s === 'operational') return 'operational';
-                if (s === 'degraded_performance' || s === 'under_maintenance') return 'degraded';
-                return 'outage';
-            };
+            results.forEach((result, index) => {
+                const endpoint = atlassianEndpoints[index];
 
-            targetServices.forEach(target => {
-                // Find main component match
-                const comp = components.find(c => c.name === target);
-                if (comp) {
+                if (result.status === 'fulfilled') {
+                    const data = result.value.data;
+                    const page = data.page || {};
+                    const status = data.status || {};
+                    const incidents = data.incidents || [];
+
+                    // Map Atlassian indicator to our status
+                    // indicator values: none, minor, major, critical, maintenance
+                    let mappedStatus = 'operational';
+                    if (status.indicator === 'minor' || status.indicator === 'maintenance') mappedStatus = 'degraded';
+                    if (status.indicator === 'major' || status.indicator === 'critical') mappedStatus = 'outage';
+
+                    // CHECK ACTIVE INCIDENTS: Even if indicator is 'none', active incidents might exist.
+                    // User explicitly requested to see status if there is an active incident.
+                    const hasActiveIncident = incidents.some(inc =>
+                        inc.status !== 'resolved' &&
+                        inc.status !== 'postmortem' &&
+                        inc.status !== 'completed'
+                    );
+
+                    if (mappedStatus === 'operational' && hasActiveIncident) {
+                        mappedStatus = 'degraded'; // Downgrade to degraded if there's an active incident
+                    }
+
                     trackedServices.push({
-                        name: target,
-                        status: mapStatus(comp.status),
-                        lastUpdated: comp.updated_at || new Date().toISOString()
+                        name: endpoint.name, // Use our friendly name
+                        status: mappedStatus,
+                        lastUpdated: page.updated_at || new Date().toISOString()
+                    });
+                } else {
+                    console.warn(`Failed to fetch status for ${endpoint.name}:`, result.reason?.message);
+                    trackedServices.push({
+                        name: endpoint.name,
+                        status: 'outage', // Assume worst if we can't check
+                        lastUpdated: new Date().toISOString()
                     });
                 }
             });
@@ -1377,7 +1398,6 @@ app.get('/api/dashboard/system-status', validateToken, async (req, res) => {
 
         } catch (e) {
             console.error('Failed to fetch Atlassian status:', e.message);
-            // Fallback to offline/unknown if fetch fails
             atlassianStatus.overall = 'outage';
         }
 
