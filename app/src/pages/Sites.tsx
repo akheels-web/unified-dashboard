@@ -27,9 +27,12 @@ export function Sites() {
         try {
             setLoading(true);
             const response = await dashboardApi.getSites();
+            console.log('[Frontend] Sites Response:', response);
             if (response.success && response.data) {
+                console.log('[Frontend] Sites Data Length:', response.data.length);
                 setSites(response.data);
             } else {
+                console.error('[Frontend] Sites API returned success=false');
                 toast.error('Failed to load sites');
             }
         } catch (error) {
