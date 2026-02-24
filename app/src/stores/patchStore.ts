@@ -19,42 +19,75 @@ interface PatchState {
     performScan: () => Promise<void>;
 }
 
-// Mock Data for demonstration
-const MOCK_VULNS: Vulnerability[] = [
-    { id: 'V-1001', title: 'OpenSSL Heartbleed Vulnerability', severity: 'critical', cve: 'CVE-2014-0160', status: 'open', detectedAt: new Date().toISOString() },
-    { id: 'V-1002', title: 'Apache Log4j Remote Code Execution', severity: 'critical', cve: 'CVE-2021-44228', status: 'patched', detectedAt: new Date(Date.now() - 86400000).toISOString() },
-    { id: 'V-1003', title: 'Windows Print Spooler Remote Code Execution', severity: 'high', cve: 'CVE-2021-34527', status: 'open', detectedAt: new Date().toISOString() },
-    { id: 'V-1004', title: 'Cross-Site Scripting (XSS) in Web Server', severity: 'medium', cve: 'CVE-2022-20001', status: 'open', detectedAt: new Date().toISOString() },
-];
+// No mock data needed anymore, using real SanerNow data
 
 export const usePatchStore = create<PatchState>()(
     persist(
-        (set, get) => ({
-            apiKey: '',
+        (set) => ({
+            apiKey: '',    // Not strictly needed if backend uses .env, but keeping interface intact
             isLoading: false,
             lastScanTime: null,
             vulnerabilities: [],
             setApiKey: (key) => set({ apiKey: key }),
             performScan: async () => {
-                const { apiKey } = get();
-                if (!apiKey) {
-                    throw new Error('API Key is required to perform scan.');
-                }
-
                 set({ isLoading: true });
 
-                // Simulate API call to https://saner.secpod.com/AncorWebService/perform
-                // Real implementation would use fetch/axios with Authorization: SAML <Key>
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        set({
-                            isLoading: false,
-                            lastScanTime: new Date().toISOString(),
-                            vulnerabilities: MOCK_VULNS
-                        });
-                        resolve();
-                    }, 2000);
-                });
+                try {
+                    // Call the local backend which proxies to SanerNow
+                    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+                    const headers: Record<string, string> = {
+                        'Content-Type': 'application/json'
+                    };
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`; // Use Graph/MSAL token if your app requires it
+                    }
+
+                    const res = await fetch('/api/sanernow/vulnerabilities', { headers });
+
+                    if (!res.ok) {
+                        throw new Error('Failed to fetch from backend');
+                    }
+
+                    const data = await res.json();
+
+                    // Parse the specific response structure from SanerNow.
+                    // Depending on the version, getDeviceVulnerabilities returns something like:
+                    // data.response.vulnerabilities.vulnerability array
+                    let rawVulns = [];
+                    if (data?.response?.vulnerabilities?.vulnerability) {
+                        rawVulns = Array.isArray(data.response.vulnerabilities.vulnerability)
+                            ? data.response.vulnerabilities.vulnerability
+                            : [data.response.vulnerabilities.vulnerability];
+                    }
+
+                    // Map it to our expected interface
+                    const mappedVulns: Vulnerability[] = rawVulns.map((v: any, index: number) => {
+                        let severity: Vulnerability['severity'] = 'low';
+                        const sevString = (v.severity || '').toLowerCase();
+                        if (sevString.includes('critical')) severity = 'critical';
+                        else if (sevString.includes('high')) severity = 'high';
+                        else if (sevString.includes('medium')) severity = 'medium';
+
+                        return {
+                            id: `V-${index + 1000}`,
+                            title: v.vulnerability_name || v.cve_id || 'Unknown Vulnerability',
+                            severity,
+                            cve: v.cve_id || 'N/A',
+                            status: 'open', // SanerNow vulns are usually open/unpatched if they show up in this scan
+                            detectedAt: v.detection_date || new Date().toISOString()
+                        };
+                    });
+
+                    set({
+                        isLoading: false,
+                        lastScanTime: new Date().toISOString(),
+                        vulnerabilities: mappedVulns
+                    });
+                } catch (error) {
+                    console.error("Error during performScan:", error);
+                    set({ isLoading: false });
+                    throw error;
+                }
             }
         }),
         {

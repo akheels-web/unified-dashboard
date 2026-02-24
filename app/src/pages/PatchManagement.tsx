@@ -3,18 +3,14 @@ import { motion } from 'framer-motion';
 import {
     Shield, CheckCircle,
     Search, RefreshCw, ExternalLink,
-    Settings as SettingsIcon,
     CheckCircle2
 } from 'lucide-react';
 import { usePatchStore } from '@/stores/patchStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
 
 export function PatchManagement() {
-    const navigate = useNavigate();
     const {
-        apiKey,
         isLoading,
         lastScanTime,
         vulnerabilities,
@@ -50,34 +46,6 @@ export function PatchManagement() {
         }
     };
 
-    if (!apiKey) {
-        return (
-            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center p-8">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="max-w-md text-center space-y-6"
-                >
-                    <div className="w-20 h-20 bg-muted/30 rounded-full flex items-center justify-center mx-auto">
-                        <Shield className="w-10 h-10 text-muted-foreground" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-foreground mb-2">Configuration Required</h2>
-                        <p className="text-muted-foreground">
-                            Please configure your SecPod SanerNow API key to access patch management features.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => navigate('/settings')}
-                        className="px-6 py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 mx-auto"
-                    >
-                        <SettingsIcon className="w-5 h-5" />
-                        Go to Settings
-                    </button>
-                </motion.div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6">
