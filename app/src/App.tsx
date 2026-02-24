@@ -17,7 +17,6 @@ import { Offboarding } from '@/pages/Offboarding';
 import { Network } from '@/pages/Network';
 import { Sites } from '@/pages/Sites';
 import { Proxmox } from '@/pages/Proxmox';
-import { PatchManagement } from '@/pages/PatchManagement';
 import { Reports } from '@/pages/Reports';
 import { Audit } from '@/pages/Audit';
 import { Settings } from '@/pages/Settings';
@@ -112,7 +111,6 @@ function App() {
           <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><Network /></RoleRoute>} />
           <Route path="/sites" element={<RoleRoute roles={['it_admin']}><Sites /></RoleRoute>} />
           <Route path="/proxmox" element={<RoleRoute roles={['it_admin', 'it_user']}><Proxmox /></RoleRoute>} />
-          <Route path="/patch-management" element={<RoleRoute roles={['it_admin', 'it_user']}><PatchManagement /></RoleRoute>} />
           <Route path="/reports" element={<RoleRoute roles={['it_admin']}><Reports /></RoleRoute>} />
           <Route path="/audit" element={<RoleRoute roles={['it_admin']}><Audit /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute roles={['it_admin']}><Settings /></RoleRoute>} />
