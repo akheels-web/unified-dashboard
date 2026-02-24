@@ -494,9 +494,17 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
         const securityRes = await pool.query('SELECT * FROM security_snapshots ORDER BY timestamp DESC LIMIT 2');
         const hygieneRes = await pool.query('SELECT * FROM hygiene_snapshots ORDER BY timestamp DESC LIMIT 1');
 
-        const current = securityRes.rows[0] || {};
-        const previous = securityRes.rows[1] || {};
-        const hygiene = hygieneRes.rows[0] || {};
+        const current = securityRes.rows[0];
+        const previous = securityRes.rows[1];
+        const hygiene = hygieneRes.rows[0];
+
+        if (!current && !hygiene) {
+            return res.status(404).json({ error: 'No snapshot data available' });
+        }
+
+        const currentData = current || {};
+        const previousData = previous || {};
+        const hygieneData = hygiene || {};
 
         // Calculate trends (Current - Previous)
         // If no previous data, trend is 0
@@ -644,15 +652,7 @@ app.get('/api/dashboard/device-health', validateToken, async (req, res) => {
         const data = result.rows[0];
 
         if (!data) {
-            return res.json({
-                total_devices: 0,
-                compliant_devices: 0,
-                non_compliant_devices: 0,
-                encrypted_devices: 0,
-                win10_count: 0,
-                win11_count: 0,
-                timestamp: null
-            });
+            return res.status(404).json({ error: 'No device health data available' });
         }
 
         res.json({

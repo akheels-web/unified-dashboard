@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { Shield, Loader2 } from 'lucide-react';
@@ -7,6 +8,7 @@ import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../authConfig";
 
 export function Login() {
+  const navigate = useNavigate();
   const { login } = useAuthStore();
   const { instance } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
@@ -111,16 +113,12 @@ export function Login() {
         }
       };
 
-      // Force clear any old state before logging in
-      useAuthStore.persist.clearStorage();
-
       // Set the flag so next time they see "Welcome back"
       localStorage.setItem('hasLoggedInBefore', 'true');
 
       login(user); // Sync to usage store
       toast.success(`${hasLoggedInBefore ? 'Welcome back' : 'Welcome'}, ${user.displayName}! Role: ${role === 'it_admin' ? 'Admin' : 'User'}`);
-      // Force an app reload so the Suspense boundaries, Context, and MSAL are perfectly clean going into the app
-      window.location.href = '/';
+      navigate('/');
     } catch (e: any) {
       toast.error(`Login failed: ${e.message}`);
       console.error(e);
