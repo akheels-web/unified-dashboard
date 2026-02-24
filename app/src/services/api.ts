@@ -11,7 +11,8 @@ import {
   mockM365Users, mockUserGroups, mockAssets, mockAssetCategories,
   mockOnboardingWorkflows, mockOffboardingWorkflows,
   mockSystemStatus,
-  mockDepartmentData, mockAssetStatusData, mockLifecycleData
+  mockDepartmentData, mockAssetStatusData, mockLifecycleData,
+  mockDashboardStats, mockM365Licenses
 } from './mockData';
 import { useNetworkStore } from '@/stores/networkStore';
 import { getAccessToken } from './auth';
@@ -139,13 +140,13 @@ export const dashboardApi = {
   getLicenses: async (): Promise<ApiResponse<any[]>> => {
     try {
       const realData = await fetchClient('/dashboard/licenses');
-      if (realData && Array.isArray(realData)) {
+      if (realData && Array.isArray(realData) && realData.length > 0) {
         return { success: true, data: realData };
       }
     } catch (e) {
       console.warn("Failed to fetch licenses", e);
     }
-    return { success: true, data: [] };
+    return { success: true, data: mockM365Licenses };
   },
 
   getDeviceDistribution: async (): Promise<ApiResponse<any[]>> => {

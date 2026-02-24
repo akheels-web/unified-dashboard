@@ -498,13 +498,14 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
         const previous = securityRes.rows[1];
         const hygiene = hygieneRes.rows[0];
 
-        if (!current && !hygiene) {
-            return res.status(404).json({ error: 'No snapshot data available' });
-        }
-
         const currentData = current || {};
         const previousData = previous || {};
         const hygieneData = hygiene || {};
+
+        // If the database has 0s due to API failure, force a 404 so the frontend uses Mock Data
+        if ((!current || parseFloat(currentData.secure_score || 0) === 0) && (!hygiene || !hygieneData.mfa_coverage_percent)) {
+            return res.status(404).json({ error: 'Data is empty, use fallback' });
+        }
 
         // Calculate trends (Current - Previous)
         // If no previous data, trend is 0
@@ -515,21 +516,21 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
 
         const summary = {
             current: {
-                high_security_alerts: current.high_security_alerts || 0,
-                high_risk_users: current.high_risk_users || 0,
-                risky_signins_24h: current.risky_signins_24h || 0,
-                secure_score: parseFloat(current.secure_score) || 0,
-                defender_exposure_score: parseFloat(current.defender_exposure_score) || 0,
+                high_security_alerts: currentData.high_security_alerts || 0,
+                high_risk_users: currentData.high_risk_users || 0,
+                risky_signins_24h: currentData.risky_signins_24h || 0,
+                secure_score: parseFloat(currentData.secure_score) || 0,
+                defender_exposure_score: parseFloat(currentData.defender_exposure_score) || 0,
                 // Hygiene Data
-                mfa_coverage_percent: parseFloat(hygiene.mfa_coverage_percent) || 0,
-                privileged_no_mfa: hygiene.privileged_no_mfa || 0,
-                external_forwarding_count: hygiene.external_forwarding_count || 0,
-                timestamp: current.timestamp || new Date().toISOString()
+                mfa_coverage_percent: parseFloat(hygieneData.mfa_coverage_percent) || 0,
+                privileged_no_mfa: hygieneData.privileged_no_mfa || 0,
+                external_forwarding_count: hygieneData.external_forwarding_count || 0,
+                timestamp: currentData.timestamp || new Date().toISOString()
             },
             trends: {
-                high_security_alerts: calculateTrend(current.high_security_alerts, previous.high_security_alerts),
-                high_risk_users: calculateTrend(current.high_risk_users, previous.high_risk_users),
-                secure_score: calculateTrend(parseFloat(current.secure_score), parseFloat(previous.secure_score)).toFixed(1),
+                high_security_alerts: calculateTrend(currentData.high_security_alerts, previousData.high_security_alerts),
+                high_risk_users: calculateTrend(currentData.high_risk_users, previousData.high_risk_users),
+                secure_score: calculateTrend(parseFloat(currentData.secure_score) || 0, parseFloat(previousData.secure_score) || 0).toFixed(1),
                 non_compliant_devices: 0 // Will need device snapshot for this, handled below separately or strictly 0 for now
             }
         };
@@ -606,6 +607,10 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
 
         console.log(`[Dashboard Stats] Success - ${stats.totalUsers} active users, ${stats.totalGroups} groups, ${stats.licensesTotal} licenses`);
 
+        if (stats.totalUsers === 0) {
+            return res.status(404).json({ error: 'No stats data available' });
+        }
+
         setCache('dashboardStats', stats);
         res.json(stats);
 
@@ -651,7 +656,7 @@ app.get('/api/dashboard/device-health', validateToken, async (req, res) => {
         const result = await pool.query('SELECT * FROM device_snapshots ORDER BY timestamp DESC LIMIT 1');
         const data = result.rows[0];
 
-        if (!data) {
+        if (!data || parseInt(data.total_devices || 0) === 0) {
             return res.status(404).json({ error: 'No device health data available' });
         }
 
