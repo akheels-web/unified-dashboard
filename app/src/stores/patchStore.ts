@@ -1,5 +1,9 @@
+import { getAccessToken } from '../services/auth';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+
+// API Base URL
+const API_URL = '/api';
 
 export interface Vulnerability {
     id: string;
@@ -33,16 +37,16 @@ export const usePatchStore = create<PatchState>()(
                 set({ isLoading: true });
 
                 try {
-                    // Call the local backend which proxies to SanerNow
-                    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+                    // Fetch MSAL token directly using the auth utility
+                    const token = await getAccessToken();
                     const headers: Record<string, string> = {
                         'Content-Type': 'application/json'
                     };
                     if (token) {
-                        headers['Authorization'] = `Bearer ${token}`; // Use Graph/MSAL token if your app requires it
+                        headers['Authorization'] = `Bearer ${token}`;
                     }
 
-                    const res = await fetch('/api/sanernow/vulnerabilities', { headers });
+                    const res = await fetch(`${API_URL}/sanernow/vulnerabilities`, { headers });
 
                     if (!res.ok) {
                         throw new Error('Failed to fetch from backend');
