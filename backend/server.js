@@ -1704,7 +1704,7 @@ app.get('/api/sanernow/licenses', validateToken, async (req, res) => {
         const data = await sanerAccounts.getLicenseUsage();
         res.json(data);
     } catch (err) {
-        console.error('SanerNow Licenses Error:', err?.message);
+        console.error('SanerNow Licenses Error:', err?.response?.data || err?.message);
         res.status(500).json({ error: 'Failed to fetch licenses' });
     }
 });
@@ -1714,7 +1714,7 @@ app.get('/api/sanernow/chs', validateToken, async (req, res) => {
         const data = await sanerChs.getAccountHygieneScore();
         res.json(data);
     } catch (err) {
-        console.error('SanerNow CHS Error:', err?.message);
+        console.error('SanerNow CHS Error:', err?.response?.data || err?.message);
         res.status(500).json({ error: 'Failed to fetch CHS' });
     }
 });
@@ -1724,7 +1724,7 @@ app.get('/api/sanernow/vulnerabilities', validateToken, async (req, res) => {
         const data = await sanerVulns.getDeviceVulnerabilities();
         res.json(data);
     } catch (err) {
-        console.error('SanerNow Vuln Error:', err?.message);
+        console.error('SanerNow Vuln Error:', err?.response?.data || err?.message);
         res.status(500).json({ error: 'Failed to fetch vulnerabilities' });
     }
 });
@@ -1734,7 +1734,7 @@ app.get('/api/sanernow/patches/:hostname', validateToken, async (req, res) => {
         const data = await sanerPatches.getApplicableRemediation(req.params.hostname);
         res.json(data);
     } catch (err) {
-        console.error('SanerNow Patches Error:', err?.message);
+        console.error('SanerNow Patches Error:', err?.response?.data || err?.message);
         res.status(500).json({ error: 'Failed to fetch patches for device' });
     }
 });
