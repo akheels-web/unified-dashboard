@@ -51,32 +51,42 @@ export const usePatchStore = create<PatchState>()(
                     const data = await res.json();
 
                     // Parse the specific response structure from SanerNow.
-                    // Depending on the version, getDeviceVulnerabilities returns something like:
-                    // data.response.vulnerabilities.vulnerability array
-                    let rawVulns = [];
-                    if (data?.response?.vulnerabilities?.vulnerability) {
-                        rawVulns = Array.isArray(data.response.vulnerabilities.vulnerability)
-                            ? data.response.vulnerabilities.vulnerability
-                            : [data.response.vulnerabilities.vulnerability];
-                    }
+                    // Based on the SanerNow WebServices guide, the response structure for vulnerabilities is:
+                    // data.response.results.result[].result[].concerns[]
 
-                    // Map it to our expected interface
-                    const mappedVulns: Vulnerability[] = rawVulns.map((v: any, index: number) => {
-                        let severity: Vulnerability['severity'] = 'low';
-                        const sevString = (v.severity || '').toLowerCase();
-                        if (sevString.includes('critical')) severity = 'critical';
-                        else if (sevString.includes('high')) severity = 'high';
-                        else if (sevString.includes('medium')) severity = 'medium';
+                    let rawVulns: Vulnerability[] = [];
+                    const resultList = data?.response?.results?.result || [];
+                    const parsedItems = Array.isArray(resultList) ? resultList : [resultList].filter(Boolean);
 
-                        return {
-                            id: `V-${index + 1000}`,
-                            title: v.vulnerability_name || v.cve_id || 'Unknown Vulnerability',
-                            severity,
-                            cve: v.cve_id || 'N/A',
-                            status: 'open', // SanerNow vulns are usually open/unpatched if they show up in this scan
-                            detectedAt: v.detection_date || new Date().toISOString()
-                        };
+                    parsedItems.forEach((deviceData: any) => {
+                        const deviceResults = Array.isArray(deviceData.result) ? deviceData.result : [deviceData.result].filter(Boolean);
+
+                        deviceResults.forEach((assetItem: any) => {
+                            const concerns = Array.isArray(assetItem.concerns) ? assetItem.concerns : [assetItem.concerns].filter(Boolean);
+
+                            concerns.forEach((c: any) => {
+                                if (c && c.id && c.title) {
+                                    let severity: Vulnerability['severity'] = 'low';
+                                    const sevString = (c.severity || '').toLowerCase();
+                                    if (sevString.includes('critical')) severity = 'critical';
+                                    else if (sevString.includes('high')) severity = 'high';
+                                    else if (sevString.includes('medium')) severity = 'medium';
+
+                                    rawVulns.push({
+                                        id: c.id + '-' + Math.random().toString(36).substr(2, 5), // Ensure unique IDs for React key
+                                        title: c.title,
+                                        severity,
+                                        cve: c.id,
+                                        status: 'open',
+                                        detectedAt: c.detectiondate || new Date().toISOString()
+                                    });
+                                }
+                            });
+                        });
                     });
+
+                    // Deduplicate by CVE to display unique vulnerabilities across all devices
+                    const mappedVulns = Array.from(new Map(rawVulns.map(v => [v.cve, v])).values());
 
                     set({
                         isLoading: false,
