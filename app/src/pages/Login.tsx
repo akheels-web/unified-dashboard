@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
 import { Shield, Loader2 } from 'lucide-react';
@@ -8,7 +7,6 @@ import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "../authConfig";
 
 export function Login() {
-  const navigate = useNavigate();
   const { login } = useAuthStore();
   const { instance } = useMsal();
   const [isLoading, setIsLoading] = useState(false);
@@ -121,7 +119,8 @@ export function Login() {
 
       login(user); // Sync to usage store
       toast.success(`${hasLoggedInBefore ? 'Welcome back' : 'Welcome'}, ${user.displayName}! Role: ${role === 'it_admin' ? 'Admin' : 'User'}`);
-      navigate('/');
+      // Force an app reload so the Suspense boundaries, Context, and MSAL are perfectly clean going into the app
+      window.location.href = '/';
     } catch (e: any) {
       toast.error(`Login failed: ${e.message}`);
       console.error(e);

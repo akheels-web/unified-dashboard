@@ -7,8 +7,10 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load pages for performance
-const Login = lazy(() => import('@/pages/Login').then(m => ({ default: m.Login })));
-const Dashboard = lazy(() => import('@/pages/Dashboard'));
+import { Login } from '@/pages/Login';
+import Dashboard from '@/pages/Dashboard';
+
+// Lazy load heavy pages for performance
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
 const Groups = lazy(() => import('@/pages/Groups').then(m => ({ default: m.Groups })));
 const Assets = lazy(() => import('@/pages/Assets').then(m => ({ default: m.Assets })));

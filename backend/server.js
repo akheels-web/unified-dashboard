@@ -598,13 +598,12 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
 
         console.log(`[Dashboard Stats] Success - ${stats.totalUsers} active users, ${stats.totalGroups} groups, ${stats.licensesTotal} licenses`);
 
-        // Cache the result
         setCache('dashboardStats', stats);
-
         res.json(stats);
+
     } catch (error) {
-        console.error('[Dashboard Stats] Error:', error.response?.data || error.message);
-        res.json({
+        console.error('Failed to fetch stats:', error);
+        res.status(500).json({
             totalUsers: 0,
             activeDevices: 0,
             totalGroups: 0,
@@ -612,6 +611,28 @@ app.get('/api/dashboard/stats', validateToken, async (req, res) => {
             licensesUsed: 0,
             licensesAvailable: 0
         });
+    }
+});
+
+app.post('/api/dashboard/sync', validateToken, async (req, res) => {
+    console.log(`[${new Date().toISOString()}] Manual Dashboard Sync Triggered`);
+    try {
+        const { collectSecuritySnapshot, collectHygieneSnapshot, collectDeviceSnapshot } = require('./services/securityCollector');
+
+        // Run collectors simultaneously to populate Postgres instantly
+        await Promise.allSettled([
+            collectSecuritySnapshot(),
+            collectHygieneSnapshot(),
+            collectDeviceSnapshot()
+        ]);
+
+        // Clear cached api endpoints
+        clearCache();
+
+        res.json({ success: true, message: 'Sync triggered successfully' });
+    } catch (err) {
+        console.error('[Dashboard] Sync error:', err);
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
