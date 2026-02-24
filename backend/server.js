@@ -1689,6 +1689,68 @@ const fs = require('fs');
 
 // ... (previous code)
 
+// ======================================================
+// SanerNow Integration Routes
+// ======================================================
+
+const sanerAccounts = require('./services/sanernow/accounts');
+const sanerChs = require('./services/sanernow/chs');
+const sanerVulns = require('./services/sanernow/vulnerabilities');
+const sanerPatches = require('./services/sanernow/patches');
+const sanerJobs = require('./services/sanernow/jobs');
+
+app.get('/api/sanernow/licenses', validateToken, async (req, res) => {
+    try {
+        const data = await sanerAccounts.getLicenseUsage();
+        res.json(data);
+    } catch (err) {
+        console.error('SanerNow Licenses Error:', err?.message);
+        res.status(500).json({ error: 'Failed to fetch licenses' });
+    }
+});
+
+app.get('/api/sanernow/chs', validateToken, async (req, res) => {
+    try {
+        const data = await sanerChs.getAccountHygieneScore();
+        res.json(data);
+    } catch (err) {
+        console.error('SanerNow CHS Error:', err?.message);
+        res.status(500).json({ error: 'Failed to fetch CHS' });
+    }
+});
+
+app.get('/api/sanernow/vulnerabilities', validateToken, async (req, res) => {
+    try {
+        const data = await sanerVulns.getDeviceVulnerabilities();
+        res.json(data);
+    } catch (err) {
+        console.error('SanerNow Vuln Error:', err?.message);
+        res.status(500).json({ error: 'Failed to fetch vulnerabilities' });
+    }
+});
+
+app.get('/api/sanernow/patches/:hostname', validateToken, async (req, res) => {
+    try {
+        const data = await sanerPatches.getApplicableRemediation(req.params.hostname);
+        res.json(data);
+    } catch (err) {
+        console.error('SanerNow Patches Error:', err?.message);
+        res.status(500).json({ error: 'Failed to fetch patches for device' });
+    }
+});
+
+app.get('/api/sanernow/overview', validateToken, async (req, res) => {
+    try {
+        const [licenses, chs] = await Promise.all([
+            sanerAccounts.getLicenseUsage().catch(() => null),
+            sanerChs.getAccountHygieneScore().catch(() => null)
+        ]);
+        res.json({ licenses, chs });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch overview' });
+    }
+});
+
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../app/dist', 'index.html'));
@@ -1908,67 +1970,5 @@ const startServer = () => {
 //         res.status(500).json({ error: 'Failed to update task' });
 //     }
 // });
-
-// ======================================================
-// SanerNow Integration Routes
-// ======================================================
-
-const sanerAccounts = require('./services/sanernow/accounts');
-const sanerChs = require('./services/sanernow/chs');
-const sanerVulns = require('./services/sanernow/vulnerabilities');
-const sanerPatches = require('./services/sanernow/patches');
-const sanerJobs = require('./services/sanernow/jobs');
-
-app.get('/api/sanernow/licenses', validateToken, async (req, res) => {
-    try {
-        const data = await sanerAccounts.getLicenseUsage();
-        res.json(data);
-    } catch (err) {
-        console.error('SanerNow Licenses Error:', err?.message);
-        res.status(500).json({ error: 'Failed to fetch licenses' });
-    }
-});
-
-app.get('/api/sanernow/chs', validateToken, async (req, res) => {
-    try {
-        const data = await sanerChs.getAccountHygieneScore();
-        res.json(data);
-    } catch (err) {
-        console.error('SanerNow CHS Error:', err?.message);
-        res.status(500).json({ error: 'Failed to fetch CHS' });
-    }
-});
-
-app.get('/api/sanernow/vulnerabilities', validateToken, async (req, res) => {
-    try {
-        const data = await sanerVulns.getDeviceVulnerabilities();
-        res.json(data);
-    } catch (err) {
-        console.error('SanerNow Vuln Error:', err?.message);
-        res.status(500).json({ error: 'Failed to fetch vulnerabilities' });
-    }
-});
-
-app.get('/api/sanernow/patches/:hostname', validateToken, async (req, res) => {
-    try {
-        const data = await sanerPatches.getApplicableRemediation(req.params.hostname);
-        res.json(data);
-    } catch (err) {
-        console.error('SanerNow Patches Error:', err?.message);
-        res.status(500).json({ error: 'Failed to fetch patches for device' });
-    }
-});
-
-app.get('/api/sanernow/overview', validateToken, async (req, res) => {
-    try {
-        const [licenses, chs] = await Promise.all([
-            sanerAccounts.getLicenseUsage().catch(() => null),
-            sanerChs.getAccountHygieneScore().catch(() => null)
-        ]);
-        res.json({ licenses, chs });
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch overview' });
-    }
-});
 
 startServer();
