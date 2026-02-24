@@ -10,8 +10,10 @@ const sanerClient = axios.create({
 // Interceptor to add Authorization header dynamically if needed, 
 // though we usually rely on environment variables on server load.
 sanerClient.interceptors.request.use((config) => {
-    if (process.env.SANERNOW_API_KEY) {
-        config.headers.Authorization = process.env.SANERNOW_API_KEY;
+    const key = process.env.SANERNOW_API_KEY || process.env.SANERNOW_SAML_KEY;
+    if (key) {
+        // SanerNow often expects the authorization header to be formatted as "SAML <key>"
+        config.headers.Authorization = key.startsWith('SAML ') ? key : `SAML ${key}`;
     }
     return config;
 });
