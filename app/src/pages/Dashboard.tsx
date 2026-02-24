@@ -68,9 +68,10 @@ export default function Dashboard() {
 
   // Fetch data on mount and interval
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
-
         const [
           securityRes,
           deviceRes,
@@ -78,7 +79,7 @@ export default function Dashboard() {
           licensesRes,
           activityRes,
           statusRes,
-          mfaRes // New
+          mfaRes
         ] = await Promise.all([
           dashboardApi.getSecuritySummary(),
           dashboardApi.getDeviceHealth(),
@@ -86,25 +87,31 @@ export default function Dashboard() {
           dashboardApi.getLicenses(),
           dashboardApi.getActivity(5),
           dashboardApi.getSystemStatus(),
-          dashboardApi.getMfaCoverage() // New
+          dashboardApi.getMfaCoverage()
         ]);
 
-        if (securityRes) setSecuritySummary(securityRes.data);
-        if (deviceRes) setDeviceHealth(deviceRes.data);
-        if (hygieneRes) setIdentityHygiene(hygieneRes.data);
-        if (licensesRes) setLicenses(licensesRes.data || []);
-        if (activityRes) setActivities(activityRes.data || []);
-        if (statusRes) setSystemStatus(statusRes.data);
-        if (mfaRes.success) setMfaCoverage(mfaRes.data); // New
+        if (!isMounted) return;
+
+        if (securityRes?.success) setSecuritySummary(securityRes.data);
+        if (deviceRes?.success) setDeviceHealth(deviceRes.data);
+        if (hygieneRes?.success) setIdentityHygiene(hygieneRes.data);
+        if (licensesRes?.success) setLicenses(licensesRes.data || []);
+        if (activityRes?.success) setActivities(activityRes.data || []);
+        if (statusRes?.success) setSystemStatus(statusRes.data);
+        if (mfaRes?.success) setMfaCoverage(mfaRes.data);
       } catch (error) {
-        // console.error('Failed to fetch dashboard data', error); 
-        // Silent error for now to avoid console spam in dev without backend
+        console.error('[Dashboard] Error fetching initial data:', error);
       }
     };
 
+    // Call immediately on mount
     fetchData();
+
     const interval = setInterval(fetchData, 30000); // 30s refresh
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);

@@ -1,25 +1,35 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Login } from '@/pages/Login';
-import Dashboard from '@/pages/Dashboard';
-import { Users } from '@/pages/Users';
-import { Groups } from '@/pages/Groups';
-import { Assets } from '@/pages/Assets';
-import { Licenses } from '@/pages/Licenses';
-import { SoftwarePage } from '@/pages/Software';
-import Onboarding from '@/pages/Onboarding';
-import { ApplicationGovernance } from '@/pages/ApplicationGovernance';
-import { Offboarding } from '@/pages/Offboarding';
-import { Network } from '@/pages/Network';
-import { Sites } from '@/pages/Sites';
-import { Proxmox } from '@/pages/Proxmox';
-import { Reports } from '@/pages/Reports';
-import { Audit } from '@/pages/Audit';
-import { Settings } from '@/pages/Settings';
+import { Loader2 } from 'lucide-react';
+
+// Lazy load pages for performance
+const Login = lazy(() => import('@/pages/Login').then(m => ({ default: m.Login })));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
+const Groups = lazy(() => import('@/pages/Groups').then(m => ({ default: m.Groups })));
+const Assets = lazy(() => import('@/pages/Assets').then(m => ({ default: m.Assets })));
+const Licenses = lazy(() => import('@/pages/Licenses').then(m => ({ default: m.Licenses })));
+const SoftwarePage = lazy(() => import('@/pages/Software').then(m => ({ default: m.SoftwarePage })));
+const Onboarding = lazy(() => import('@/pages/Onboarding'));
+const ApplicationGovernance = lazy(() => import('@/pages/ApplicationGovernance').then(m => ({ default: m.ApplicationGovernance })));
+const Offboarding = lazy(() => import('@/pages/Offboarding').then(m => ({ default: m.Offboarding })));
+const Network = lazy(() => import('@/pages/Network').then(m => ({ default: m.Network })));
+const Sites = lazy(() => import('@/pages/Sites').then(m => ({ default: m.Sites })));
+const Proxmox = lazy(() => import('@/pages/Proxmox').then(m => ({ default: m.Proxmox })));
+const Reports = lazy(() => import('@/pages/Reports').then(m => ({ default: m.Reports })));
+const Audit = lazy(() => import('@/pages/Audit').then(m => ({ default: m.Audit })));
+const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  </div>
+);
 
 
 // Protected route wrapper
@@ -93,33 +103,35 @@ function App() {
         toastOptions={toastOptions}
         closeButton
       />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<Login />} />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Protected routes */}
-        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><Users /></RoleRoute>} />
-          <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><Groups /></RoleRoute>} />
-          <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
-          <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
-          <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
-          <Route path="/identity/apps" element={<RoleRoute roles={['it_admin', 'it_user']}><ApplicationGovernance /></RoleRoute>} />
-          <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><Onboarding /></RoleRoute>} />
-          <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><Offboarding /></RoleRoute>} />
-          <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><Network /></RoleRoute>} />
-          <Route path="/sites" element={<RoleRoute roles={['it_admin']}><Sites /></RoleRoute>} />
-          <Route path="/proxmox" element={<RoleRoute roles={['it_admin', 'it_user']}><Proxmox /></RoleRoute>} />
-          <Route path="/reports" element={<RoleRoute roles={['it_admin']}><Reports /></RoleRoute>} />
-          <Route path="/audit" element={<RoleRoute roles={['it_admin']}><Audit /></RoleRoute>} />
-          <Route path="/settings" element={<RoleRoute roles={['it_admin']}><Settings /></RoleRoute>} />
+          {/* Protected routes */}
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><Users /></RoleRoute>} />
+            <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><Groups /></RoleRoute>} />
+            <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
+            <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
+            <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
+            <Route path="/identity/apps" element={<RoleRoute roles={['it_admin', 'it_user']}><ApplicationGovernance /></RoleRoute>} />
+            <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><Onboarding /></RoleRoute>} />
+            <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><Offboarding /></RoleRoute>} />
+            <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><Network /></RoleRoute>} />
+            <Route path="/sites" element={<RoleRoute roles={['it_admin']}><Sites /></RoleRoute>} />
+            <Route path="/proxmox" element={<RoleRoute roles={['it_admin', 'it_user']}><Proxmox /></RoleRoute>} />
+            <Route path="/reports" element={<RoleRoute roles={['it_admin']}><Reports /></RoleRoute>} />
+            <Route path="/audit" element={<RoleRoute roles={['it_admin']}><Audit /></RoleRoute>} />
+            <Route path="/settings" element={<RoleRoute roles={['it_admin']}><Settings /></RoleRoute>} />
 
-        </Route>
+          </Route>
 
-        {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

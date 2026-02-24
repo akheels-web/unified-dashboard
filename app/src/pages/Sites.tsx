@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-    MapPin, Users,
-    Globe, Search, Monitor, Shield
-} from 'lucide-react';
+import { MapPin, Globe, Search, Monitor, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { dashboardApi } from '@/services/api';
+import { usersApi } from '@/services/api';
 import type { UnifiSite } from '@/types';
 
 // Extended type for our aggregated sites
@@ -26,14 +23,38 @@ export function Sites() {
     const fetchSites = async () => {
         try {
             setLoading(true);
-            const response = await dashboardApi.getSites();
-            console.log('[Frontend] Sites Response:', response);
-            if (response.success && response.data) {
-                console.log('[Frontend] Sites Data Length:', response.data.length);
-                setSites(response.data);
+
+            // First fetch M365 users to extract locations
+            const response = await usersApi.getUsers({ search: '', department: '', status: 'all' }, 1, 1000);
+
+            if (response.success && response.data?.data) {
+                const users = response.data.data;
+                const locationMap = new Map<string, number>();
+
+                users.forEach(user => {
+                    const loc = user.officeLocation || 'Remote / Unspecified';
+                    locationMap.set(loc, (locationMap.get(loc) || 0) + 1);
+                });
+
+                const aggregatedSites: AggregatedSite[] = Array.from(locationMap.entries()).map(([loc, count], index) => ({
+                    id: `site-${index}`,
+                    name: loc,
+                    description: `Automatically aggregated location for ${loc}`,
+                    location: loc,
+                    timezone: 'Unknown',
+                    deviceCount: 0, // Cannot easily deduce device counts per location without Intune integration
+                    clientCount: count,
+                    userCount: count,
+                    isActive: true,
+                    status: 'online'
+                }));
+
+                // Sort by user count descending
+                aggregatedSites.sort((a, b) => b.userCount - a.userCount);
+                setSites(aggregatedSites);
             } else {
-                console.error('[Frontend] Sites API returned success=false');
-                toast.error('Failed to load sites');
+                console.error('[Frontend] M365 API returned success=false');
+                toast.error('Failed to load user locations for sites');
             }
         } catch (error) {
             console.error('Error fetching sites:', error);

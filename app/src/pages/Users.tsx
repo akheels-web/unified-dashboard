@@ -48,7 +48,7 @@ export function Users() {
 
 
   useEffect(() => {
-    console.log('Users Page Loaded - Version: LIVE_DATA_FIX_V2');
+    // Sync active tab with filters on load
 
     // Sync active tab with filters on load
     if (filters.userType === 'Guest') setActiveTab('guest');
