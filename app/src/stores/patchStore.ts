@@ -55,8 +55,20 @@ export const usePatchStore = create<PatchState>()(
                     // data.response.results.result[].result[].concerns[]
 
                     let rawVulns: Vulnerability[] = [];
-                    const resultList = data?.response?.results?.result || [];
-                    const parsedItems = Array.isArray(resultList) ? resultList : [resultList].filter(Boolean);
+
+                    // The SanerNow API may return an array directly at the root, or wrap it in response.results
+                    let parsedItems: any[] = [];
+                    if (Array.isArray(data)) {
+                        parsedItems = data;
+                    } else if (data?.response?.results?.result) {
+                        const resultList = data.response.results.result;
+                        parsedItems = Array.isArray(resultList) ? resultList : [resultList];
+                    } else if (data?.result) {
+                        parsedItems = Array.isArray(data.result) ? data.result : [data.result];
+                    }
+
+                    console.log("SanerNow API response:", data);
+                    console.log("Parsed devices found:", parsedItems.length);
 
                     parsedItems.forEach((deviceData: any) => {
                         const deviceResults = Array.isArray(deviceData.result) ? deviceData.result : [deviceData.result].filter(Boolean);
