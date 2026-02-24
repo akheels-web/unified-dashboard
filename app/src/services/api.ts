@@ -998,3 +998,25 @@ export const auditApi = {
     return { success: true, data: blob };
   },
 };
+
+// Google Workspace API
+export const googleApi = {
+  getUsers: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await fetchClient('/google/users');
+      return { success: true, data: response.data };
+    } catch (e) {
+      console.warn("Failed to fetch Google users", e);
+      return { success: false, error: 'Failed' };
+    }
+  },
+  getUserDetails: async (email: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await fetchClient(`/google/users/${email}`);
+      return { success: true, data: response.data };
+    } catch (e) {
+      console.warn(`Failed to fetch Google details for ${email}`, e);
+      return { success: false, error: 'Failed' };
+    }
+  }
+};

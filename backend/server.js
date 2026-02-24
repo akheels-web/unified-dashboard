@@ -1751,6 +1751,37 @@ app.get('/api/sanernow/overview', validateToken, async (req, res) => {
     }
 });
 
+// ======================================================
+// GOOGLE WORKSPACE ROUTES
+// ======================================================
+
+const googleAdmin = require('./services/google/admin');
+
+app.get('/api/google/users', validateToken, async (req, res) => {
+    try {
+        const users = await googleAdmin.getGoogleUsers(500); // Fetch up to 500 for now
+        res.json({ success: true, data: { data: users, total: users.length } });
+    } catch (err) {
+        console.error('Google Workspace Users Error:', err?.message);
+        res.status(500).json({ error: 'Failed to fetch Google Workspace users' });
+    }
+});
+
+app.get('/api/google/users/:email', validateToken, async (req, res) => {
+    try {
+        const email = req.params.email;
+        const [groups, licenses] = await Promise.all([
+            googleAdmin.getUserGroups(email).catch(() => []),
+            googleAdmin.getUserLicenses(email).catch(() => [])
+        ]);
+
+        res.json({ success: true, data: { email, groups, licenses } });
+    } catch (err) {
+        console.error(`Google Workspace Details Error for ${req.params.email}:`, err?.message);
+        res.status(500).json({ error: 'Failed to fetch Google user details' });
+    }
+});
+
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../app/dist', 'index.html'));

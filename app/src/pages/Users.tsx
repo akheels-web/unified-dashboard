@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { useUIStore } from '@/stores/uiStore';
-import { usersApi, groupsApi } from '@/services/api';
+import { usersApi, groupsApi, googleApi } from '@/services/api';
 import type { M365User, UserGroup, Asset } from '@/types';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { toast } from 'sonner';
@@ -43,6 +43,7 @@ export function Users() {
     { id: 'lxt', label: 'LXT Users' },
     { id: 'clickworker', label: 'Clickworker Users' },
     { id: 'guest', label: 'Guest Users' },
+    { id: 'google', label: 'Google Users' },
   ];
 
 
@@ -51,6 +52,7 @@ export function Users() {
 
     // Sync active tab with filters on load
     if (filters.userType === 'Guest') setActiveTab('guest');
+    else if (filters.userType === 'Google') setActiveTab('google');
     else if (filters.domain?.includes('lxt')) setActiveTab('lxt');
     else if (filters.domain?.includes('clickworker')) setActiveTab('clickworker');
     else setActiveTab('all');
@@ -81,6 +83,9 @@ export function Users() {
       case 'guest':
         setFilters({ ...baseFilters, userType: 'Guest' });
         break;
+      case 'google':
+        setFilters({ ...baseFilters, userType: 'Google' });
+        break;
       default:
         setFilters({ ...baseFilters });
     }
@@ -89,13 +94,38 @@ export function Users() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await usersApi.getUsers(filters, pagination.page, pagination.pageSize);
-      if (response.success && response.data) {
-        setUsers(response.data.data);
-        setPagination({
-          total: response.data.total,
-          totalPages: response.data.totalPages,
-        });
+      if (filters.userType === 'Google') {
+        const response = await googleApi.getUsers();
+        if (response.success && response.data?.data) {
+          const gUsers = response.data.data.map((u: any) => ({
+            id: u.id,
+            displayName: u.name?.fullName || u.primaryEmail,
+            email: u.primaryEmail,
+            department: u.orgUnitPath || 'Google Workspace',
+            officeLocation: u.orgUnitPath || '-',
+            accountEnabled: !u.suspended,
+            lastSignInDateTime: u.lastLoginTime,
+            createdDateTime: u.creationTime,
+            mfaEnabled: u.isEnrolledIn2Sv || false,
+            jobTitle: u.organizations?.[0]?.title || '-'
+          }));
+          setUsers(gUsers);
+          setPagination({
+            total: response.data.total,
+            totalPages: 1,
+          });
+        } else {
+          setUsers([]);
+        }
+      } else {
+        const response = await usersApi.getUsers(filters, pagination.page, pagination.pageSize);
+        if (response.success && response.data) {
+          setUsers(response.data.data);
+          setPagination({
+            total: response.data.total,
+            totalPages: response.data.totalPages,
+          });
+        }
       }
     } catch (error) {
       toast.error('Failed to load users');
@@ -124,22 +154,43 @@ export function Users() {
     setShowUserDetail(true);
 
     try {
-      // Fetch fresh user details (for MFA, etc.), groups, and managed devices (Intune)
-      const [userRes, groupsRes, deviceRes] = await Promise.all([
-        usersApi.getUser(user.id),
-        usersApi.getUserGroups(user.id),
-        usersApi.getUserDevices(user.id)
-      ]);
+      if (filters.userType === 'Google') {
+        const gDetails = await googleApi.getUserDetails(user.email || '');
+        if (gDetails.success && gDetails.data) {
+          // Map groups and licenses manually for the slide-out
+          setUserGroups(gDetails.data.groups.map((g: any) => ({
+            id: g.id,
+            displayName: g.name,
+            description: g.email,
+            groupType: 'Google Group'
+          })));
 
-      if (userRes.success && userRes.data) {
-        setUserDetail(userRes.data);
-      }
-      if (groupsRes.success) {
-        setUserGroups(groupsRes.data || []);
-      }
-      if (deviceRes.success) {
-        // getUserDevices returns Asset[] directly
-        setUserAssets(deviceRes.data || []);
+          const licenses = gDetails.data.licenses.map((l: any) => ({
+            id: l.skuId,
+            name: l.skuName || l.skuId,
+            category: 'Google'
+          }));
+          // Merge licenses into user details for the UI. Wait, we usually don't show licenses in the panel here...
+          setUserDetail({ ...user, assignedLicenses: licenses });
+          setUserAssets([]); // Google lacks native Intune-style assets mapping here
+        }
+      } else {
+        // Fetch fresh M365 details
+        const [userRes, groupsRes, deviceRes] = await Promise.all([
+          usersApi.getUser(user.id),
+          usersApi.getUserGroups(user.id),
+          usersApi.getUserDevices(user.id)
+        ]);
+
+        if (userRes.success && userRes.data) {
+          setUserDetail(userRes.data);
+        }
+        if (groupsRes.success) {
+          setUserGroups(groupsRes.data || []);
+        }
+        if (deviceRes.success) {
+          setUserAssets(deviceRes.data || []);
+        }
       }
     } catch (error) {
       toast.error('Failed to load user details');
@@ -653,6 +704,31 @@ export function Users() {
                     </div>
                   </div>
                 </section>
+
+                {/* Assigned Licenses */}
+                {userDetail.assignedLicenses && userDetail.assignedLicenses.length > 0 && (
+                  <section>
+                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                      Assigned Licenses ({userDetail.assignedLicenses.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {userDetail.assignedLicenses.map((license) => (
+                        <div
+                          key={license.id}
+                          className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-foreground font-medium">{license.name}</p>
+                            <p className="text-xs text-muted-foreground">{license.category}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
                 {/* Group Memberships */}
                 <section>
