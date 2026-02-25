@@ -146,7 +146,16 @@ export const dashboardApi = {
     } catch (e) {
       console.warn("Failed to fetch licenses", e);
     }
-    return { success: true, data: mockM365Licenses };
+    return {
+      success: true,
+      data: mockM365Licenses.map(lic => ({
+        ...lic,
+        total: lic.availableUnits + lic.consumedUnits,
+        used: lic.consumedUnits,
+        available: lic.availableUnits,
+        percentage: Math.round((lic.consumedUnits / (lic.availableUnits + lic.consumedUnits)) * 100)
+      }))
+    };
   },
 
   getDeviceDistribution: async (): Promise<ApiResponse<any[]>> => {
@@ -589,10 +598,37 @@ export const usersApi = {
     }
   },
 
+  getNewUsers: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/identity/new-users');
+      if (response && Array.isArray(response)) {
+        return { success: true, data: response };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch new users", e);
+    }
+    return { success: true, data: [] };
+  },
+
   updateUserAccess: async (_userId: string, _pages: string[]): Promise<ApiResponse<void>> => {
     await delay(800);
     return { success: true, message: 'User access permissions updated successfully' };
   },
+};
+
+// Messaging API
+export const messagingApi = {
+  getSharedMailboxes: async (): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await fetchClient('/messaging/shared-mailboxes');
+      if (response && Array.isArray(response)) {
+        return { success: true, data: response };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch shared mailboxes", e);
+    }
+    return { success: true, data: [] };
+  }
 };
 
 // Groups API

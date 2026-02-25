@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { SecurityDrillDownModal } from '@/components/dashboard/SecurityDrillDownModal';
 import { ITTeamSection } from '@/components/dashboard/ITTeamSection';
+import { RecentlyOnboarded } from '@/components/dashboard/RecentlyOnboarded';
 import { ActivityFeed } from '@/components/common/ActivityFeed';
 import { StatusBadge } from '@/components/common/StatusBadge';
 
@@ -431,6 +432,8 @@ export default function Dashboard() {
         {/* IT Team Section */}
         <ITTeamSection />
       </div>
+
+      <RecentlyOnboarded />
 
       {/* Service Health Dashboard */}
       <motion.div

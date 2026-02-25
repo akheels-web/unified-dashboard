@@ -503,7 +503,7 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
         const hygieneData = hygiene || {};
 
         // If the database has 0s due to API failure, force a 404 so the frontend uses Mock Data
-        if ((!current || parseFloat(currentData.secure_score || 0) === 0) && (!hygiene || !hygieneData.mfa_coverage_percent)) {
+        if (!current || parseFloat(currentData.secure_score || 0) === 0) {
             return res.status(404).json({ error: 'Data is empty, use fallback' });
         }
 
@@ -1966,5 +1966,90 @@ const startServer = () => {
 //         res.status(500).json({ error: 'Failed to update task' });
 //     }
 // });
+
+// ======================================================
+// Messaging: Shared Mailboxes
+// ======================================================
+app.get('/api/messaging/shared-mailboxes', validateToken, async (req, res) => {
+    // Check cache first
+    const cached = getCached('sharedMailboxes');
+    if (cached) {
+        return res.json(cached);
+    }
+
+    try {
+        const usersRes = await axios.get(
+            'https://graph.microsoft.com/v1.0/users?$select=id,displayName,mail,userPrincipalName,createdDateTime&$top=50',
+            { headers: { Authorization: `Bearer ${req.accessToken}` } }
+        );
+
+        const sharedMailboxes = [];
+
+        for (const user of usersRes.data.value) {
+            if (!user.mail) continue;
+
+            try {
+                const licenseRes = await axios.get(
+                    `https://graph.microsoft.com/v1.0/users/${user.id}/licenseDetails`,
+                    { headers: { Authorization: `Bearer ${req.accessToken}` } }
+                );
+
+                if (licenseRes.data.value.length === 0) {
+                    // Likely shared mailbox
+                    const membersRes = await axios.get(
+                        `https://graph.microsoft.com/v1.0/users/${user.id}/memberOf`,
+                        { headers: { Authorization: `Bearer ${req.accessToken}` } }
+                    ).catch(() => ({ data: { value: [] } }));
+
+                    sharedMailboxes.push({
+                        id: user.id,
+                        name: user.displayName,
+                        email: user.mail,
+                        created: user.createdDateTime,
+                        members: membersRes.data.value.map(m => m.displayName)
+                    });
+                }
+            } catch (err) {
+                console.warn(`Failed to process user ${user.mail}:`, err.message);
+            }
+        }
+
+        // Cache the result for 15 minutes (using a dynamic cache key if not predefined)
+        cache['sharedMailboxes'] = { data: sharedMailboxes, timestamp: Date.now() };
+        CACHE_DURATION['sharedMailboxes'] = 15 * 60 * 1000;
+
+        res.json(sharedMailboxes);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch shared mailboxes' });
+    }
+});
+
+// ======================================================
+// Identity: Newly Onboarded Users (Last 7 Days)
+// ======================================================
+app.get('/api/identity/new-users', validateToken, async (req, res) => {
+    try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const filterDate = sevenDaysAgo.toISOString();
+
+        const response = await axios.get(
+            `https://graph.microsoft.com/v1.0/users?$filter=createdDateTime ge ${filterDate}&$select=id,displayName,mail,userPrincipalName,createdDateTime,department,jobTitle&$top=50&$orderby=createdDateTime desc`,
+            {
+                headers: {
+                    Authorization: `Bearer ${req.accessToken}`,
+                    'ConsistencyLevel': 'eventual'
+                }
+            }
+        );
+
+        res.json(response.data.value);
+    } catch (error) {
+        console.error('Failed to fetch new users:', error);
+        res.status(500).json({ error: 'Failed to fetch new users' });
+    }
+});
 
 startServer();

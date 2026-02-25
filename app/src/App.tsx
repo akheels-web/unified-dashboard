@@ -13,6 +13,7 @@ import Dashboard from '@/pages/Dashboard';
 // Lazy load heavy pages for performance
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
 const Groups = lazy(() => import('@/pages/Groups').then(m => ({ default: m.Groups })));
+const SharedMailboxes = lazy(() => import('@/pages/SharedMailboxes').then(m => ({ default: m.SharedMailboxes })));
 const Assets = lazy(() => import('@/pages/Assets').then(m => ({ default: m.Assets })));
 const Licenses = lazy(() => import('@/pages/Licenses').then(m => ({ default: m.Licenses })));
 const SoftwarePage = lazy(() => import('@/pages/Software').then(m => ({ default: m.SoftwarePage })));
@@ -115,6 +116,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><Users /></RoleRoute>} />
             <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><Groups /></RoleRoute>} />
+            <Route path="/shared-mailboxes" element={<RoleRoute roles={['it_admin', 'it_user']}><SharedMailboxes /></RoleRoute>} />
             <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
             <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
             <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
