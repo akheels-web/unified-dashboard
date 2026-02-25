@@ -91,6 +91,8 @@ const CACHE_DURATION = {
 
 function getCached(key) {
     const cached = cache[key];
+    if (!cached) return null;
+
     const duration = CACHE_DURATION[key] || 5 * 60 * 1000;
 
     if (cached.data && cached.timestamp && (Date.now() - cached.timestamp) < duration) {
@@ -321,7 +323,7 @@ app.get('/api/reports/mfa-coverage', validateToken, async (req, res) => {
 
         // 2. Fetch Credential Details (MFA Status)
         // Note: Beta endpoint
-        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$select=userPrincipalName,isMfaRegistered,isEnabled,isMfaCapable,authMethods&$top=999';
+        const credsUrl = 'https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?$top=999';
         const credsRes = await axios.get(credsUrl, {
             headers: { Authorization: `Bearer ${req.accessToken}` }
         }).catch(err => {
@@ -1845,7 +1847,7 @@ app.get('/api/identity/new-users', validateToken, async (req, res) => {
         const filterDate = sevenDaysAgo.toISOString();
 
         const response = await axios.get(
-            `https://graph.microsoft.com/v1.0/users?$filter=createdDateTime ge ${filterDate}&$select=id,displayName,mail,userPrincipalName,createdDateTime,department,jobTitle&$top=50&$orderby=createdDateTime desc`,
+            `https://graph.microsoft.com/v1.0/users?$filter=createdDateTime ge ${filterDate}&$select=id,displayName,mail,userPrincipalName,createdDateTime,department,jobTitle&$top=50&$orderby=createdDateTime desc&$count=true`,
             {
                 headers: {
                     Authorization: `Bearer ${req.accessToken}`,
