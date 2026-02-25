@@ -53,6 +53,9 @@ const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
     });
 
     if (!response.ok) {
+      if (response.status !== 404) {
+        console.warn(`API Error: ${response.status} ${response.statusText} for ${endpoint}`);
+      }
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
 
@@ -63,8 +66,10 @@ const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
     }
 
     return data;
-  } catch (error) {
-    console.error(`API Call Failed for ${endpoint}:`, error);
+  } catch (error: any) {
+    if (!error.message?.includes('404')) {
+      console.error(`API Call Failed for ${endpoint}:`, error);
+    }
     return null;
   }
 };
