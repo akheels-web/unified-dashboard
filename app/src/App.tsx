@@ -40,6 +40,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated) {
+    // Prevent React Router from clearing the MSAL auth hash during login redirect popup
+    if (window.location.hash.includes('code=') || window.location.hash.includes('error=')) {
+      return <PageLoader />;
+    }
     return <Navigate to="/login" replace />;
   }
 
@@ -57,6 +61,9 @@ function RoleRoute({
   const { isAuthenticated, hasRole } = useAuthStore();
 
   if (!isAuthenticated) {
+    if (window.location.hash.includes('code=') || window.location.hash.includes('error=')) {
+      return <PageLoader />;
+    }
     return <Navigate to="/login" replace />;
   }
 
