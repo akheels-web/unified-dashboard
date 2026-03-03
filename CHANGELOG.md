@@ -2,7 +2,22 @@
 
 All notable changes to the **Unified User Lifecycle Dashboard** project will be documented in this file.
 
-## [Unreleased] - 2026-02-14
+## [Unreleased] - 2026-03-03
+
+### 🚀 Added
+- **Google Workspace Integration**: Integrated Google Workspace into the Users tab, including API fetching for user data and license views.
+- **Extended Pages**: Added new dashboard views for Shared Mailboxes, Software, Sites, Proxmox, Reports, and Audit logs.
+
+### 🐛 Fixed
+- **MSAL Authentication**: Fixed an issue where React Router would clear the URL hash fragment (`code=...`) before MSAL could process the authentication redirect, preventing successful logins.
+- **General Bug Fixes**: Various UI, API, and project structure fixes.
+
+### 🧹 Removed
+- **SanerNow Integration**: Completely removed SanerNow integration and the Patch Management UI from the application to streamline features.
+
+---
+
+## [1.2.0] - 2026-02-14
 
 ### 🚀 Added
 - **Jira Service Management (JSM) Integration**: Added `/api/jsm/webhook` endpoint to automate onboarding and offboarding workflows triggered by JSM tickets.

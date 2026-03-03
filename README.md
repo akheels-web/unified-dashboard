@@ -2,18 +2,18 @@
 
 ## 🚀 Overview
 
-The **Unified User Lifecycle Dashboard** is an internal IT automation platform designed to streamline user management, license tracking, and onboarding/offboarding workflows. It integrates with **Microsoft Graph API** for M365 management and **Jira Service Management (JSM)** for automated ticket-based workflows.
+The **Unified User Lifecycle Dashboard** is an internal IT automation platform designed to streamline user management, license tracking, and onboarding/offboarding workflows. It integrates with **Microsoft Graph API** and **Google Workspace Admin API** for centralized identity and access management, and **Jira Service Management (JSM)** for automated ticket-based workflows.
 
 ## ✨ Key Features
 
-### 1. 👥 User Management
-- **Centralized User View**: Fetch and filter users from Microsoft 365.
+### 1. 👥 Identity & User Management
+- **Centralized User View**: Fetch and filter users from Microsoft 365 and Google Workspace.
 - **Advanced Filtering**: Filter by department, location, and account status.
 - **Bulk Actions**: Disable accounts, revoke sessions, and manage MFA status.
 - **Device Insights**: View Intune-managed devices associated with users.
 
 ### 2. 💳 License Management
-- **Real-time Tracking**: Monitor Microsoft 365 license usage and availability.
+- **Real-time Tracking**: Monitor Microsoft 365 and Google Workspace license usage and availability.
 - **Smart Filtering**: Automatically excludes free/trial licenses (e.g., Flow Free, PowerApps Viral) to focus on paid business licenses.
 - **Visual Analytics**: collaborative usage bars and percentage indicators.
 
@@ -24,16 +24,21 @@ The **Unified User Lifecycle Dashboard** is an internal IT automation platform d
   - **Offboarding**: Automates account disablement, session revocation, and mailbox archiving.
 - **Task Tracking**: Database-backed state machine for tracking workflow progress.
 
-### 4. ⚡ Performance & Security
+### 4. ⚡ Expanded IT Operations
+- **Infrastructure Management**: Integrated Proxmox VM management.
+- **Network & Sites**: Tracking and management of IT sites, networks, and software.
+- **Security & Audit**: Audit logs and advanced reporting for IT administrators.
+
+### 5. ⚡ Performance & Security
 - **Server-Side Caching**: Intelligent caching for Graph API responses to minimize latency and API rate limits.
-- **Secure Authentication**: MSAL (Microsoft Authentication Library) integration for secure access.
-- **Role-Based Access**: (Planned) Granular permissions for IT admins.
+- **Secure Authentication**: MSAL (Microsoft Authentication Library) integration for secure access via Entra ID.
+- **Role-Based Access**: Granular permissions for IT admins vs. IT users based on Azure AD/Entra ID groups.
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React, Vite, Tailwind CSS, Lucide Icons, Recharts
+- **Frontend**: React, Vite, Tailwind CSS, Lucide Icons, Zustand, Recharts
 - **Backend**: Node.js, Express, PostgreSQL
-- **Integrations**: Microsoft Graph API, Jira Service Management (Webhooks)
+- **Integrations**: Microsoft Graph API, Google Workspace API, Jira Service Management (Webhooks), Proxmox VE API
 - **Infrastructure**: PM2, NGINX (Reverse Proxy)
 
 ## 📂 Project Structure
