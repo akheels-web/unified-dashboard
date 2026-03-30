@@ -1066,32 +1066,80 @@ export const unifiApi = {
 // Audit API
 export const auditApi = {
   getLogs: async (page: number = 1, pageSize: number = 50): Promise<ApiResponse<any>> => {
-    await delay(500);
-    const logs = [
-      { id: '1', timestamp: '2024-01-20T09:30:00Z', user: 'david.brown@company.com', action: 'USER_DISABLE', resourceType: 'User', resourceId: '6', severity: 'warning', details: 'Disabled user account for Emily Davis' },
-      { id: '2', timestamp: '2024-01-20T09:15:00Z', user: 'sarah.williams@company.com', action: 'ONBOARDING_CREATE', resourceType: 'Workflow', resourceId: '1', severity: 'info', details: 'Created onboarding workflow for Alex Thompson' },
-      { id: '3', timestamp: '2024-01-20T08:45:00Z', user: 'system', action: 'M365_SYNC', resourceType: 'System', severity: 'info', details: 'Synchronized 1,247 users from M365' },
-      { id: '4', timestamp: '2024-01-19T16:20:00Z', user: 'john.doe@company.com', action: 'ASSET_ASSIGN', resourceType: 'Asset', resourceId: '1', severity: 'info', details: 'Assigned LAPTOP-001 to Mike Johnson' },
-      { id: '5', timestamp: '2024-01-19T14:00:00Z', user: 'system', action: 'DEVICE_OFFLINE', resourceType: 'UnifiDevice', resourceId: '5', severity: 'warning', details: 'Device USW-24-London went offline' },
-    ];
+    try {
+      // To properly paginate we should ideally use Microsoft Graph $skipToken
+      // For now, we fetch up to what is requested to simulate pagination or just recent logs
+      const limit = page * pageSize; 
+      const response = await fetchClient(`/audit-logs?limit=${limit}`);
+      
+      if (response && response.value) {
+        const allLogs = response.value.map((log: any) => ({
+          id: log.id || Math.random().toString(),
+          timestamp: log.timestamp,
+          userEmail: log.user, // Mapped from log.user
+          action: log.action,
+          resourceType: 'Directory',
+          severity: log.status === 'Failed' ? 'error' : 'info',
+          details: `Target: ${log.target}`
+        }));
+
+        // Basic client-side slicing to simulate pagination based on the fetched chunk
+        const start = (page - 1) * pageSize;
+        const pagedLogs = allLogs.slice(start, start + pageSize);
+
+        return {
+          success: true,
+          data: {
+            data: pagedLogs,
+            total: allLogs.length > pageSize ? allLogs.length * 2 : allLogs.length, // Rough total approximation if more exist
+            page,
+            pageSize,
+            totalPages: Math.ceil(allLogs.length / pageSize) || 1,
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('Failed to fetch real audit logs', e);
+    }
 
     return {
       success: true,
       data: {
-        data: logs,
-        total: 156,
+        data: [],
+        total: 0,
         page,
         pageSize,
-        totalPages: Math.ceil(156 / pageSize),
+        totalPages: 0,
       }
     };
   },
 
   export: async (): Promise<ApiResponse<Blob>> => {
-    await delay(1000);
-    const csvContent = 'Timestamp,User,Action,Resource Type,Severity,Details\n';
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    return { success: true, data: blob };
+    try {
+      // Get a large chunk of logs for export
+      const response = await fetchClient('/audit-logs?limit=500');
+      
+      let csvContent = 'Timestamp,User,Action,Target,Status\n';
+      
+      if (response && response.value) {
+        response.value.forEach((log: any) => {
+          // Escape quotes and format CSV
+          const user = `"${(log.user || '').replace(/"/g, '""')}"`;
+          const action = `"${(log.action || '').replace(/"/g, '""')}"`;
+          const target = `"${(log.target || '').replace(/"/g, '""')}"`;
+          const status = `"${(log.status || '').replace(/"/g, '""')}"`;
+          const timestamp = `"${(log.timestamp || '').replace(/"/g, '""')}"`;
+          
+          csvContent += `${timestamp},${user},${action},${target},${status}\n`;
+        });
+      }
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      return { success: true, data: blob };
+    } catch (e) {
+      console.warn('Failed to export real audit logs', e);
+      return { success: false, error: 'Export failed' };
+    }
   },
 };
 
