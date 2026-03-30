@@ -92,7 +92,7 @@ export function Users() {
   };
 
   const loadUsers = async () => {
-    setLoading(true);
+    if (users.length === 0) setLoading(true);
     try {
       if (filters.userType === 'Google') {
         const response = await googleApi.getUsers();

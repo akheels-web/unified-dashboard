@@ -44,7 +44,7 @@ export function Assets() {
   }, [filters, pagination.page, selectedOS, ownershipType]);
 
   const loadAssets = async () => {
-    setLoading(true);
+    if (assets.length === 0) setLoading(true);
     try {
       // Fetch ALL assets without pagination (we'll paginate client-side after filtering)
       const assetResponse = await assetsApi.getAssets(

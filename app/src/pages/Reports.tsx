@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Users, Laptop, TrendingUp, Download,
   Shield, Key, History,
-  CheckCircle2, AlertTriangle
+  CheckCircle2, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -12,9 +12,10 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
+import { useReportStore } from '@/stores/reportStore';
 import { toast } from 'sonner';
 import { usersApi, assetsApi, dashboardApi } from '@/services/api';
-import type { M365User, Asset, ActivityItem } from '@/types';
+import type { M365User, Asset } from '@/types';
 import { format, subDays, isAfter, parseISO } from 'date-fns';
 
 // Report Types Configuration
@@ -26,124 +27,125 @@ const reportTypes = [
   { id: 'admin', name: 'Admin Audit', icon: History, description: 'Recent administrative actions' },
 ];
 
-
-
 export function Reports() {
   const [selectedReport, setSelectedReport] = useState('overview');
   const [dateRange, setDateRange] = useState('30d');
   const { theme } = useUIStore();
-  const [loading, setLoading] = useState(true);
-
-  // Raw Data State
-  const [users, setUsers] = useState<M365User[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [licenses, setLicenses] = useState<any[]>([]);
-  const [auditLogs, setAuditLogs] = useState<ActivityItem[]>([]);
+  const { 
+    users, assets, licenses, auditLogs, mfaData, lastUpdated, setData 
+  } = useReportStore();
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Theme Constants
   const isDark = theme === 'dark';
   const axisColor = isDark ? '#a0a0a0' : '#64748b';
   const gridColor = isDark ? '#3d3d3d' : '#e2e8f0';
-  const tooltipBg = isDark ? '#2d2d2d' : '#ffffff';
-  const tooltipBorder = isDark ? '#3d3d3d' : '#e2e8f0';
+  const tooltipBg = isDark ? '#1e293b' : '#ffffff';
+  const tooltipBorder = isDark ? '#334155' : '#e2e8f0';
+  const tooltipTextColor = isDark ? '#f1f5f9' : '#0f172a';
 
-  // Fetch Data on Mount
+  // Fetch Data with Caching
+  const fetchData = async (force = false) => {
+    // If not forced and data is fresh (within 5 minutes), don't fetch
+    if (!force && lastUpdated && (Date.now() - lastUpdated < 300000)) {
+      return;
+    }
+
+    if (force) setRefreshing(true);
+    else if (users.length === 0) setLoading(true);
+
+    try {
+      const [usersRes, assetsRes, licensesRes, auditRes, mfaRes] = await Promise.all([
+        usersApi.getUsers({}, 1, 999),
+        assetsApi.getAssets({}, 1, 999),
+        dashboardApi.getLicenses(),
+        dashboardApi.getActivity(100),
+        dashboardApi.getMfaCoverage()
+      ]);
+
+      const newData: any = {};
+      if (usersRes.success && usersRes.data) newData.users = usersRes.data.data;
+      if (assetsRes.success && assetsRes.data) newData.assets = assetsRes.data.data;
+      if (licensesRes.success && Array.isArray(licensesRes.data)) newData.licenses = licensesRes.data;
+      if (auditRes.success && Array.isArray(auditRes.data)) newData.auditLogs = auditRes.data;
+      if (mfaRes.success) newData.mfaData = mfaRes.data;
+
+      setData(newData);
+    } catch (error) {
+      console.error("Failed to fetch report data", error);
+      toast.error("Failed to load report data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [usersRes, assetsRes, licensesRes, auditRes, mfaRes] = await Promise.all([
-          usersApi.getUsers({}, 1, 999),
-          assetsApi.getAssets({}, 1, 999),
-          dashboardApi.getLicenses(),
-          dashboardApi.getActivity(100),
-          dashboardApi.getMfaCoverage() // New Endpoint
-        ]);
-
-        if (usersRes.success && usersRes.data) setUsers(usersRes.data.data);
-        if (assetsRes.success && assetsRes.data) setAssets(assetsRes.data.data);
-        if (licensesRes.success && Array.isArray(licensesRes.data)) setLicenses(licensesRes.data);
-        if (auditRes.success && Array.isArray(auditRes.data)) setAuditLogs(auditRes.data);
-        if (mfaRes.success) setMfaData(mfaRes.data);
-
-      } catch (error) {
-        console.error("Failed to fetch report data", error);
-        toast.error("Failed to load some report data");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
-
-  // State for MFA Data
-  const [mfaData, setMfaData] = useState<any>({ enabled: 0, disabled: 0, percentage: 0 });
 
   // Aggregated Metrics (Client-Side)
   const stats = useMemo(() => {
     const thresholdDate = subDays(new Date(), parseInt(dateRange));
 
     // Inactive Users
-    const inactiveUsers = users.filter(u => {
-      if (!u.lastSignInDateTime) return true; // Never signed in
+    const inactiveUsers = users.filter((u: M365User) => {
+      if (!u.lastSignInDateTime) return true;
       return !isAfter(parseISO(u.lastSignInDateTime), thresholdDate);
     });
 
-    // Active Internal Users (LXT & Clickworker) - Single truth source for all reports
-    const activeInternalUsers = users.filter(u => {
+    // Active Internal Users
+    const activeInternalUsers = users.filter((u: M365User) => {
       if (!u.accountEnabled) return false;
       if (u.userPrincipalName?.includes('#EXT#')) return false;
-      const email = (u.userPrincipalName || u.email || '').toLowerCase();
-      // Keep this filter for Department/Growth charts if desired, but MFA now uses Server Data
-      return email.includes('lxt.ai') || email.includes('clickworker.com') || email.includes('lxt.com');
+      return true;
     });
 
-    // MFA Status (Now uses server-side mfaData)
-    // We override the client-side calculation
-
-    // Department Distribution (Uses activeInternalUsers)
-    const deptDist = activeInternalUsers.reduce((acc, user) => {
+    // Department Distribution
+    const deptDist = activeInternalUsers.reduce((acc: any, user: M365User) => {
       const dept = user.department || 'Unassigned';
       acc[dept] = (acc[dept] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // Sort departments by count and take top 10
     const topDepts = Object.entries(deptDist)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
+      .sort((a, b) => (b.value as number) - (a.value as number))
       .slice(0, 10);
 
-    // User Growth (Group by Month created - Uses activeInternalUsers)
-    const userGrowth = activeInternalUsers.reduce((acc, user) => {
+    // User Growth
+    const userGrowth = activeInternalUsers.reduce((acc: any, user: M365User) => {
       if (!user.createdDateTime) return acc;
       const month = format(parseISO(user.createdDateTime), 'MMM yyyy');
       acc[month] = (acc[month] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // Convert to array and sort chronologically
     const userGrowthData = Object.entries(userGrowth)
-      .map(([name, value]) => ({ name, value, date: parseISO(activeInternalUsers.find(u => format(parseISO(u.createdDateTime!), 'MMM yyyy') === name)?.createdDateTime!) }))
+      .map(([name, value]) => ({ 
+        name, 
+        value, 
+        date: parseISO(activeInternalUsers.find((u: M365User) => format(parseISO(u.createdDateTime!), 'MMM yyyy') === name)?.createdDateTime!) 
+      }))
       .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .map(({ name, value }) => ({ name, value }));
+      .map(({ name, value }) => ({ name, value: value as number }));
 
-
-    // Device Compliance
-    const compliantDevices = assets.filter(a => a.notes?.toLowerCase().includes('compliant') && !a.notes?.toLowerCase().includes('non-compliant'));
-    const nonCompliantDevices = assets.filter(a => a.notes?.toLowerCase().includes('non-compliant'));
+    // Device Compliance State
+    const compliantDevices = assets.filter((a: Asset) => (a.notes || '').toLowerCase() === 'compliant');
+    const nonCompliantDevices = assets.filter((a: Asset) => (a.notes || '').toLowerCase() === 'noncompliant');
     const unknownCompliance = assets.length - compliantDevices.length - nonCompliantDevices.length;
 
     // OS Distribution
-    const osDist = assets.reduce((acc, curr) => {
+    const osDist = assets.reduce((acc: any, curr: Asset) => {
       const os = curr.category || 'Unknown';
       acc[os] = (acc[os] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     // License Cost
-    const totalLicenseCost = licenses.reduce((sum, lic) => sum + (lic.used * 20), 0);
-    const potentialSavings = licenses.reduce((sum, lic) => sum + ((lic.available) * 20), 0);
+    const totalLicenseCost = licenses.reduce((sum: number, lic: any) => sum + (lic.used * 20), 0);
+    const potentialSavings = licenses.reduce((sum: number, lic: any) => sum + ((lic.available) * 20), 0);
 
     return {
       inactiveUsers,
@@ -161,7 +163,7 @@ export function Reports() {
         { name: 'Non-Compliant', value: nonCompliantDevices.length, color: '#ef4444' },
         { name: 'Unknown', value: unknownCompliance, color: '#64748b' }
       ],
-      osDistribution: Object.entries(osDist).map(([name, value]) => ({ name, value })),
+      osDistribution: Object.entries(osDist).map(([name, value]) => ({ name, value: value as number })),
       totalLicenseCost,
       potentialSavings
     };
@@ -511,18 +513,35 @@ export function Reports() {
                         cx="50%" cy="50%"
                         innerRadius={60} outerRadius={80}
                         paddingAngle={5} dataKey="value"
+                        animationBegin={0}
+                        animationDuration={800}
                       >
                         {stats.mfaStats.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, borderRadius: '8px', color: isDark ? '#fff' : '#000' }} />
-                      <Legend />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: tooltipBg, 
+                          borderColor: tooltipBorder, 
+                          borderRadius: '8px', 
+                          color: tooltipTextColor,
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                          padding: '8px 12px'
+                        }}
+                        itemStyle={{ color: tooltipTextColor }}
+                        cursor={{ fill: 'transparent' }}
+                      />
+                      <Legend 
+                        iconType="circle"
+                        verticalAlign="bottom"
+                        height={36}
+                      />
                     </RePieChart>
                   </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-6">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -mt-4">
                     <span className="text-2xl font-bold">{stats.mfaPercentage}%</span>
-                    <span className="text-xs text-muted-foreground">Enabled</span>
+                    <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Enabled</span>
                   </div>
                 </div>
               </div>
@@ -580,22 +599,32 @@ export function Reports() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 py-2">
-        <div className="text-sm font-medium text-muted-foreground">Time Range:</div>
-        <div className="flex items-center gap-1 bg-card rounded-lg p-1 border border-border">
-          {['7d', '30d', '90d'].map((range) => (
-            <button
-              key={range}
-              onClick={() => setDateRange(range)}
-              className={cn(
-                'px-3 py-1.5 rounded text-sm transition-colors',
-                dateRange === range ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              )}
-            >
-              Last {range.replace('d', ' Days')}
-            </button>
-          ))}
+      <div className="flex items-center justify-between py-2">
+        <div className="flex items-center gap-4">
+          <div className="text-sm font-medium text-muted-foreground">Time Range:</div>
+          <div className="flex items-center gap-1 bg-card rounded-lg p-1 border border-border">
+            {['7d', '30d', '90d'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setDateRange(range)}
+                className={cn(
+                  'px-3 py-1.5 rounded text-sm transition-colors',
+                  dateRange === range ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                Last {range.replace('d', ' Days')}
+              </button>
+            ))}
+          </div>
         </div>
+        <button 
+          onClick={() => fetchData(true)} 
+          disabled={loading || refreshing}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors border border-border rounded-lg bg-card"
+        >
+          <RefreshCw className={cn("w-3 h-3", (loading || refreshing) && "animate-spin")} />
+          {refreshing ? 'Refreshing...' : 'Refresh Data'}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

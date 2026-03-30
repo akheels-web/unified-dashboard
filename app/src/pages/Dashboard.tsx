@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { dashboardApi } from '../services/api';
+import { useDashboardStore } from '../stores/dashboardStore';
 import {
   BarChart,
   Bar,
@@ -45,7 +46,7 @@ const renderTrend = (value: number, inverse: boolean = false) => {
   const Icon = isPositive ? ArrowUp : ArrowDown;
 
   return (
-    <div className={`flex items-center text-xs font-medium ${color} bg-white/80 px-1.5 py-0.5 rounded-full shadow-sm`}>
+    <div className={`flex items-center text-xs font-medium ${color} bg-white/80 px-1.5 py-0.5 rounded-full shadow-sm dark:bg-slate-800/80`}>
       <Icon className="w-3 h-3 mr-0.5" />
       {Math.abs(value)} since yesterday
     </div>
@@ -58,20 +59,24 @@ export default function Dashboard() {
   const [isRiskyUsersModalOpen, setIsRiskyUsersModalOpen] = useState(false);
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const [isExternalForwardingModalOpen, setIsExternalForwardingModalOpen] = useState(false);
+  const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
 
-  const [securitySummary, setSecuritySummary] = useState<any>(null);
-  const [deviceHealth, setDeviceHealth] = useState<any>(null);
-  const [identityHygiene, setIdentityHygiene] = useState<any>(null);
-  const [licenses, setLicenses] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
-  const [systemStatus, setSystemStatus] = useState<any>(null);
-  const [mfaCoverage, setMfaCoverage] = useState<any>(null);
+  const {
+    securitySummary, deviceHealth, identityHygiene, licenses, activities, systemStatus, mfaCoverage, setDashboardData, lastUpdated
+  } = useDashboardStore();
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch data on mount and interval
   useEffect(() => {
     let isMounted = true;
 
-    const fetchData = async () => {
+    const fetchData = async (background = false) => {
+      // If we have fresh data (within 5 min) and not backgrounding, just return
+      if (!background && lastUpdated && (Date.now() - lastUpdated < 300000)) {
+        return;
+      }
+
       try {
         const [
           securityRes,
@@ -93,49 +98,49 @@ export default function Dashboard() {
 
         if (!isMounted) return;
 
-        if (securityRes?.success) setSecuritySummary(securityRes.data);
-        if (deviceRes?.success) setDeviceHealth(deviceRes.data);
-        if (hygieneRes?.success) setIdentityHygiene(hygieneRes.data);
-        if (licensesRes?.success) setLicenses(licensesRes.data || []);
-        if (activityRes?.success) setActivities(activityRes.data || []);
-        if (statusRes?.success) setSystemStatus(statusRes.data);
-        if (mfaRes?.success) setMfaCoverage(mfaRes.data);
+        const newData: any = {};
+        if (securityRes?.success) newData.securitySummary = securityRes.data;
+        if (deviceRes?.success) newData.deviceHealth = deviceRes.data;
+        if (hygieneRes?.success) newData.identityHygiene = hygieneRes.data;
+        if (licensesRes?.success) newData.licenses = licensesRes.data || [];
+        if (activityRes?.success) newData.activities = activityRes.data || [];
+        if (statusRes?.success) newData.systemStatus = statusRes.data;
+        if (mfaRes?.success) newData.mfaCoverage = mfaRes.data;
+
+        setDashboardData(newData);
       } catch (error) {
         console.error('[Dashboard] Error fetching initial data:', error);
       }
     };
 
-    // Call immediately on mount
-    fetchData();
+    fetchData(); // Initial load if needed
 
-    const interval = setInterval(fetchData, 30000); // 30s refresh
+    const interval = setInterval(() => fetchData(true), 30000); // Background 30s refresh
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
-
-  const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
+  }, [lastUpdated]); // Include lastUpdated dependency to ensure we can re-evaluate cache strategy if needed
 
   // Safe access to data
   const current = securitySummary?.current;
   const trends = securitySummary?.trends;
 
   // Calculate License Waste (Unused Licenses)
-  const unusedLicenses = licenses.filter(lic => lic.available > 0).reduce((sum, lic) => sum + lic.available, 0);
+  const unusedLicenses = licenses.reduce((sum, lic) => sum + (lic.availableUnits || 0), 0);
 
   // Sort licenses by percentage used (descending), then take top 8
   const displayedLicenses = [...licenses]
     .sort((a, b) => {
-      const aUsage = a.total > 0 ? (a.used / a.total) : 0;
-      const bUsage = b.total > 0 ? (b.used / b.total) : 0;
+      const aTotal = (a.availableUnits || 0) + (a.consumedUnits || 0);
+      const bTotal = (b.availableUnits || 0) + (b.consumedUnits || 0);
+      const aUsage = aTotal > 0 ? ((a.consumedUnits || 0) / aTotal) : 0;
+      const bUsage = bTotal > 0 ? ((b.consumedUnits || 0) / bTotal) : 0;
       return bUsage - aUsage;
     })
     .slice(0, 8);
 
   const activeModal = isSecurityModalOpen ? 'alerts' : isRiskyUsersModalOpen ? 'risky-users' : isDeviceModalOpen ? 'non-compliant' : isExternalForwardingModalOpen ? 'external-forwarding' : isMfaModalOpen ? 'users-without-mfa' : null;
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
