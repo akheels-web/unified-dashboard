@@ -214,14 +214,14 @@ export const dashboardApi = {
 
       // Map audit logs to activity items with safe navigation
       const activities: ActivityItem[] = response.value.map((log: any) => ({
-        id: log?.id || '',
-        type: (log?.category || 'other') as 'user' | 'asset' | 'workflow' | 'system' | 'other',
-        action: log?.activityDisplayName || 'Unknown Action',
-        user: log?.initiatedBy?.user?.displayName || log?.initiatedBy?.user?.userPrincipalName || 'System',
-        target: log?.targetResources?.[0]?.displayName || log?.targetResources?.[0]?.userPrincipalName || '',
-        timestamp: log?.activityDateTime || new Date().toISOString(),
-        status: (log?.result || 'success') as 'success' | 'pending' | 'failed',
-        details: log?.resultReason || ''
+        id: log.id || '',
+        type: (log.category?.toLowerCase() || 'system') as any,
+        action: log.action || 'Unknown Action',
+        user: log.user || 'System',
+        target: log.target || '',
+        timestamp: log.timestamp || new Date().toISOString(),
+        status: (log.status?.toLowerCase() === 'failed' ? 'failed' : 'success') as any,
+        details: log.details || ''
       }));
 
       return { success: true, data: activities };
@@ -704,17 +704,19 @@ export const assetsApi = {
         const assets: Asset[] = realData.value.map((d: any) => ({
           id: d.id,
           name: d.deviceName || 'Unknown Device',
-          assetTag: d.managedDeviceName || 'N/A', // Intune doesn't always have asset tags
+          assetTag: d.managedDeviceName || 'N/A',
           serialNumber: d.serialNumber || 'N/A',
           model: d.model || 'Unknown Model',
           category: d.operatingSystem === 'Windows' ? 'Laptop' : d.operatingSystem === 'iOS' ? 'Mobile' : 'Workstation',
-          status: 'active', // Defaulting to active for now
-          assignedTo: d.userId, // Intune creates user association via userId
-          assignedToName: d.userDisplayName, // Ensure this field exists if Graph returns it (it does for managedDevices)
+          status: 'available',
+          assignedTo: d.userId,
+          assignedToName: d.userDisplayName,
           purchaseDate: d.enrolledDateTime,
-          warrantyExpiration: undefined, // Not typically in standard Intune view
-          location: 'Remote', // Todo: Map from extension attributes
-          manufacturer: d.manufacturer
+          location: 'Remote',
+          manufacturer: d.manufacturer,
+          notes: d.complianceState || 'Unknown', // Required for Reports compliance charts
+          createdAt: d.enrolledDateTime || new Date().toISOString(),
+          updatedAt: d.lastSyncDateTime || new Date().toISOString()
         }));
 
         // Apply client-side filtering/pagination for now

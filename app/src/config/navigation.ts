@@ -30,8 +30,8 @@ export const navItems: NavItem[] = [
     { path: '/licenses', label: 'Licenses', icon: Shield, roles: ['it_admin', 'it_user'] },
     { path: '/software', label: 'Software', icon: AppWindow, roles: ['it_admin', 'it_user'] },
     { path: '/identity/apps', label: 'Enterprise Apps', icon: Shield, roles: ['it_admin', 'it_user'] },
-    { path: '/onboarding', label: 'Onboarding', icon: UserPlus, badge: 8 },
-    { path: '/offboarding', label: 'Offboarding', icon: UserMinus, badge: 5 },
+    { path: '/onboarding', label: 'Onboarding', icon: UserPlus },
+    { path: '/offboarding', label: 'Offboarding', icon: UserMinus },
 
     { path: '/network', label: 'Network', icon: Wifi, roles: ['it_admin', 'it_user'] },
     { path: '/sites', label: 'Sites', icon: Globe, roles: ['it_admin'] },
