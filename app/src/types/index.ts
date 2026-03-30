@@ -171,6 +171,10 @@ export interface OffboardingWorkflow {
   revokeSessions: boolean;
   removeMfa: boolean;
   removeGroups: boolean;
+  removeLicenses: boolean;
+  removeFromSharepoint: boolean;
+  wipeDevice: boolean;
+  blockSignIn: boolean;
   forwardEmail?: string;
   archiveData: boolean;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
@@ -389,6 +393,10 @@ export interface OffboardingFormData {
   revokeSessions: boolean;
   removeMfa: boolean;
   removeGroups: boolean;
+  removeLicenses: boolean;
+  removeFromSharepoint: boolean;
+  wipeDevice: boolean;
+  blockSignIn: boolean;
   forwardEmail?: string;
   archiveData: boolean;
   delegateAccessTo?: string;

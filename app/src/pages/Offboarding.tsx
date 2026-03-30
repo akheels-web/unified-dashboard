@@ -55,6 +55,10 @@ export function Offboarding() {
     revokeSessions: true,
     removeMfa: true,
     removeGroups: true,
+    removeLicenses: true,
+    removeFromSharepoint: true,
+    wipeDevice: false,
+    blockSignIn: true,
     forwardEmail: '',
     archiveData: true,
     delegateAccessTo: '',
@@ -105,6 +109,10 @@ export function Offboarding() {
       revokeSessions: true,
       removeMfa: true,
       removeGroups: true,
+      removeLicenses: true,
+      removeFromSharepoint: true,
+      wipeDevice: false,
+      blockSignIn: true,
       forwardEmail: '',
       archiveData: true,
       delegateAccessTo: '',
@@ -210,6 +218,27 @@ export function Offboarding() {
                   )}
                 </button>
               ))}
+
+              {searchQuery.includes('@') && !filteredUsers.some(u => u.email === searchQuery || u.userPrincipalName === searchQuery) && (
+                <button
+                  onClick={() => {
+                    setFormData({
+                      ...formData,
+                      userId: searchQuery,
+                      employeeName: searchQuery.split('@')[0],
+                      employeeEmail: searchQuery,
+                    });
+                    setCurrentStep(1);
+                  }}
+                  className="w-full flex items-center gap-3 p-4 bg-primary/10 border border-dashed border-primary rounded-lg text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  <div>
+                    <p className="font-medium">Use manual entry: "{searchQuery}"</p>
+                    <p className="text-xs opacity-80">Offboard user by email/UPN directly</p>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         );
@@ -313,6 +342,94 @@ export function Offboarding() {
                     <span className="text-foreground font-medium">Remove from All Groups</span>
                   </div>
                   <p className="text-sm text-muted-foreground">Remove from security groups, distribution lists, etc.</p>
+                </div>
+              </label>
+
+              {/* Remove Licenses */}
+              <label className={cn(
+                'flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer',
+                formData.removeLicenses
+                  ? 'bg-destructive/10 border-destructive/30'
+                  : 'bg-muted/20 border-border'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={formData.removeLicenses}
+                  onChange={(e) => setFormData({ ...formData, removeLicenses: e.target.checked })}
+                  className="w-5 h-5 rounded border-border bg-card text-destructive focus:ring-destructive"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-foreground font-medium">Remove All Licenses</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Unassign all M365/O365 licenses</p>
+                </div>
+              </label>
+
+              {/* Remove from SharePoint */}
+              <label className={cn(
+                'flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer',
+                formData.removeFromSharepoint
+                  ? 'bg-destructive/10 border-destructive/30'
+                  : 'bg-muted/20 border-border'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={formData.removeFromSharepoint}
+                  onChange={(e) => setFormData({ ...formData, removeFromSharepoint: e.target.checked })}
+                  className="w-5 h-5 rounded border-border bg-card text-destructive focus:ring-destructive"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Archive className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-foreground font-medium">Remove from SharePoint Sites</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Remove user permissions from all site collections</p>
+                </div>
+              </label>
+
+              {/* Wipe Device */}
+              <label className={cn(
+                'flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer',
+                formData.wipeDevice
+                  ? 'bg-destructive/10 border-destructive/30'
+                  : 'bg-muted/20 border-border'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={formData.wipeDevice}
+                  onChange={(e) => setFormData({ ...formData, wipeDevice: e.target.checked })}
+                  className="w-5 h-5 rounded border-border bg-card text-destructive focus:ring-destructive"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Laptop className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-foreground font-medium">Delete Company Data from Device</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Wipe/Retire company managed apps and data</p>
+                </div>
+              </label>
+
+              {/* Block Sign-in */}
+              <label className={cn(
+                'flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer',
+                formData.blockSignIn
+                  ? 'bg-destructive/10 border-destructive/30'
+                  : 'bg-muted/20 border-border'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={formData.blockSignIn}
+                  onChange={(e) => setFormData({ ...formData, blockSignIn: e.target.checked })}
+                  className="w-5 h-5 rounded border-border bg-card text-destructive focus:ring-destructive"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <ShieldOff className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-foreground font-medium">Block Sign-in</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Immediately block authentication for this user</p>
                 </div>
               </label>
             </div>
@@ -476,6 +593,30 @@ export function Offboarding() {
                 <div className="flex items-center gap-2 text-destructive">
                   <Users className="w-4 h-4" />
                   <span>Remove from all groups</span>
+                </div>
+              )}
+              {formData.removeLicenses && (
+                <div className="flex items-center gap-2 text-destructive">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Remove all licenses</span>
+                </div>
+              )}
+              {formData.removeFromSharepoint && (
+                <div className="flex items-center gap-2 text-destructive">
+                  <Archive className="w-4 h-4" />
+                  <span>Remove from SharePoint sites</span>
+                </div>
+              )}
+              {formData.wipeDevice && (
+                <div className="flex items-center gap-2 text-destructive">
+                  <Laptop className="w-4 h-4" />
+                  <span>Delete company data from device</span>
+                </div>
+              )}
+              {formData.blockSignIn && (
+                <div className="flex items-center gap-2 text-destructive">
+                  <ShieldOff className="w-4 h-4" />
+                  <span>Block sign-in</span>
                 </div>
               )}
               {formData.archiveData && (

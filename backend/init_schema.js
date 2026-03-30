@@ -47,6 +47,32 @@ CREATE TABLE IF NOT EXISTS hygiene_snapshots (
     mailbox_usage_over_90 INT DEFAULT 0,
     external_forwarding_count INT DEFAULT 0
 );
+
+-- Offboarding Workflows
+CREATE TABLE IF NOT EXISTS offboarding_workflows (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    employee_name VARCHAR(255),
+    employee_email VARCHAR(255),
+    departure_date DATE,
+    reason VARCHAR(100),
+    disable_account BOOLEAN DEFAULT TRUE,
+    revoke_sessions BOOLEAN DEFAULT TRUE,
+    remove_mfa BOOLEAN DEFAULT TRUE,
+    remove_groups BOOLEAN DEFAULT TRUE,
+    remove_licenses BOOLEAN DEFAULT TRUE,
+    remove_from_sharepoint BOOLEAN DEFAULT TRUE,
+    wipe_device BOOLEAN DEFAULT FALSE,
+    block_sign_in BOOLEAN DEFAULT TRUE,
+    forward_email VARCHAR(255),
+    archive_data BOOLEAN DEFAULT TRUE,
+    delegate_access_to VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'pending',
+    progress INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP,
+    created_by VARCHAR(255)
+);
 `;
 
 async function initDB() {

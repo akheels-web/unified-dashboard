@@ -871,6 +871,14 @@ export const onboardingApi = {
 // Offboarding API
 export const offboardingApi = {
   getWorkflows: async (): Promise<ApiResponse<OffboardingWorkflow[]>> => {
+    try {
+      const response = await fetchClient('/offboarding');
+      if (response && response.success) {
+        return { success: true, data: response.data };
+      }
+    } catch (e) {
+      console.warn("Failed to fetch offboarding workflows", e);
+    }
     await delay(500);
     return { success: true, data: mockOffboardingWorkflows };
   },
@@ -885,13 +893,26 @@ export const offboardingApi = {
   },
 
   createWorkflow: async (data: OffboardingFormData): Promise<ApiResponse<OffboardingWorkflow>> => {
+    try {
+      const response = await fetchClient('/offboarding', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      if (response && response.success) {
+        return { success: true, data: response.data };
+      }
+    } catch (e) {
+      console.warn("Failed to create offboarding workflow", e);
+    }
+    
+    // Fallback for demo
     await delay(800);
     const user = mockM365Users.find(u => u.id === data.userId);
     const newWorkflow: OffboardingWorkflow = {
       id: Math.random().toString(36).substr(2, 9),
       ...data,
-      employeeName: user?.displayName || 'Unknown',
-      employeeEmail: user?.email,
+      employeeName: user?.displayName || data.userId.split('@')[0] || 'Unknown',
+      employeeEmail: user?.email || data.userId,
       status: 'pending',
       createdBy: '1',
       createdAt: new Date().toISOString(),
@@ -900,9 +921,13 @@ export const offboardingApi = {
     return { success: true, data: newWorkflow };
   },
 
-  executeWorkflow: async (_id: string): Promise<ApiResponse<void>> => {
-    await delay(2000);
-    return { success: true, message: 'Offboarding workflow executed successfully' };
+  executeWorkflow: async (id: string): Promise<ApiResponse<void>> => {
+    try {
+      await fetchClient(`/offboarding/${id}/execute`, { method: 'POST' });
+      return { success: true, message: 'Offboarding workflow executed successfully' };
+    } catch (e) {
+      return { success: false, message: 'Failed to execute offboarding' };
+    }
   },
 
   getTasks: async (_workflowId: string): Promise<ApiResponse<any[]>> => {

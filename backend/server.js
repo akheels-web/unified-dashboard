@@ -2083,4 +2083,156 @@ const startServer = () => {
 //     }
 // });
 
+// ======================================================
+// Offboarding Workflows
+// ======================================================
+
+// Get all offboarding workflows
+app.get('/api/offboarding', validateToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM offboarding_workflows ORDER BY created_at DESC');
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('Failed to fetch offboarding workflows:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Create new offboarding workflow
+app.post('/api/offboarding', validateToken, async (req, res) => {
+    const {
+        userId, employeeName, employeeEmail, departureDate, reason,
+        disableAccount, revokeSessions, removeMfa, removeGroups,
+        removeLicenses, removeFromSharepoint, wipeDevice, blockSignIn,
+        forwardEmail, archiveData, delegateAccessTo
+    } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO offboarding_workflows (
+                user_id, employee_name, employee_email, departure_date, reason,
+                disable_account, revoke_sessions, remove_mfa, remove_groups,
+                remove_licenses, remove_from_sharepoint, wipe_device, block_sign_in,
+                forward_email, archive_data, delegate_access_to, status, progress, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'pending', 0, 'current_admin')
+            RETURNING *
+        `;
+        const values = [
+            userId, employeeName, employeeEmail, departureDate, reason,
+            disableAccount, revokeSessions, removeMfa, removeGroups,
+            removeLicenses, removeFromSharepoint, wipeDevice, blockSignIn,
+            forwardEmail, archiveData, delegateAccessTo
+        ];
+
+        const result = await pool.query(query, values);
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('Failed to create offboarding workflow:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+});
+
+// Execute offboarding workflow
+app.post('/api/offboarding/:id/execute', validateToken, async (req, res) => {
+    const workflowId = req.params.id;
+    const accessToken = req.accessToken;
+
+    try {
+        // Fetch the workflow details
+        const wfResult = await pool.query('SELECT * FROM offboarding_workflows WHERE id = $1', [workflowId]);
+        if (wfResult.rows.length === 0) return res.status(404).json({ error: 'Workflow not found' });
+
+        const workflow = wfResult.rows[0];
+        const userId = workflow.user_id;
+
+        console.log(`[Offboarding] EXECUTING workflow ${workflowId} for user ${userId}`);
+
+        // Update status to in_progress
+        await pool.query('UPDATE offboarding_workflows SET status = $1, progress = $2 WHERE id = $3', ['in_progress', 10, workflowId]);
+
+        const updateProgress = async (progress) => {
+            await pool.query('UPDATE offboarding_workflows SET progress = $1 WHERE id = $2', [progress, workflowId]);
+        };
+
+        // Graph Headers
+        const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+
+        // 1. Disable Account / Block Sign-in
+        if (workflow.disable_account || workflow.block_sign_in) {
+            console.log(`[Offboarding] Disabling account for ${userId}`);
+            await axios.patch(`https://graph.microsoft.com/v1.0/users/${userId}`, { accountEnabled: false }, { headers });
+            await updateProgress(20);
+        }
+
+        // 2. Revoke Sessions
+        if (workflow.revoke_sessions) {
+            console.log(`[Offboarding] Revoking sessions for ${userId}`);
+            await axios.post(`https://graph.microsoft.com/v1.0/users/${userId}/revokeSignInSessions`, {}, { headers });
+            await updateProgress(40);
+        }
+
+        // 3. Remove Licenses
+        if (workflow.remove_licenses) {
+            console.log(`[Offboarding] Removing licenses for ${userId}`);
+            // Get current licenses
+            const userRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=assignedLicenses`, { headers });
+            const licenseIds = userRes.data.assignedLicenses?.map(l => l.skuId) || [];
+            if (licenseIds.length > 0) {
+                await axios.post(`https://graph.microsoft.com/v1.0/users/${userId}/assignLicenses`, {
+                    addLicenses: [],
+                    removeLicenses: licenseIds
+                }, { headers });
+            }
+            await updateProgress(60);
+        }
+
+        // 4. Remove Groups
+        if (workflow.remove_groups) {
+            console.log(`[Offboarding] Removing from groups for ${userId}`);
+            const groupsRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/memberOf?$select=id,groupTypes`, { headers });
+            const groups = groupsRes.data.value || [];
+            
+            for (const group of groups) {
+                // Check if it's a group (and not a directory role) and not dynamic
+                if (group['@odata.type'] === '#microsoft.graph.group') {
+                    const isDynamic = group.groupTypes && group.groupTypes.includes('DynamicMembership');
+                    if (!isDynamic) {
+                        try {
+                            await axios.delete(`https://graph.microsoft.com/v1.0/groups/${group.id}/members/${userId}/$ref`, { headers });
+                        } catch (err) {
+                            console.warn(`[Offboarding] Failed to remove from group ${group.id}:`, err.message);
+                        }
+                    }
+                }
+            }
+            await updateProgress(80);
+        }
+
+        // 5. Wipe/Retire Device
+        if (workflow.wipe_device) {
+            console.log(`[Offboarding] Retiring devices for ${userId}`);
+            const devicesRes = await axios.get(`https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$filter=userPrincipalName eq '${userId}'`, { headers });
+            const devices = devicesRes.data.value || [];
+            
+            for (const device of devices) {
+                try {
+                    await axios.post(`https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${device.id}/retire`, {}, { headers });
+                } catch (err) {
+                    console.warn(`[Offboarding] Failed to retire device ${device.id}:`, err.message);
+                }
+            }
+            await updateProgress(95);
+        }
+
+        // Update status to completed
+        await pool.query('UPDATE offboarding_workflows SET status = $1, progress = $2, completed_at = NOW() WHERE id = $3', ['completed', 100, workflowId]);
+
+        res.json({ success: true, message: 'Offboarding executed successfully' });
+    } catch (error) {
+        console.error('Offboarding execution failed:', error.response?.data || error.message);
+        await pool.query('UPDATE offboarding_workflows SET status = $1 WHERE id = $2', ['failed', workflowId]);
+        res.status(500).json({ success: false, error: 'Offboarding execution failed', details: error.response?.data || error.message });
+    }
+});
+
 startServer();
