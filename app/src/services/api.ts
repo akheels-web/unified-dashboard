@@ -8,8 +8,8 @@ import type {
   SecuritySummary, DeviceHealth, IdentityHygiene
 } from '@/types';
 import {
-  mockM365Users, mockUserGroups, mockAssets, mockAssetCategories,
-  mockOnboardingWorkflows, mockOffboardingWorkflows,
+  mockUserGroups, mockAssets, mockAssetCategories,
+  mockOnboardingWorkflows,
   mockSystemStatus,
   mockDepartmentData, mockAssetStatusData, mockLifecycleData,
   mockM365Licenses
@@ -869,25 +869,56 @@ export const onboardingApi = {
 };
 
 // Offboarding API
+// Offboarding API
+const mapOffboardingWorkflow = (wf: any): OffboardingWorkflow => ({
+  id: wf.id.toString(),
+  userId: wf.user_id,
+  employeeName: wf.employee_name,
+  employeeEmail: wf.employee_email,
+  departureDate: wf.departure_date,
+  reason: wf.reason,
+  disableAccount: wf.disable_account,
+  revokeSessions: wf.revoke_sessions,
+  removeMfa: wf.remove_mfa,
+  removeGroups: wf.remove_groups,
+  removeLicenses: wf.remove_licenses,
+  removeFromSharepoint: wf.remove_from_sharepoint,
+  wipeDevice: wf.wipe_device,
+  blockSignIn: wf.block_sign_in,
+  forwardEmail: wf.forward_email,
+  archiveData: wf.archive_data,
+  status: wf.status,
+  progress: wf.progress,
+  createdBy: wf.created_by,
+  createdAt: wf.created_at,
+  completedAt: wf.completed_at
+});
+
 export const offboardingApi = {
   getWorkflows: async (): Promise<ApiResponse<OffboardingWorkflow[]>> => {
     try {
       const response = await fetchClient('/offboarding');
-      if (response && response.success) {
-        return { success: true, data: response.data };
+      if (response && response.success && Array.isArray(response.data)) {
+        return { 
+          success: true, 
+          data: response.data.map(mapOffboardingWorkflow) 
+        };
       }
+      return { success: true, data: [] };
     } catch (e) {
-      console.warn("Failed to fetch offboarding workflows", e);
+      console.error("Failed to fetch offboarding workflows", e);
+      return { success: false, error: 'Failed to fetch offboarding workflows' };
     }
-    await delay(500);
-    return { success: true, data: mockOffboardingWorkflows };
   },
 
   getWorkflow: async (id: string): Promise<ApiResponse<OffboardingWorkflow>> => {
-    await delay(400);
-    const workflow = mockOffboardingWorkflows.find(w => w.id === id);
-    if (workflow) {
-      return { success: true, data: workflow };
+    try {
+      const response = await fetchClient(`/offboarding/${id}`);
+      if (response && response.success && response.data) {
+        return { success: true, data: mapOffboardingWorkflow(response.data) };
+      }
+    } catch (e) {
+      console.error(`Failed to fetch offboarding workflow ${id}`, e);
     }
     return { success: false, error: 'Workflow not found' };
   },
@@ -896,52 +927,54 @@ export const offboardingApi = {
     try {
       const response = await fetchClient('/offboarding', {
         method: 'POST',
-        body: JSON.stringify(data)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: data.userId,
+          employee_name: data.employeeName,
+          employee_email: data.employeeEmail,
+          departure_date: data.departureDate,
+          reason: data.reason,
+          disable_account: data.disableAccount,
+          revoke_sessions: data.revokeSessions,
+          remove_mfa: data.removeMfa,
+          remove_groups: data.removeGroups,
+          remove_licenses: data.removeLicenses,
+          remove_from_sharepoint: data.removeFromSharepoint,
+          wipe_device: data.wipeDevice,
+          block_sign_in: data.blockSignIn,
+          forward_email: data.forwardEmail,
+          archive_data: data.archiveData,
+          delegate_access_to: data.delegateAccessTo
+        })
       });
-      if (response && response.success) {
-        return { success: true, data: response.data };
+      if (response && response.success && response.data) {
+        return { success: true, data: mapOffboardingWorkflow(response.data) };
       }
+      return { success: false, error: response?.error || 'Failed to create workflow' };
     } catch (e) {
-      console.warn("Failed to create offboarding workflow", e);
+      console.error("Failed to create offboarding workflow", e);
+      return { success: false, error: 'Failed to create offboarding workflow' };
     }
-    
-    // Fallback for demo
-    await delay(800);
-    const user = mockM365Users.find(u => u.id === data.userId);
-    const newWorkflow: OffboardingWorkflow = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...data,
-      employeeName: user?.displayName || data.userId.split('@')[0] || 'Unknown',
-      employeeEmail: user?.email || data.userId,
-      status: 'pending',
-      createdBy: '1',
-      createdAt: new Date().toISOString(),
-      progress: 0,
-    };
-    return { success: true, data: newWorkflow };
   },
 
   executeWorkflow: async (id: string): Promise<ApiResponse<void>> => {
     try {
-      await fetchClient(`/offboarding/${id}/execute`, { method: 'POST' });
-      return { success: true, message: 'Offboarding workflow executed successfully' };
+      const response = await fetchClient(`/offboarding/${id}/execute`, { method: 'POST' });
+      if (response && response.success) {
+        return { success: true, message: 'Offboarding workflow executed successfully' };
+      }
+      return { success: false, error: response?.error || 'Execution failed' };
     } catch (e) {
-      return { success: false, message: 'Failed to execute offboarding' };
+      console.error("Failed to execute offboarding", e);
+      return { success: false, error: 'Failed to execute offboarding' };
     }
   },
 
   getTasks: async (_workflowId: string): Promise<ApiResponse<any[]>> => {
-    await delay(400);
+    // Note: Tasks table not yet implemented in backend, returning empty for now
     return {
       success: true,
-      data: [
-        { id: '1', taskName: 'Disable Account', status: 'completed', completedAt: '2024-01-20T09:00:00Z' },
-        { id: '2', taskName: 'Revoke Sessions', status: 'completed', completedAt: '2024-01-20T09:05:00Z' },
-        { id: '3', taskName: 'Remove MFA', status: 'completed', completedAt: '2024-01-20T09:10:00Z' },
-        { id: '4', taskName: 'Remove from Groups', status: 'in_progress' },
-        { id: '5', taskName: 'Archive Data', status: 'pending' },
-        { id: '6', taskName: 'Recover Assets', status: 'pending' },
-      ]
+      data: []
     };
   },
 };

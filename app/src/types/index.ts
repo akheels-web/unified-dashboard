@@ -387,6 +387,8 @@ export interface OnboardingFormData {
 
 export interface OffboardingFormData {
   userId: string;
+  employeeName: string;
+  employeeEmail?: string;
   departureDate: string;
   reason?: string;
   disableAccount: boolean;
