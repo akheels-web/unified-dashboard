@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Plus, MoreVertical, RefreshCw,
+  Search, MoreVertical, RefreshCw,
   Laptop, Smartphone, Monitor, Wifi, Mouse, Key,
   ChevronLeft, ChevronRight, X, User, MapPin,
   Calendar, Wrench, CheckCircle2, AlertTriangle,

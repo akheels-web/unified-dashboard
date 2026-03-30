@@ -536,6 +536,10 @@ export const mockOffboardingWorkflows: OffboardingWorkflow[] = [
     revokeSessions: true,
     removeMfa: true,
     removeGroups: true,
+    removeLicenses: true,
+    removeFromSharepoint: true,
+    wipeDevice: false,
+    blockSignIn: true,
     forwardEmail: 'sarah.williams@company.com',
     archiveData: true,
     status: 'in_progress',
@@ -615,6 +619,15 @@ export const mockSystemStatus: SystemStatus = {
       { name: 'London Branch', status: 'operational', lastUpdated: '2024-01-20T12:00:00Z' },
       { name: 'Singapore Hub', status: 'operational', lastUpdated: '2024-01-20T12:00:00Z' },
       { name: 'Remote Operations', status: 'degraded', lastUpdated: '2024-01-20T12:00:00Z' },
+    ]
+  },
+  atlassian: {
+    overall: 'operational',
+    lastSync: '2024-01-20T12:00:00Z',
+    services: [
+      { name: 'Jira Software', status: 'operational', lastUpdated: '2024-01-20T12:00:00Z' },
+      { name: 'Jira Service Management', status: 'operational', lastUpdated: '2024-01-20T12:00:00Z' },
+      { name: 'Confluence', status: 'operational', lastUpdated: '2024-01-20T12:00:00Z' },
     ]
   },
 };

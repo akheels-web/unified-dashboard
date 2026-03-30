@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Quote, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
 const quotes = [
     { text: "The significant problems we have cannot be solved at the same level of thinking with which we created them.", author: "Albert Einstein" },
     { text: "Simplicity is the soul of efficiency.", author: "Austin Freeman" },

@@ -12,7 +12,7 @@ import {
   mockOnboardingWorkflows, mockOffboardingWorkflows,
   mockSystemStatus,
   mockDepartmentData, mockAssetStatusData, mockLifecycleData,
-  mockDashboardStats, mockM365Licenses
+  mockM365Licenses
 } from './mockData';
 import { useNetworkStore } from '@/stores/networkStore';
 import { getAccessToken } from './auth';

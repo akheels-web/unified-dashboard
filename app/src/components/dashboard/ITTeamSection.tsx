@@ -54,7 +54,7 @@ export function ITTeamSection() {
             </div>
 
             <div className="space-y-4">
-                {TEAM_MEMBERS.map((member, index) => (
+                {TEAM_MEMBERS.map((member) => (
                     <div
                         key={member.email}
                         className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border"
