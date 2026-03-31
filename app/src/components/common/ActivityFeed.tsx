@@ -25,10 +25,12 @@ const iconMap: Record<string, LucideIcon> = {
   Settings,
 };
 
-const statusConfig = {
+const statusConfig: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
   success: { icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-500/20' },
   warning: { icon: AlertTriangle, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
   error: { icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/20' },
+  // Aliases – the API returns 'failed' not 'error', and 'info' for informational items
+  failed: { icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/20' },
   info: { icon: Info, color: 'text-blue-400', bg: 'bg-blue-500/20' },
 };
 
@@ -38,8 +40,9 @@ export function ActivityFeed({ activities, maxItems = 10 }: ActivityFeedProps) {
   return (
     <div className="space-y-3">
       {displayActivities.map((activity, index) => {
-        const ActivityIcon = activity.icon ? iconMap[activity.icon] : statusConfig[activity.status].icon;
-        const statusStyle = statusConfig[activity.status];
+      const safeStatus = statusConfig[activity.status] ? activity.status : 'info';
+        const ActivityIcon = activity.icon ? (iconMap[activity.icon] ?? Info) : statusConfig[safeStatus].icon;
+        const statusStyle = statusConfig[safeStatus];
 
         return (
           <motion.div
