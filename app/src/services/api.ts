@@ -34,7 +34,7 @@ const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
     if (isGet) {
       // 1. Return from cache if still fresh
       const cached = requestCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION && !endpoint.includes('/offboarding') && !endpoint.includes('/onboarding')) {
         return cached.data;
       }
 

@@ -2236,6 +2236,17 @@ app.post('/api/offboarding/:id/execute', validateToken, async (req, res) => {
         // 4. Remove Groups
         if (workflow.remove_groups) {
             console.log(`[Offboarding] Removing from groups for ${userId}`);
+            
+            let userObjectId = userId;
+            if (userId.includes('@')) {
+                try {
+                    const idRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=id`, { headers });
+                    userObjectId = idRes.data.id;
+                } catch (e) {
+                    console.warn(`[Offboarding] Failed to resolve object ID.`, e.message);
+                }
+            }
+
             const groupsRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/memberOf?$select=id,groupTypes`, { headers });
             const groups = groupsRes.data.value || [];
             
@@ -2245,7 +2256,7 @@ app.post('/api/offboarding/:id/execute', validateToken, async (req, res) => {
                     const isDynamic = group.groupTypes && group.groupTypes.includes('DynamicMembership');
                     if (!isDynamic) {
                         try {
-                            await axios.delete(`https://graph.microsoft.com/v1.0/groups/${group.id}/members/${userId}/$ref`, { headers });
+                            await axios.delete(`https://graph.microsoft.com/v1.0/groups/${group.id}/members/${userObjectId}/$ref`, { headers });
                         } catch (err) {
                             console.warn(`[Offboarding] Failed to remove from group ${group.id}:`, err.message);
                         }
