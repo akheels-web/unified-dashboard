@@ -945,22 +945,22 @@ export const offboardingApi = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: data.userId,
-          employee_name: data.employeeName,
-          employee_email: data.employeeEmail,
-          departure_date: data.departureDate,
+          userId: data.userId,
+          employeeName: data.employeeName,
+          employeeEmail: data.employeeEmail,
+          departureDate: data.departureDate,
           reason: data.reason,
-          disable_account: data.disableAccount,
-          revoke_sessions: data.revokeSessions,
-          remove_mfa: data.removeMfa,
-          remove_groups: data.removeGroups,
-          remove_licenses: data.removeLicenses,
-          remove_from_sharepoint: data.removeFromSharepoint,
-          wipe_device: data.wipeDevice,
-          block_sign_in: data.blockSignIn,
-          forward_email: data.forwardEmail,
-          archive_data: data.archiveData,
-          delegate_access_to: data.delegateAccessTo
+          disableAccount: data.disableAccount,
+          revokeSessions: data.revokeSessions,
+          removeMfa: data.removeMfa,
+          removeGroups: data.removeGroups,
+          removeLicenses: data.removeLicenses,
+          removeFromSharepoint: data.removeFromSharepoint,
+          wipeDevice: data.wipeDevice,
+          blockSignIn: data.blockSignIn,
+          forwardEmail: data.forwardEmail,
+          archiveData: data.archiveData,
+          delegateAccessTo: data.delegateAccessTo
         })
       });
       if (response && response.success && response.data) {
