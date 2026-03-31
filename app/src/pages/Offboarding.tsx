@@ -37,8 +37,11 @@ export function Offboarding() {
   const [isExecuting, setIsExecuting] = useState(false);
 
   const filteredWorkflows = workflows.filter(workflow => {
-    return workflow.employeeName.toLowerCase().includes(workflowSearchQuery.toLowerCase()) ||
-      workflow.employeeEmail?.toLowerCase().includes(workflowSearchQuery.toLowerCase());
+    if (!workflow) return false;
+    const nameStr = workflow.employeeName || '';
+    const emailStr = workflow.employeeEmail || '';
+    const query = (workflowSearchQuery || '').toLowerCase();
+    return nameStr.toLowerCase().includes(query) || emailStr.toLowerCase().includes(query);
   });
 
   // Form data
