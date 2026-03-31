@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type StatusType = 'active' | 'inactive' | 'pending' | 'completed' | 'failed' | 'warning' | 'error' | 'success' | 'info' | 'online' | 'offline' | 'available' | 'assigned' | 'maintenance' | 'retired' | 'lost' | 'adopting' | 'in_progress' | 'cancelled' | 'upcoming' | 'expired';
+type StatusType = 'active' | 'inactive' | 'pending' | 'completed' | 'failed' | 'warning' | 'error' | 'success' | 'info' | 'online' | 'offline' | 'available' | 'assigned' | 'maintenance' | 'retired' | 'lost' | 'adopting' | 'in_progress' | 'cancelled' | 'upcoming' | 'expired' | string;
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -46,7 +46,8 @@ const dotSizeConfig = {
 };
 
 export function StatusBadge({ status, text, size = 'md', pulse = false }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  // Fallback config for unknown/undefined status values to prevent crashes
+  const config = statusConfig[status as StatusType] ?? { bg: 'bg-gray-500/20', text: 'text-gray-400', dot: 'bg-gray-500', label: status || 'Unknown' };
 
   return (
     <span className={cn(

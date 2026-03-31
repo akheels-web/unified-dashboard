@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { PageErrorBoundary } from '@/components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 // Lazy load pages for performance
@@ -74,6 +75,18 @@ function RoleRoute({
   return <>{children}</>;
 }
 
+/** Wraps a page with a per-page error boundary AND a Suspense fallback.
+ *  This isolates crashes so one page cannot take down the whole app. */
+function SafePage({ children, name }: { children: React.ReactNode; name: string }) {
+  return (
+    <PageErrorBoundary pageName={name}>
+      <Suspense fallback={<div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+        {children}
+      </Suspense>
+    </PageErrorBoundary>
+  );
+}
+
 function App() {
   const { theme, brandColor } = useUIStore();
 
@@ -120,23 +133,22 @@ function App() {
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><Users /></RoleRoute>} />
-            <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><Groups /></RoleRoute>} />
-            <Route path="/shared-mailboxes" element={<RoleRoute roles={['it_admin', 'it_user']}><SharedMailboxes /></RoleRoute>} />
-            <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><Assets /></RoleRoute>} />
-            <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><Licenses /></RoleRoute>} />
-            <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SoftwarePage /></RoleRoute>} />
-            <Route path="/identity/apps" element={<RoleRoute roles={['it_admin', 'it_user']}><ApplicationGovernance /></RoleRoute>} />
-            <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><Onboarding /></RoleRoute>} />
-            <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><Offboarding /></RoleRoute>} />
-            <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><Network /></RoleRoute>} />
-            <Route path="/sites" element={<RoleRoute roles={['it_admin']}><Sites /></RoleRoute>} />
-            <Route path="/proxmox" element={<RoleRoute roles={['it_admin', 'it_user']}><Proxmox /></RoleRoute>} />
-            <Route path="/reports" element={<RoleRoute roles={['it_admin']}><Reports /></RoleRoute>} />
-            <Route path="/audit" element={<RoleRoute roles={['it_admin']}><Audit /></RoleRoute>} />
-            <Route path="/settings" element={<RoleRoute roles={['it_admin']}><Settings /></RoleRoute>} />
-
+            <Route path="/" element={<SafePage name="Dashboard"><Dashboard /></SafePage>} />
+            <Route path="/users" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Users"><Users /></SafePage></RoleRoute>} />
+            <Route path="/groups" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Groups"><Groups /></SafePage></RoleRoute>} />
+            <Route path="/shared-mailboxes" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Shared Mailboxes"><SharedMailboxes /></SafePage></RoleRoute>} />
+            <Route path="/inventory" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Assets"><Assets /></SafePage></RoleRoute>} />
+            <Route path="/licenses" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Licenses"><Licenses /></SafePage></RoleRoute>} />
+            <Route path="/software" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Software"><SoftwarePage /></SafePage></RoleRoute>} />
+            <Route path="/identity/apps" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Enterprise Apps"><ApplicationGovernance /></SafePage></RoleRoute>} />
+            <Route path="/onboarding" element={<RoleRoute roles={['it_admin']}><SafePage name="Onboarding"><Onboarding /></SafePage></RoleRoute>} />
+            <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><SafePage name="Offboarding"><Offboarding /></SafePage></RoleRoute>} />
+            <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Network"><Network /></SafePage></RoleRoute>} />
+            <Route path="/sites" element={<RoleRoute roles={['it_admin']}><SafePage name="Sites"><Sites /></SafePage></RoleRoute>} />
+            <Route path="/proxmox" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Proxmox"><Proxmox /></SafePage></RoleRoute>} />
+            <Route path="/reports" element={<RoleRoute roles={['it_admin']}><SafePage name="Reports"><Reports /></SafePage></RoleRoute>} />
+            <Route path="/audit" element={<RoleRoute roles={['it_admin']}><SafePage name="Audit Logs"><Audit /></SafePage></RoleRoute>} />
+            <Route path="/settings" element={<RoleRoute roles={['it_admin']}><SafePage name="Settings"><Settings /></SafePage></RoleRoute>} />
           </Route>
 
           {/* Catch all */}

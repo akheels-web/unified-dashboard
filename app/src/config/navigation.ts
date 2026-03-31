@@ -11,6 +11,7 @@ import {
     Shield,
     Globe,
     Server,
+    Settings,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -38,4 +39,5 @@ export const navItems: NavItem[] = [
     { path: '/proxmox', label: 'Proxmox', icon: Server, roles: ['it_admin', 'it_user'] },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit', label: 'Audit Logs', icon: ClipboardList, roles: ['it_admin'] },
+    { path: '/settings', label: 'Settings', icon: Settings, roles: ['it_admin'] },
 ];

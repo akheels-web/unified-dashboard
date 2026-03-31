@@ -11,7 +11,8 @@ export function Sidebar() {
   const { sidebarCollapsed } = useUIStore();
   const location = useLocation();
 
-  const filteredNavItems = navItems; // FORCE SHOW ALL
+  // Defensively filter out any undefined/invalid items to prevent crashes
+  const filteredNavItems = navItems.filter(item => item && item.path && item.icon && item.label);
   // const filteredNavItems = navItems.filter(item => {
   //   // If user has specific allowed pages defined, use those
   //   if (user?.allowedPages && user.allowedPages.length > 0) {

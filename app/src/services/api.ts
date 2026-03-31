@@ -23,7 +23,8 @@ const API_URL = '/api'; // import.meta.env.VITE_API_URL || '/api';
 
 // Authenticated Fetch Client
 const requestCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60 * 1000; // 1 minute cache for all frontend pages
+const inFlightRequests = new Map<string, Promise<any>>(); // deduplication map
+const CACHE_DURATION = 90 * 1000; // 90-second cache — good for 7-8 concurrent admins
 
 const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
   try {
@@ -31,9 +32,17 @@ const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
     const cacheKey = `${endpoint}`;
 
     if (isGet) {
+      // 1. Return from cache if still fresh
       const cached = requestCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
         return cached.data;
+      }
+
+      // 2. Deduplicate in-flight GET requests — if another admin triggered the
+      //    same call within the same event-loop tick, piggyback on that promise
+      //    instead of firing a second network request.
+      if (inFlightRequests.has(cacheKey)) {
+        return inFlightRequests.get(cacheKey);
       }
     }
 
@@ -47,25 +56,30 @@ const fetchClient = async (endpoint: string, options: RequestInit = {}) => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const fetchPromise = fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
+    }).then(async (response) => {
+      if (!response.ok) {
+        if (response.status !== 404) {
+          console.warn(`API Error: ${response.status} ${response.statusText} for ${endpoint}`);
+        }
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (isGet) {
+        requestCache.set(cacheKey, { data, timestamp: Date.now() });
+      }
+      return data;
+    }).finally(() => {
+      inFlightRequests.delete(cacheKey);
     });
 
-    if (!response.ok) {
-      if (response.status !== 404) {
-        console.warn(`API Error: ${response.status} ${response.statusText} for ${endpoint}`);
-      }
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
     if (isGet) {
-      requestCache.set(cacheKey, { data, timestamp: Date.now() });
+      inFlightRequests.set(cacheKey, fetchPromise);
     }
 
-    return data;
+    return await fetchPromise;
   } catch (error: any) {
     if (!error.message?.includes('404')) {
       console.error(`API Call Failed for ${endpoint}:`, error);
