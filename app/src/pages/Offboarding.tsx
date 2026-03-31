@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronLeft, Check, User, AlertTriangle,
   LogOut, Key, Users, Archive,
   X, Loader2, CheckCircle2, ShieldOff,
-  Laptop, Trash2, Triangle, Filter
+  Laptop, Trash2, Triangle
 } from 'lucide-react';
 
 // Alias Triangle as ExclamationTriangle since lucide doesn't have ExclamationTriangle
@@ -34,14 +34,11 @@ export function Offboarding() {
   const [activeUsers, setActiveUsers] = useState<M365User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [workflowSearchQuery, setWorkflowSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isExecuting, setIsExecuting] = useState(false);
 
   const filteredWorkflows = workflows.filter(workflow => {
-    const matchesSearch = workflow.employeeName.toLowerCase().includes(workflowSearchQuery.toLowerCase()) ||
+    return workflow.employeeName.toLowerCase().includes(workflowSearchQuery.toLowerCase()) ||
       workflow.employeeEmail?.toLowerCase().includes(workflowSearchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || workflow.status === statusFilter;
-    return matchesSearch && matchesStatus;
   });
 
   // Form data
@@ -705,24 +702,11 @@ export function Offboarding() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search workflows..."
+            placeholder="Search offboarding records..."
             value={workflowSearchQuery}
             onChange={(e) => setWorkflowSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-muted/50 border border-border rounded-lg text-sm focus:outline-none focus:border-primary"
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
         </div>
       </div>
 

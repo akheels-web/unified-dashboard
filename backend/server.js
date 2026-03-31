@@ -2225,7 +2225,7 @@ app.post('/api/offboarding/:id/execute', validateToken, async (req, res) => {
             const userRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=assignedLicenses`, { headers });
             const licenseIds = userRes.data.assignedLicenses?.map(l => l.skuId) || [];
             if (licenseIds.length > 0) {
-                await axios.post(`https://graph.microsoft.com/v1.0/users/${userId}/assignLicenses`, {
+                await axios.post(`https://graph.microsoft.com/v1.0/users/${userId}/assignLicense`, {
                     addLicenses: [],
                     removeLicenses: licenseIds
                 }, { headers });
