@@ -2131,6 +2131,88 @@ const startServer = () => {
 // });
 
 // ======================================================
+// User Quick Actions
+// ======================================================
+
+app.patch('/api/users/:id', validateToken, async (req, res) => {
+    try {
+        const { accountEnabled } = req.body;
+        const headers = { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' };
+        await axios.patch(`https://graph.microsoft.com/v1.0/users/${req.params.id}`, { accountEnabled }, { headers });
+        res.json({ success: true, message: 'User updated successfully' });
+    } catch (error) {
+        console.error('Failed to update user:', error.response?.data || error.message);
+        res.status(500).json({ success: false, error: 'Failed to update user' });
+    }
+});
+
+app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
+    try {
+        const headers = { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' };
+        await axios.post(`https://graph.microsoft.com/v1.0/users/${req.params.id}/revokeSignInSessions`, {}, { headers });
+        res.json({ success: true, message: 'Sessions revoked successfully' });
+    } catch (error) {
+        console.error('Failed to revoke sessions:', error.response?.data || error.message);
+        res.status(500).json({ success: false, error: 'Failed to revoke sessions' });
+    }
+});
+
+app.delete('/api/users/:id/mfa', validateToken, async (req, res) => {
+    try {
+        const headers = { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' };
+        const methodsRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${req.params.id}/authentication/methods`, { headers });
+        const methods = methodsRes.data.value || [];
+
+        for (const method of methods) {
+            if (method['@odata.type'] !== '#microsoft.graph.passwordAuthenticationMethod') {
+                try {
+                    await axios.delete(`https://graph.microsoft.com/v1.0/users/${req.params.id}/authentication/methods/${method.id}`, { headers });
+                } catch (e) {
+                    console.warn(`Failed to delete MFA method ${method.id}:`, e.message);
+                }
+            }
+        }
+        res.json({ success: true, message: 'MFA methods removed successfully' });
+    } catch (error) {
+        console.error('Failed to remove MFA methods:', error.response?.data || error.message);
+        res.status(500).json({ success: false, error: 'Failed to remove MFA methods' });
+    }
+});
+
+app.delete('/api/users/:id/groups', validateToken, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const headers = { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' };
+        
+        let userObjectId = userId;
+        if (userId.includes('@')) {
+            try {
+                const idRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}?$select=id`, { headers });
+                userObjectId = idRes.data.id;
+            } catch (e) {}
+        }
+
+        const groupsRes = await axios.get(`https://graph.microsoft.com/v1.0/users/${userId}/memberOf?$select=id,groupTypes`, { headers });
+        const groups = groupsRes.data.value || [];
+        
+        for (const group of groups) {
+            if (group['@odata.type'] === '#microsoft.graph.group') {
+                const isDynamic = group.groupTypes && group.groupTypes.includes('DynamicMembership');
+                if (!isDynamic) {
+                    try {
+                        await axios.delete(`https://graph.microsoft.com/v1.0/groups/${group.id}/members/${userObjectId}/$ref`, { headers });
+                    } catch (err) {}
+                }
+            }
+        }
+        res.json({ success: true, message: 'User removed from groups successfully' });
+    } catch (error) {
+        console.error('Failed to remove user from groups:', error.response?.data || error.message);
+        res.status(500).json({ success: false, error: 'Failed to remove from groups' });
+    }
+});
+
+// ======================================================
 // Offboarding Workflows
 // ======================================================
 

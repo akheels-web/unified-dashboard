@@ -579,16 +579,22 @@ export const usersApi = {
     }
   },
 
-  removeMfa: async (_id: string): Promise<ApiResponse<void>> => {
-    // complex operation, mocking for now
-    await delay(500);
-    return { success: true, message: 'MFA methods removed successfully' };
+  removeMfa: async (id: string): Promise<ApiResponse<void>> => {
+    try {
+      await fetchClient(`/users/${id}/mfa`, { method: 'DELETE' });
+      return { success: true, message: 'MFA methods removed successfully' };
+    } catch (e) {
+      return { success: false, message: 'Failed to remove MFA methods' };
+    }
   },
 
-  removeFromGroups: async (_id: string): Promise<ApiResponse<void>> => {
-    // complex operation, mocking for now
-    await delay(700);
-    return { success: true, message: 'User removed from groups successfully' };
+  removeFromGroups: async (id: string): Promise<ApiResponse<void>> => {
+    try {
+      await fetchClient(`/users/${id}/groups`, { method: 'DELETE' });
+      return { success: true, message: 'User removed from groups successfully' };
+    } catch (e) {
+      return { success: false, message: 'Failed to remove from groups' };
+    }
   },
 
   syncUsers: async (): Promise<ApiResponse<void>> => {
