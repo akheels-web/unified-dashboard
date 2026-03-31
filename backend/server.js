@@ -1362,25 +1362,54 @@ app.get('/api/dashboard/identity-hygiene', validateToken, async (req, res) => {
     }
 });
 
-// Audit Logs (Activity)
+// Audit Logs (Activity) - filtered to specific admin accounts
 app.get('/api/audit-logs', validateToken, async (req, res) => {
     try {
-        const limit = req.query.limit || 10;
-        // Fetch from Graph API Directory Audits
+        const limit = parseInt(req.query.limit) || 10;
+
+        // ── Admin whitelist ──────────────────────────────────────────────────────
+        // Only audit events initiated by these accounts will be returned.
+        const ADMIN_UPNS = [
+            'mohammed.akheel@lxt.ai',
+            'ibrahim.aly@lxt.ai',
+            'dilawar.amin@lxt.ai',
+            'youssef.ragab@lxt.ai',
+            'absal.abdulhafedh@lxt.ai',
+            'muhammad.hamdi@lxt.ai',
+            'nada.elrayes@lxt.ai',
+            'ahmed.amin@lxt.ai',
+        ].map(e => e.toLowerCase());
+        // ────────────────────────────────────────────────────────────────────────
+
+        // Fetch a larger batch from Graph so we have enough after filtering.
+        // Graph's $filter on initiatedBy.user.userPrincipalName is complex (nested),
+        // so we fetch max 200 records and filter client-side.
+        const fetchLimit = Math.min(200, limit * 10);
         const response = await axios.get(
-            `https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?$top=${limit}&$orderby=activityDateTime desc`,
-            {
-                headers: { Authorization: `Bearer ${req.accessToken}` }
-            }
+            `https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?$top=${fetchLimit}&$orderby=activityDateTime desc`,
+            { headers: { Authorization: `Bearer ${req.accessToken}` } }
         );
 
-        const logs = response.data.value.map(log => ({
+        const allLogs = response.data.value || [];
+
+        // Filter to only admin events
+        const adminLogs = allLogs.filter(log => {
+            const upn = (log.initiatedBy?.user?.userPrincipalName || '').toLowerCase();
+            return ADMIN_UPNS.includes(upn);
+        });
+
+        // Take up to the requested limit after filtering
+        const limitedLogs = adminLogs.slice(0, limit);
+
+        const logs = limitedLogs.map(log => ({
             id: log.id,
-            user: log.initiatedBy?.user?.displayName || 'System',
+            user: log.initiatedBy?.user?.displayName || log.initiatedBy?.user?.userPrincipalName || 'System',
+            userPrincipalName: (log.initiatedBy?.user?.userPrincipalName || '').toLowerCase(),
             action: log.activityDisplayName,
             target: log.targetResources?.[0]?.displayName || 'Unknown',
-            status: log.result === 'success' ? 'Success' : 'Failed',
-            timestamp: log.activityDateTime
+            status: log.result === 'success' ? 'success' : 'failed',
+            timestamp: log.activityDateTime,
+            category: log.category || 'DirectoryManagement',
         }));
 
         res.json({ value: logs });
@@ -1389,6 +1418,7 @@ app.get('/api/audit-logs', validateToken, async (req, res) => {
         res.json({ value: [] }); // Return empty on error
     }
 });
+
 
 // Drill-down: External Forwarding (Simulated)
 // ... (existing comments)

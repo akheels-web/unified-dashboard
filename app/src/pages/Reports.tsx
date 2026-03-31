@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Users, Laptop, TrendingUp, Download,
   Shield, Key, History,
-  CheckCircle2, AlertTriangle, RefreshCw
+  CheckCircle2, AlertTriangle, RefreshCw, Search, UserCheck
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -18,6 +18,23 @@ import { usersApi, assetsApi, dashboardApi } from '@/services/api';
 import type { M365User, Asset } from '@/types';
 import { format, subDays, isAfter, parseISO } from 'date-fns';
 
+// ── Admin whitelist ─────────────────────────────────────────────────────────
+// Only audit events from these accounts appear in the Admin Audit tab.
+const ADMIN_WHITELIST = [
+  { upn: 'mohammed.akheel@lxt.ai',     name: 'Mohammed Akheel',     initials: 'MA', color: '#6366f1' },
+  { upn: 'ibrahim.aly@lxt.ai',         name: 'Ibrahim Aly',         initials: 'IA', color: '#0ea5e9' },
+  { upn: 'dilawar.amin@lxt.ai',        name: 'Dilawar Amin',        initials: 'DA', color: '#10b981' },
+  { upn: 'youssef.ragab@lxt.ai',       name: 'Youssef Ragab',       initials: 'YR', color: '#f59e0b' },
+  { upn: 'absal.abdulhafedh@lxt.ai',   name: 'Absal Abdulhafedh',   initials: 'AA', color: '#ef4444' },
+  { upn: 'muhammad.hamdi@lxt.ai',      name: 'Muhammad Hamdi',      initials: 'MH', color: '#8b5cf6' },
+  { upn: 'nada.elrayes@lxt.ai',        name: 'Nada El-Rayes',       initials: 'NE', color: '#ec4899' },
+  { upn: 'ahmed.amin@lxt.ai',          name: 'Ahmed Amin',          initials: 'AH', color: '#14b8a6' },
+];
+const ADMIN_UPN_SET = new Set(ADMIN_WHITELIST.map(a => a.upn.toLowerCase()));
+const adminByUpn = Object.fromEntries(ADMIN_WHITELIST.map(a => [a.upn.toLowerCase(), a]));
+// ────────────────────────────────────────────────────────────────────────────
+
+
 // Report Types Configuration
 const reportTypes = [
   { id: 'overview', name: 'Overview', icon: TrendingUp, description: 'High-level dashboard summary' },
@@ -30,6 +47,7 @@ const reportTypes = [
 export function Reports() {
   const [selectedReport, setSelectedReport] = useState('overview');
   const [dateRange, setDateRange] = useState('30d');
+  const [adminSearch, setAdminSearch] = useState('');
   const { theme } = useUIStore();
   const { 
     users, assets, licenses, auditLogs, mfaData, lastUpdated, setData 
@@ -169,6 +187,17 @@ export function Reports() {
     };
   }, [users, assets, licenses, dateRange, mfaData]);
 
+  // Filtered admin-only audit logs (also computed here so CSV export can use them)
+  const filteredAdminLogs = useMemo(() =>
+    auditLogs.filter(log => {
+      const upn = ((log as any).userPrincipalName || '').toLowerCase();
+      if (upn) return ADMIN_UPN_SET.has(upn);
+      return ADMIN_WHITELIST.some(a =>
+        log.user?.toLowerCase().includes(a.name.toLowerCase().split(' ')[0])
+      );
+    })
+  , [auditLogs]);
+
   const handleExport = () => {
     let csvContent = "";
     let filename = `report_${selectedReport}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
@@ -189,9 +218,9 @@ export function Reports() {
         csvContent += `"${l.name}",${l.used},${l.total},${l.available},${l.percentage}%\n`;
       });
     } else if (selectedReport === 'admin') {
-      csvContent = "Time,Admin,Action,Target,Status\n";
-      auditLogs.forEach(l => {
-        csvContent += `"${l.timestamp}","${l.user}","${l.action}","${l.target}","${l.status}"\n`;
+      csvContent = "Time,Admin,Email,Action,Target,Status\n";
+      filteredAdminLogs.forEach((l: any) => {
+        csvContent += `"${l.timestamp}","${l.user}","${l.userPrincipalName || ''}","${l.action}","${l.target}","${l.status}"\n`;
       });
     } else {
       // Default Overview Export
@@ -404,57 +433,171 @@ export function Reports() {
           </div>
         );
 
-      case 'admin':
+      case 'admin': {
+        // Secondary client-side filter — backend already filters, this is a safety net
+        const adminFiltered = auditLogs.filter(log => {
+          const upn = ((log as any).userPrincipalName || '').toLowerCase();
+          // Match by UPN if available, otherwise by display name substring
+          if (upn) return ADMIN_UPN_SET.has(upn);
+          return ADMIN_WHITELIST.some(a => log.user?.toLowerCase().includes(a.name.toLowerCase().split(' ')[0]));
+        });
+
+        // Apply search
+        const searchLower = adminSearch.toLowerCase();
+        const searchFiltered = searchLower
+          ? adminFiltered.filter(log =>
+              log.user?.toLowerCase().includes(searchLower) ||
+              log.action?.toLowerCase().includes(searchLower) ||
+              log.target?.toLowerCase().includes(searchLower)
+            )
+          : adminFiltered;
+
+        // Per-admin activity counts
+        const adminCounts = ADMIN_WHITELIST.map(admin => ({
+          ...admin,
+          count: adminFiltered.filter(log => {
+            const upn = ((log as any).userPrincipalName || '').toLowerCase();
+            return upn === admin.upn || log.user?.toLowerCase().includes(admin.name.toLowerCase().split(' ')[0]);
+          }).length
+        })).filter(a => a.count > 0);
+
         return (
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <h3 className="font-semibold text-lg">Recent Administrative Activity</h3>
+          <div className="space-y-4">
+            {/* Header + search */}
+            <div className="bg-card rounded-xl border border-border p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  IT Admin Activity
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Showing audit log entries for {ADMIN_WHITELIST.length} IT admins only
+                  {adminFiltered.length > 0 && ` · ${adminFiltered.length} total actions`}
+                </p>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search admin, action, target…"
+                  value={adminSearch}
+                  onChange={e => setAdminSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-sm bg-muted/50 border border-border rounded-lg w-52 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-4 text-muted-foreground font-medium">Time</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium">User</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium">Action</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium">Target</th>
-                    <th className="text-left p-4 text-muted-foreground font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.map(log => (
-                    <tr key={log.id} className="border-t border-border hover:bg-muted/20">
-                      <td className="p-4 text-muted-foreground whitespace-nowrap">
-                        {format(parseISO(log.timestamp), 'MMM d, h:mm a')}
-                      </td>
-                      <td className="p-4 font-medium">{log.user}</td>
-                      <td className="p-4">
-                        <span className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium">
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="p-4 text-muted-foreground">{log.target}</td>
-                      <td className="p-4">
-                        {log.status === 'success' ? (
-                          <div className="flex items-center text-green-500 gap-1">
-                            <CheckCircle2 className="w-4 h-4" /> Success
-                          </div>
-                        ) : (
-                          <div className="flex items-center text-red-500 gap-1">
-                            <AlertTriangle className="w-4 h-4" /> {log.status}
-                          </div>
-                        )}
-                      </td>
+
+            {/* Per-admin activity summary pills */}
+            {adminCounts.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {adminCounts.map(admin => (
+                  <button
+                    key={admin.upn}
+                    onClick={() => setAdminSearch(adminSearch === admin.name.split(' ')[0] ? '' : admin.name.split(' ')[0])}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                      adminSearch === admin.name.split(' ')[0]
+                        ? 'border-transparent text-white shadow-md'
+                        : 'bg-card border-border hover:border-primary/50'
+                    )}
+                    style={adminSearch === admin.name.split(' ')[0] ? { backgroundColor: admin.color } : {}}
+                  >
+                    <span
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
+                      style={{ backgroundColor: admin.color }}
+                    >
+                      {admin.initials}
+                    </span>
+                    {admin.name.split(' ').slice(0, 2).join(' ')}
+                    <span className="ml-0.5 text-muted-foreground font-normal">({admin.count})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Audit log table */}
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-left p-4 text-muted-foreground font-medium">Time</th>
+                      <th className="text-left p-4 text-muted-foreground font-medium">Admin</th>
+                      <th className="text-left p-4 text-muted-foreground font-medium">Action</th>
+                      <th className="text-left p-4 text-muted-foreground font-medium">Target</th>
+                      <th className="text-left p-4 text-muted-foreground font-medium">Status</th>
                     </tr>
-                  ))}
-                  {auditLogs.length === 0 && (
-                    <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No recent activity found.</td></tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {searchFiltered.map((log, i) => {
+                      const upn = ((log as any).userPrincipalName || '').toLowerCase();
+                      const admin = adminByUpn[upn] || ADMIN_WHITELIST.find(a =>
+                        log.user?.toLowerCase().includes(a.name.toLowerCase().split(' ')[0])
+                      );
+                      return (
+                        <tr key={log.id || i} className="border-t border-border hover:bg-muted/20 transition-colors">
+                          <td className="p-4 text-muted-foreground whitespace-nowrap text-xs">
+                            {log.timestamp ? format(parseISO(log.timestamp), 'MMM d, h:mm a') : '—'}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                                style={{ backgroundColor: admin?.color ?? '#64748b' }}
+                              >
+                                {admin?.initials ?? log.user?.slice(0, 2).toUpperCase() ?? '??'}
+                              </span>
+                              <div>
+                                <div className="font-medium text-foreground text-xs">{log.user}</div>
+                                {upn && <div className="text-[10px] text-muted-foreground">{upn}</div>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium">
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="p-4 text-muted-foreground text-xs max-w-[200px] truncate" title={log.target}>
+                            {log.target}
+                          </td>
+                          <td className="p-4">
+                            {((log.status as string).toLowerCase() === 'success') ? (
+                              <div className="flex items-center text-green-500 gap-1 text-xs">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Success
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-red-500 gap-1 text-xs">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Failed
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {searchFiltered.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-10 text-center text-muted-foreground">
+                          {adminFiltered.length === 0
+                            ? 'No admin activity found. The audit log may still be loading or these admins have no recent actions.'
+                            : `No results matching "${adminSearch}"`
+                          }
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {searchFiltered.length > 0 && (
+                <div className="p-3 border-t border-border text-xs text-muted-foreground text-right">
+                  {searchFiltered.length} action{searchFiltered.length !== 1 ? 's' : ''} shown
+                  {searchLower && ` (filtered from ${adminFiltered.length})`}
+                </div>
+              )}
             </div>
           </div>
         );
+      }
 
       default: // Overview
         return (
