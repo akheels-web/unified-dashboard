@@ -361,9 +361,11 @@ export function Offboarding() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-foreground font-medium">Remove All Licenses</span>
+                    <span className="text-foreground font-medium">Remove Microsoft 365 Licenses</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">Unassign all M365/O365 licenses</p>
+                  <p className="text-sm text-muted-foreground">
+                    Unassigning licenses will permanently delete the user's OneDrive and Mailbox after 30 days. Maintain the license (leave unchecked) only if you need to keep emails safe indefinitely.
+                  </p>
                 </div>
               </label>
 
