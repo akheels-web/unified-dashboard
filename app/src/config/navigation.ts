@@ -10,7 +10,6 @@ import {
     ClipboardList,
     Shield,
     Globe,
-    Server,
     Settings,
 } from 'lucide-react';
 
