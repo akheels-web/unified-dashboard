@@ -154,9 +154,9 @@ export function Reports() {
     const nonCompliantDevices = assets.filter((a: Asset) => (a.notes || '').toLowerCase() === 'noncompliant');
     const unknownCompliance = assets.length - compliantDevices.length - nonCompliantDevices.length;
 
-    // OS Distribution
+    // OS Distribution — group by actual OS name, not device category
     const osDist = assets.reduce((acc: any, curr: Asset) => {
-      const os = curr.category || 'Unknown';
+      const os = (curr as any).operatingSystem || curr.category || 'Unknown';
       acc[os] = (acc[os] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
