@@ -16,6 +16,7 @@ import {
 } from './mockData';
 import { useNetworkStore } from '@/stores/networkStore';
 import { getAccessToken } from './auth';
+import { isAdminLog } from '@/config/adminWhitelist';
 
 // API Base URL
 // backend runs on port 3000, explicitly use https and the VM IP
@@ -218,7 +219,8 @@ export const dashboardApi = {
 
   getActivity: async (limit: number = 10): Promise<ApiResponse<ActivityItem[]>> => {
     try {
-      const response = await fetchClient(`/audit-logs?limit=${limit}`);
+      // Over-fetch so admin-only filtering still yields `limit` rows (backend caps at limit*10).
+      const response = await fetchClient(`/audit-logs?limit=${limit * 5}`);
 
       // Validate response structure
       if (!response || !Array.isArray(response.value)) {
@@ -226,8 +228,11 @@ export const dashboardApi = {
         return { success: true, data: [] };
       }
 
+      // Issue 6 (Option A): show only activity from whitelisted IT admins.
+      const adminLogs = response.value.filter(isAdminLog).slice(0, limit);
+
       // Map audit logs to activity items with safe navigation
-      const activities: ActivityItem[] = response.value.map((log: any) => ({
+      const activities: ActivityItem[] = adminLogs.map((log: any) => ({
         id: log.id || '',
         type: (log.category?.toLowerCase() || 'system') as any,
         action: log.action || 'Unknown Action',
