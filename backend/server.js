@@ -532,6 +532,21 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
             return res.status(404).json({ error: 'Data is empty, use fallback' });
         }
 
+        // Secure Score fallback: the snapshot stores a percentage (0-100). If the collector
+        // ran while permissions were missing it will be 0 — fetch live from Graph in that case.
+        let liveSecureScore = parseFloat(currentData.secure_score) || 0;
+        if (liveSecureScore === 0) {
+            try {
+                const ssRes = await axios.get('https://graph.microsoft.com/v1.0/security/secureScores?$top=1',
+                    { headers: { Authorization: `Bearer ${req.accessToken}` } });
+                const cur = ssRes.data.value?.[0]?.currentScore || 0;
+                const max = ssRes.data.value?.[0]?.maxScore || 100;
+                liveSecureScore = max > 0 ? (cur / max) * 100 : 0;
+            } catch (e) {
+                console.warn('Live secure score fallback failed:', e.response?.data || e.message);
+            }
+        }
+
         // Calculate trends (Current - Previous)
         // If no previous data, trend is 0
         const calculateTrend = (curr, prev) => {
@@ -544,7 +559,7 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
                 high_security_alerts: currentData.high_security_alerts || 0,
                 high_risk_users: currentData.high_risk_users || 0,
                 risky_signins_24h: currentData.risky_signins_24h || 0,
-                secure_score: parseFloat(currentData.secure_score) || 0,
+                secure_score: liveSecureScore,
                 defender_exposure_score: parseFloat(currentData.defender_exposure_score) || 0,
                 // Hygiene Data
                 mfa_coverage_percent: parseFloat(hygieneData.mfa_coverage_percent) || 0,
