@@ -23,7 +23,6 @@ const ApplicationGovernance = lazy(() => import('@/pages/ApplicationGovernance')
 const Offboarding = lazy(() => import('@/pages/Offboarding').then(m => ({ default: m.Offboarding })));
 const Network = lazy(() => import('@/pages/Network').then(m => ({ default: m.Network })));
 const Sites = lazy(() => import('@/pages/Sites').then(m => ({ default: m.Sites })));
-const Proxmox = lazy(() => import('@/pages/Proxmox').then(m => ({ default: m.Proxmox })));
 const Reports = lazy(() => import('@/pages/Reports').then(m => ({ default: m.Reports })));
 const Audit = lazy(() => import('@/pages/Audit').then(m => ({ default: m.Audit })));
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })));
@@ -145,7 +144,6 @@ function App() {
             <Route path="/offboarding" element={<RoleRoute roles={['it_admin']}><SafePage name="Offboarding"><Offboarding /></SafePage></RoleRoute>} />
             <Route path="/network" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Network"><Network /></SafePage></RoleRoute>} />
             <Route path="/sites" element={<RoleRoute roles={['it_admin']}><SafePage name="Sites"><Sites /></SafePage></RoleRoute>} />
-            <Route path="/proxmox" element={<RoleRoute roles={['it_admin', 'it_user']}><SafePage name="Proxmox"><Proxmox /></SafePage></RoleRoute>} />
             <Route path="/reports" element={<RoleRoute roles={['it_admin']}><SafePage name="Reports"><Reports /></SafePage></RoleRoute>} />
             <Route path="/audit" element={<RoleRoute roles={['it_admin']}><SafePage name="Audit Logs"><Audit /></SafePage></RoleRoute>} />
             <Route path="/settings" element={<RoleRoute roles={['it_admin']}><SafePage name="Settings"><Settings /></SafePage></RoleRoute>} />
