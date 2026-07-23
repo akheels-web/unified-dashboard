@@ -743,6 +743,7 @@ export const assetsApi = {
           serialNumber: d.serialNumber || 'N/A',
           model: d.model || 'Unknown Model',
           category: d.operatingSystem === 'Windows' ? 'Laptop' : d.operatingSystem === 'iOS' ? 'Mobile' : 'Workstation',
+          operatingSystem: d.operatingSystem || 'Unknown',
           status: 'available',
           assignedTo: d.userId,
           assignedToName: d.userDisplayName,
