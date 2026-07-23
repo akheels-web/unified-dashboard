@@ -2129,18 +2129,6 @@ const startServer = () => {
 // User Quick Actions
 // ======================================================
 
-app.patch('/api/users/:id', validateToken, async (req, res) => {
-    try {
-        const { accountEnabled } = req.body;
-        const headers = { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' };
-        await axios.patch(`https://graph.microsoft.com/v1.0/users/${req.params.id}`, { accountEnabled }, { headers });
-        res.json({ success: true, message: 'User updated successfully' });
-    } catch (error) {
-        console.error('Failed to update user:', error.response?.data || error.message);
-        res.status(500).json({ success: false, error: 'Failed to update user' });
-    }
-});
-
 app.post('/api/users/:id/revoke', validateToken, async (req, res) => {
     try {
         const headers = { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' };
