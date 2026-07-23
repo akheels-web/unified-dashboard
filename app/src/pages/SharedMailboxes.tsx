@@ -197,7 +197,11 @@ export function SharedMailboxes() {
                                         Mailbox Members ({selectedMailbox.members?.length || 0})
                                     </h3>
                                     {selectedMailbox.members?.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm">No members assigned to this mailbox.</p>
+                                        <p className="text-muted-foreground text-sm">
+                                            {selectedMailbox.membersSource === 'exchange-required'
+                                                ? 'Mailbox delegation is not available via Microsoft Graph. Requires an Exchange Online integration to list assigned users.'
+                                                : 'No members assigned to this mailbox.'}
+                                        </p>
                                     ) : (
                                         <div className="space-y-2">
                                             {selectedMailbox.members?.map((member: string, _idx: number) => (
