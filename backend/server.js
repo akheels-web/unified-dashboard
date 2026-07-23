@@ -293,20 +293,28 @@ app.get('/api/users/locations', validateToken, async (req, res) => {
 // Bulk Actions: Disable User
 app.patch('/api/users/:id', validateToken, async (req, res) => {
     const userId = req.params.id;
-    const { accountEnabled } = req.body;
+    const { accountEnabled, department, jobTitle } = req.body;
 
-    if (accountEnabled === undefined) return res.status(400).json({ error: 'Missing accountEnabled' });
+    // Build the update payload – only include defined fields
+    const updatePayload = {};
+    if (accountEnabled !== undefined) updatePayload.accountEnabled = accountEnabled;
+    if (department !== undefined) updatePayload.department = department;
+    if (jobTitle !== undefined) updatePayload.jobTitle = jobTitle;
 
-    console.log(`[${new Date().toISOString()}] ${accountEnabled ? 'Enabling' : 'Disabling'} user ${userId}`);
+    if (Object.keys(updatePayload).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    console.log(`[${new Date().toISOString()}] Updating user ${userId}`, updatePayload);
     try {
         await axios.patch(`https://graph.microsoft.com/v1.0/users/${userId}`,
-            { accountEnabled },
+            updatePayload,
             { headers: { Authorization: `Bearer ${req.accessToken}`, 'Content-Type': 'application/json' } }
         );
-        res.json({ success: true, message: `User ${accountEnabled ? 'enabled' : 'disabled'}` });
+        res.json({ success: true, message: 'User updated successfully', updated: updatePayload });
     } catch (error) {
-        console.error('Failed to update user status:', error.response?.data || error.message);
-        res.status(500).json({ error: 'Failed to update user status' });
+        console.error('Failed to update user:', error.response?.data || error.message);
+        res.status(500).json({ error: 'Failed to update user' });
     }
 });
 
@@ -1346,10 +1354,7 @@ app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
     }
 });
 
-// Drill-down: Users Without MFA
-app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
-    // ... (existing code)
-});
+
 
 // Dashboard: Identity Hygiene Stats
 app.get('/api/dashboard/identity-hygiene', validateToken, async (req, res) => {
@@ -1722,13 +1727,9 @@ app.get('/api/dashboard/sites', validateToken, async (req, res) => {
 
 app.get('/api/security/external-forwarding', validateToken, async (req, res) => {
     console.log(`[${new Date().toISOString()}] Fetching External Forwarding Rules`);
-    // Placeholder: In a real app, you'd likely query a cached table of mail rules or an alert provider
-    res.json({
-        value: [
-            // Example structure if we had data
-            { id: '1', userDisplayName: 'John Doe', userPrincipalName: 'john.doe@contoso.com', forwardTo: 'john.personal@gmail.com', enabled: true }
-        ]
-    });
+    // External forwarding rules require PowerShell / Exchange Online — not available via Graph API v1.0.
+    // Return empty list. If we later integrate with Exchange, populate this.
+    res.json({ value: [] });
 });
 
 // Import Unifi Service (Optional Integration)
