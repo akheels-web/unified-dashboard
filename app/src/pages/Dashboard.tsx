@@ -61,6 +61,10 @@ export default function Dashboard() {
   const [isExternalForwardingModalOpen, setIsExternalForwardingModalOpen] = useState(false);
   const [isMfaModalOpen, setIsMfaModalOpen] = useState(false);
 
+  // Live counts sourced from the SAME endpoints the drill-down modals use, so the
+  // card number always matches the list inside it (fixes card-vs-modal mismatches).
+  const [liveCounts, setLiveCounts] = useState<{ alerts: number; noMfa: number; nonCompliant: number } | null>(null);
+
   const {
     securitySummary, deviceHealth, identityHygiene, licenses, activities, systemStatus, mfaCoverage, setDashboardData, lastUpdated
   } = useDashboardStore();
@@ -96,7 +100,20 @@ export default function Dashboard() {
           dashboardApi.getMfaCoverage()
         ]);
 
+        // Live counts from the drill-down endpoints so cards match their modals exactly.
+        const [alertsRes, noMfaRes, nonCompliantRes] = await Promise.all([
+          dashboardApi.getSecurityAlerts(),
+          dashboardApi.getUsersWithoutMfa(),
+          dashboardApi.getNonCompliantDevices()
+        ]);
+
         if (!isMounted) return;
+
+        setLiveCounts({
+          alerts: alertsRes?.data?.length || 0,
+          noMfa: noMfaRes?.data?.length || 0,
+          nonCompliant: nonCompliantRes?.data?.length || 0
+        });
 
         const newData: any = {};
         if (securityRes?.success) newData.securitySummary = securityRes.data;
@@ -222,7 +239,7 @@ export default function Dashboard() {
                 {renderTrend(trends?.high_security_alerts || 0, true)}
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{current?.high_security_alerts || 0}</h3>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{liveCounts?.alerts ?? current?.high_security_alerts ?? 0}</h3>
                 <p className="text-sm font-medium text-red-600 dark:text-red-400">High Severity Alerts</p>
                 <p className="text-xs text-muted-foreground mt-1">Requires immediate attention</p>
               </div>
@@ -258,7 +275,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{mfaCoverage?.disabled || 0}</h3>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{liveCounts?.noMfa ?? mfaCoverage?.disabled ?? 0}</h3>
                 <p className="text-sm font-medium text-red-600 dark:text-red-400">Users without MFA</p>
                 <p className="text-xs text-muted-foreground mt-1">Security Risk Coverage</p>
               </div>
@@ -328,7 +345,7 @@ export default function Dashboard() {
                 {trends?.non_compliant_devices !== undefined && renderTrend(trends.non_compliant_devices, true)}
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{deviceHealth?.non_compliant_devices || 0}</h3>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{liveCounts?.nonCompliant ?? deviceHealth?.non_compliant_devices ?? 0}</h3>
                 <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Non-Compliant Devices</p>
                 <p className="text-xs text-muted-foreground mt-1">Requires compliance update</p>
               </div>
