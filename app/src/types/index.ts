@@ -69,6 +69,7 @@ export interface Asset {
   assetTag: string;
   name: string;
   category: string;
+  operatingSystem?: string;
   manufacturer?: string;
   model?: string;
   serialNumber?: string;
