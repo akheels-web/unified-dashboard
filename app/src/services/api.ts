@@ -280,24 +280,24 @@ export const dashboardApi = {
     } catch (e) {
       console.warn("Failed to fetch security summary", e);
     }
-    // Mock Fallback
+    // Return zeroed-out structure instead of mock data
     return {
-      success: true,
+      success: false,
       data: {
         current: {
-          high_security_alerts: 3,
-          medium_security_alerts: 5,
-          high_risk_users: 2,
-          risky_signins_24h: 1,
-          dlp_high_incidents: 1,
-          secure_score: 65.5,
-          defender_exposure_score: 24,
+          high_security_alerts: 0,
+          medium_security_alerts: 0,
+          high_risk_users: 0,
+          risky_signins_24h: 0,
+          dlp_high_incidents: 0,
+          secure_score: 0,
+          defender_exposure_score: 0,
           timestamp: new Date().toISOString()
         },
         trends: {
-          high_security_alerts: -2,
+          high_security_alerts: 0,
           high_risk_users: 0,
-          secure_score: 1.5
+          secure_score: 0
         }
       }
     };
@@ -312,16 +312,17 @@ export const dashboardApi = {
     } catch (e) {
       console.warn("Failed to fetch device health", e);
     }
+    // Return zeroed-out structure instead of mock data
     return {
-      success: true,
+      success: false,
       data: {
-        total_devices: 215,
-        compliant_devices: 198,
-        non_compliant_devices: 17,
-        encrypted_devices: 210,
-        win10_count: 45,
-        win11_count: 170,
-        outdated_builds_count: 12
+        total_devices: 0,
+        compliant_devices: 0,
+        non_compliant_devices: 0,
+        encrypted_devices: 0,
+        win10_count: 0,
+        win11_count: 0,
+        outdated_builds_count: 0
       }
     };
   },
@@ -335,15 +336,16 @@ export const dashboardApi = {
     } catch (e) {
       console.warn("Failed to fetch identity hygiene", e);
     }
+    // Return zeroed-out structure instead of mock data
     return {
-      success: true,
+      success: false,
       data: {
-        mfa_coverage_percent: 88.5,
+        mfa_coverage_percent: 0,
         privileged_no_mfa: 0,
-        dormant_users_60d: 12,
-        guest_inactive_90d: 5,
-        mailbox_usage_over_90: 3,
-        external_forwarding_count: 1
+        dormant_users_60d: 0,
+        guest_inactive_90d: 0,
+        mailbox_usage_over_90: 0,
+        external_forwarding_count: 0
       }
     };
   },
@@ -396,7 +398,7 @@ export const dashboardApi = {
   getExternalForwardingRules: async (): Promise<ApiResponse<any[]>> => {
     try {
       const response = await fetchClient('/security/external-forwarding');
-      if (response && response.value) {
+      if (response && Array.isArray(response.value)) {
         return { success: true, data: response.value };
       }
     } catch (e) {
@@ -569,6 +571,19 @@ export const usersApi = {
       return { success: false, message: 'Failed to disable user' };
     }
   },
+
+  updateUser: async (id: string, data: { department?: string; jobTitle?: string; accountEnabled?: boolean }): Promise<ApiResponse<void>> => {
+    try {
+      await fetchClient(`/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      });
+      return { success: true, message: 'User updated successfully' };
+    } catch (e) {
+      return { success: false, message: 'Failed to update user' };
+    }
+  },
+
 
   revokeSessions: async (id: string): Promise<ApiResponse<void>> => {
     try {
