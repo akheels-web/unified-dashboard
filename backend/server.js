@@ -89,7 +89,8 @@ const cache = {
     groups: { data: null, timestamp: null },
     devices: { data: null, timestamp: null },
     applications: { data: null, timestamp: null },
-    mfaCoverage: { data: null, timestamp: null }
+    mfaCoverage: { data: null, timestamp: null },
+    sharedMailboxes: { data: null, timestamp: null }
 };
 
 const CACHE_DURATION = {
@@ -101,7 +102,8 @@ const CACHE_DURATION = {
     groups: 5 * 60 * 1000,              // 5 minutes
     devices: 5 * 60 * 1000,              // 5 minutes
     applications: 10 * 60 * 1000,        // 10 minutes
-    mfaCoverage: 60 * 60 * 1000          // 1 hour
+    mfaCoverage: 60 * 60 * 1000,         // 1 hour
+    sharedMailboxes: 15 * 60 * 1000      // 15 minutes
 };
 
 function getCached(key) {
@@ -1856,35 +1858,23 @@ app.get('/api/messaging/shared-mailboxes', validateToken, async (req, res) => {
             { headers: { Authorization: `Bearer ${req.accessToken}`, 'ConsistencyLevel': 'eventual' } }
         );
 
-        const sharedMailboxes = [];
+        // Full Access mailbox delegation (the users actually assigned to a shared mailbox)
+        // is NOT exposed by Microsoft Graph — it requires Exchange Online PowerShell
+        // (Get-MailboxPermission). We list the mailboxes here and leave members empty until
+        // an Exchange integration is added. (Previously this queried memberOf, which returns
+        // the GROUPS the mailbox belongs to — wrong data.)
+        const sharedMailboxes = usersRes.data.value
+            .filter(user => user.mail)
+            .map(user => ({
+                id: user.id,
+                name: user.displayName,
+                email: user.mail,
+                created: user.createdDateTime,
+                members: [],
+                membersSource: 'exchange-required'
+            }));
 
-        for (const user of usersRes.data.value) {
-            if (!user.mail) continue;
-
-            try {
-                // To get members of a shared mailbox (delegated permissions), we check 'memberOf'
-                // This gets groups the mailbox is a member of. In Entra ID, true mailbox delegation
-                // isn't natively stored here, but we keep this to maintain API structure for now.
-                const membersRes = await axios.get(
-                    `https://graph.microsoft.com/v1.0/users/${user.id}/memberOf`,
-                    { headers: { Authorization: `Bearer ${req.accessToken}` } }
-                ).catch(() => ({ data: { value: [] } }));
-
-                sharedMailboxes.push({
-                    id: user.id,
-                    name: user.displayName,
-                    email: user.mail,
-                    created: user.createdDateTime,
-                    members: membersRes.data.value.map(m => m.displayName)
-                });
-            } catch (err) {
-                console.warn(`Failed to process user ${user.mail}:`, err.message);
-            }
-        }
-
-        // Cache the result for 15 minutes (using a dynamic cache key if not predefined)
-        cache['sharedMailboxes'] = { data: sharedMailboxes, timestamp: Date.now() };
-        CACHE_DURATION['sharedMailboxes'] = 15 * 60 * 1000;
+        setCache('sharedMailboxes', sharedMailboxes);
 
         res.json(sharedMailboxes);
     } catch (err) {
