@@ -36,7 +36,6 @@ export const navItems: NavItem[] = [
 
     { path: '/network', label: 'Network', icon: Wifi, roles: ['it_admin', 'it_user'] },
     { path: '/sites', label: 'Sites', icon: Globe, roles: ['it_admin'] },
-    { path: '/proxmox', label: 'Proxmox', icon: Server, roles: ['it_admin', 'it_user'] },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/audit', label: 'Audit Logs', icon: ClipboardList, roles: ['it_admin'] },
     { path: '/settings', label: 'Settings', icon: Settings, roles: ['it_admin'] },
