@@ -29,6 +29,8 @@ export function Users() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [editingDept, setEditingDept] = useState(false);
+  const [deptInput, setDeptInput] = useState('');
 
 
   // Group member display
@@ -152,6 +154,7 @@ export function Users() {
   const handleUserClick = async (user: M365User) => {
     setUserDetail(user); // Optimistic update
     setShowUserDetail(true);
+    setEditingDept(false);
 
     try {
       if (filters.userType === 'Google') {
@@ -285,6 +288,24 @@ export function Users() {
       }
     } catch (error) {
       toast.error('Failed to remove from groups');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleSaveDepartment = async (userId: string) => {
+    setActionInProgress(`dept-${userId}`);
+    try {
+      const response = await usersApi.updateUser(userId, { department: deptInput });
+      if (response.success) {
+        toast.success('Department updated successfully');
+        setUserDetail(prev => prev ? { ...prev, department: deptInput } : prev);
+        setEditingDept(false);
+      } else {
+        toast.error('Failed to update department');
+      }
+    } catch (error) {
+      toast.error('Failed to update department');
     } finally {
       setActionInProgress(null);
     }
@@ -649,7 +670,40 @@ export function Users() {
                     </div>
                     <div className="flex items-center gap-3">
                       <Building2 className="w-5 h-5 text-muted-foreground" />
-                      <span className="text-foreground">{userDetail.department || 'No department'}</span>
+                      {editingDept ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            autoFocus
+                            value={deptInput}
+                            onChange={(e) => setDeptInput(e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm rounded border border-border bg-background text-foreground"
+                            placeholder="Department"
+                          />
+                          <button
+                            onClick={() => handleSaveDepartment(userDetail.id)}
+                            disabled={actionInProgress === `dept-${userDetail.id}`}
+                            className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground disabled:opacity-50"
+                          >
+                            {actionInProgress === `dept-${userDetail.id}` ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => setEditingDept(false)}
+                            className="px-2 py-1 text-xs rounded hover:bg-muted text-muted-foreground"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-foreground">{userDetail.department || 'No department'}</span>
+                          <button
+                            onClick={() => { setDeptInput(userDetail.department || ''); setEditingDept(true); }}
+                            className="text-xs text-primary hover:underline ml-auto"
+                          >
+                            Edit Department
+                          </button>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       <MapPin className="w-5 h-5 text-muted-foreground" />
