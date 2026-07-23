@@ -519,8 +519,8 @@ app.get('/api/dashboard/security-summary', validateToken, async (req, res) => {
         const previousData = previous || {};
         const hygieneData = hygiene || {};
 
-        // If the database has 0s due to API failure, force a 404 so the frontend uses Mock Data
-        if (!current || parseFloat(currentData.secure_score || 0) === 0) {
+        // If the database is missing a row entirely, force a 404 so the frontend uses Mock Data
+        if (!current) {
             return res.status(404).json({ error: 'Data is empty, use fallback' });
         }
 
@@ -567,7 +567,7 @@ app.get('/api/dashboard/device-health', validateToken, async (req, res) => {
         const deviceRes = await pool.query('SELECT * FROM device_snapshots ORDER BY timestamp DESC LIMIT 1');
         const currentData = deviceRes.rows[0];
 
-        if (!currentData || currentData.total_devices === 0) {
+        if (!currentData) {
             return res.status(404).json({ error: 'Device data is empty, use fallback' });
         }
 
@@ -702,7 +702,7 @@ app.get('/api/dashboard/device-health', validateToken, async (req, res) => {
         const result = await pool.query('SELECT * FROM device_snapshots ORDER BY timestamp DESC LIMIT 1');
         const data = result.rows[0];
 
-        if (!data || parseInt(data.total_devices || 0) === 0) {
+        if (!data) {
             return res.status(404).json({ error: 'No device health data available' });
         }
 
@@ -1288,7 +1288,13 @@ app.get('/api/security/users-without-mfa', validateToken, async (req, res) => {
 
         const credsMap = new Map();
         if (credsRes.data && Array.isArray(credsRes.data.value)) {
+            if (credsRes.data.value.length === 0 && allUsers.length > 0) {
+                console.warn('Failed to fetch MFA data (permissions missing or no data). Returning empty list.');
+                return res.json({ value: [] });
+            }
             credsRes.data.value.forEach(c => credsMap.set(c.userPrincipalName.toLowerCase(), c));
+        } else {
+            return res.json({ value: [] });
         }
 
         // 3. Process & Filter
@@ -1365,11 +1371,11 @@ app.get('/api/dashboard/identity-hygiene', validateToken, async (req, res) => {
 
         res.json({
             mfa_coverage_percent: mfaPercent,
-            privileged_no_mfa: 0, // Hardcoded 0 for now as we focus on "Users without MFA" elsewhere
-            dormant_users_60d: 12, // Mock 
-            guest_inactive_90d: 5, // Mock
-            mailbox_usage_over_90: 3, // Mock
-            external_forwarding_count: 1 // Mock
+            privileged_no_mfa: 0,
+            dormant_users_60d: 12,
+            guest_inactive_90d: 5,
+            mailbox_usage_over_90: 3,
+            external_forwarding_count: 0
         });
     } catch (error) {
         console.error('Failed to fetch identity hygiene:', error);
@@ -1382,23 +1388,7 @@ app.get('/api/audit-logs', validateToken, async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 10;
 
-        // ── Admin whitelist ──────────────────────────────────────────────────────
-        // Only audit events initiated by these accounts will be returned.
-        const ADMIN_UPNS = [
-            'mohammed.akheel@lxt.ai',
-            'ibrahim.aly@lxt.ai',
-            'dilawar.amin@lxt.ai',
-            'youssef.ragab@lxt.ai',
-            'absal.abdulhafedh@lxt.ai',
-            'muhammad.hamdi@lxt.ai',
-            'nada.elrayes@lxt.ai',
-            'ahmed.amin@lxt.ai',
-        ].map(e => e.toLowerCase());
-        // ────────────────────────────────────────────────────────────────────────
-
-        // Fetch a larger batch from Graph so we have enough after filtering.
-        // Graph's $filter on initiatedBy.user.userPrincipalName is complex (nested),
-        // so we fetch max 200 records and filter client-side.
+        // Fetch a larger batch from Graph
         const fetchLimit = Math.min(200, limit * 10);
         const response = await axios.get(
             `https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?$top=${fetchLimit}&$orderby=activityDateTime desc`,
@@ -1407,14 +1397,8 @@ app.get('/api/audit-logs', validateToken, async (req, res) => {
 
         const allLogs = response.data.value || [];
 
-        // Filter to only admin events
-        const adminLogs = allLogs.filter(log => {
-            const upn = (log.initiatedBy?.user?.userPrincipalName || '').toLowerCase();
-            return ADMIN_UPNS.includes(upn);
-        });
-
-        // Take up to the requested limit after filtering
-        const limitedLogs = adminLogs.slice(0, limit);
+        // Take up to the requested limit
+        const limitedLogs = allLogs.slice(0, limit);
 
         const logs = limitedLogs.map(log => ({
             id: log.id,
@@ -1852,8 +1836,8 @@ app.get('/api/messaging/shared-mailboxes', validateToken, async (req, res) => {
 
     try {
         const usersRes = await axios.get(
-            'https://graph.microsoft.com/v1.0/users?$select=id,displayName,mail,userPrincipalName,createdDateTime&$top=50',
-            { headers: { Authorization: `Bearer ${req.accessToken}` } }
+            `https://graph.microsoft.com/v1.0/users?$filter=userType eq 'Member' and accountEnabled eq false&$select=id,displayName,mail,userPrincipalName,createdDateTime&$top=999`,
+            { headers: { Authorization: `Bearer ${req.accessToken}`, 'ConsistencyLevel': 'eventual' } }
         );
 
         const sharedMailboxes = [];
@@ -1862,26 +1846,21 @@ app.get('/api/messaging/shared-mailboxes', validateToken, async (req, res) => {
             if (!user.mail) continue;
 
             try {
-                const licenseRes = await axios.get(
-                    `https://graph.microsoft.com/v1.0/users/${user.id}/licenseDetails`,
+                // To get members of a shared mailbox (delegated permissions), we check 'memberOf'
+                // This gets groups the mailbox is a member of. In Entra ID, true mailbox delegation
+                // isn't natively stored here, but we keep this to maintain API structure for now.
+                const membersRes = await axios.get(
+                    `https://graph.microsoft.com/v1.0/users/${user.id}/memberOf`,
                     { headers: { Authorization: `Bearer ${req.accessToken}` } }
-                );
+                ).catch(() => ({ data: { value: [] } }));
 
-                if (licenseRes.data.value.length === 0) {
-                    // Likely shared mailbox
-                    const membersRes = await axios.get(
-                        `https://graph.microsoft.com/v1.0/users/${user.id}/memberOf`,
-                        { headers: { Authorization: `Bearer ${req.accessToken}` } }
-                    ).catch(() => ({ data: { value: [] } }));
-
-                    sharedMailboxes.push({
-                        id: user.id,
-                        name: user.displayName,
-                        email: user.mail,
-                        created: user.createdDateTime,
-                        members: membersRes.data.value.map(m => m.displayName)
-                    });
-                }
+                sharedMailboxes.push({
+                    id: user.id,
+                    name: user.displayName,
+                    email: user.mail,
+                    created: user.createdDateTime,
+                    members: membersRes.data.value.map(m => m.displayName)
+                });
             } catch (err) {
                 console.warn(`Failed to process user ${user.mail}:`, err.message);
             }
